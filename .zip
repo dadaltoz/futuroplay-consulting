@@ -1,0 +1,121 @@
+import React, { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
+export default function FuturoPlaySite() {
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const [jogador, setJogador] = useState({ nome: "", idade: "", posicao: "", clube: "" });
+  const [scouting, setScouting] = useState(null);
+
+  const handleEnviar = () => {
+    if (nome && email && mensagem) {
+      alert("Mensagem enviada com sucesso! Em breve entraremos em contato.");
+      setNome("");
+      setEmail("");
+      setMensagem("");
+    } else {
+      alert("Por favor, preencha todos os campos.");
+    }
+  };
+
+  const gerarScouting = () => {
+    if (!jogador.nome || !jogador.idade || !jogador.posicao) {
+      alert("Preencha todos os dados do jogador.");
+      return;
+    }
+
+    const sugestao = jogador.posicao.toLowerCase().includes("ata")
+      ? "Potencial ofensivo alto. Desenvolver finalizações e tomada de decisão."
+      : jogador.posicao.toLowerCase().includes("zague")
+      ? "Boa leitura de jogo. Trabalhar impulsão e antecipação."
+      : "Perfil versátil. Foco em resistência e inteligência tática.";
+
+    setScouting({
+      ...jogador,
+      analise: sugestao,
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-6">
+      <header className="text-center mb-12">
+        <h1 className="text-4xl font-bold text-gray-800">FuturoPlay Consulting ⚽</h1>
+        <p className="text-lg text-gray-600 mt-2">
+          Inteligência Esportiva para o Futuro do Futebol
+        </p>
+      </header>
+
+      <section className="grid md:grid-cols-3 gap-6 mb-12">
+        <Card>
+          <CardContent className="p-4">
+            <h2 className="text-xl font-semibold">Análise de Jogadores</h2>
+            <p className="mt-2 text-gray-600">
+              Avaliação técnica e tática com base em dados e IA, conectando talentos com oportunidades reais.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <h2 className="text-xl font-semibold">Scouting Digital</h2>
+            <p className="mt-2 text-gray-600">
+              Plataforma inteligente de observação de atletas. Clubes podem filtrar, avaliar e acompanhar jovens promessas.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <h2 className="text-xl font-semibold">Consultoria Estratégica</h2>
+            <p className="mt-2 text-gray-600">
+              Soluções personalizadas para clubes, atletas e investidores com foco em performance e visão de futuro.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="max-w-xl mx-auto text-center bg-white p-6 rounded-2xl shadow mb-12">
+        <h2 className="text-2xl font-bold mb-4">Entre para nossa rede</h2>
+        <p className="text-gray-600 mb-6">
+          Estamos montando nossa primeira rede de talentos e parceiros. Envie seus dados e participe!
+        </p>
+        <div className="space-y-4 text-left">
+          <Input placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
+          <Input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Textarea placeholder="Mensagem ou Interesse" value={mensagem} onChange={(e) => setMensagem(e.target.value)} />
+          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" onClick={handleEnviar}>
+            Enviar
+          </Button>
+        </div>
+      </section>
+
+      <section className="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow text-center">
+        <h2 className="text-2xl font-bold mb-4">Mini Scouting Digital</h2>
+        <p className="text-gray-600 mb-6">
+          Preencha com os dados do jogador e receba uma análise inicial automatizada.
+        </p>
+        <div className="space-y-4 text-left">
+          <Input placeholder="Nome do Jogador" value={jogador.nome} onChange={(e) => setJogador({ ...jogador, nome: e.target.value })} />
+          <Input placeholder="Idade" value={jogador.idade} onChange={(e) => setJogador({ ...jogador, idade: e.target.value })} />
+          <Input placeholder="Posição (ex: Atacante, Zagueiro...)" value={jogador.posicao} onChange={(e) => setJogador({ ...jogador, posicao: e.target.value })} />
+          <Input placeholder="Clube Atual (opcional)" value={jogador.clube} onChange={(e) => setJogador({ ...jogador, clube: e.target.value })} />
+          <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={gerarScouting}>
+            Gerar Análise
+          </Button>
+        </div>
+        {scouting && (
+          <div className="mt-6 text-left border-t pt-4">
+            <h3 className="font-semibold">Resultado:</h3>
+            <p><strong>Nome:</strong> {scouting.nome}</p>
+            <p><strong>Idade:</strong> {scouting.idade}</p>
+            <p><strong>Posição:</strong> {scouting.posicao}</p>
+            <p><strong>Clube:</strong> {scouting.clube}</p>
+            <p className="mt-2 text-blue-700"><strong>Análise:</strong> {scouting.analise}</p>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
