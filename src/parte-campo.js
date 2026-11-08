@@ -1752,9 +1752,19 @@ function pontoAleatorio(area, dono) {
   }
   return null;
 }
+// Ir embora: a pé se a casa está perto; longe, vai até a estação mais perto e some ali (pegou o ônibus)
+function irEmbora(M, a) {
+  const casa = a.portaCasa, E = M.estacoes || [];
+  const dCasa = casa ? Math.hypot(casa.x - a.x, casa.z - a.z) : 1e9;
+  let st = null, dSt = 1e9; E.forEach((e) => { const d = Math.hypot(e.saida.x - a.x, e.saida.z - a.z); if (d < dSt && podePisar(navI(e.saida.x, e.saida.z), a.dono)) { dSt = d; st = e; } });
+  if (st && dCasa > 60 && dSt < dCasa) return irAte(M, a, st.saida.x, st.saida.z, { tipo: 'embora' });
+  if (casa) return irAte(M, a, casa.x, casa.z, { tipo: 'embora' });
+  a.estado = 'sumido'; a.visivel = false; a.t = 5; return true;
+}
 // Escolhe o que fazer agora
 function escolherTarefa(M, a) {
   const anterior = a.lugar;
+  if (a.tipo === 'morador' && a.teto && noiteNaCidade()) return tarefaMorador(M, a);   // fica no lugar dele na cobertura
   soltarPonto(a);
   if (a.tipo === 'interno') return tarefaInterna(M, a, anterior);
   if (a.tipo === 'vigia') return tarefaVigia(M, a);
@@ -1765,7 +1775,7 @@ function escolherTarefa(M, a) {
   if (a.tipo === 'passeio') return tarefaPasseio(M, a);
   if (a.tipo === 'morador') return tarefaMorador(M, a);
   const A = CAMPO.atividade == null ? 1 : CAMPO.atividade, il = a.il && CAMPO.ilhas.get(a.il);
-  if (a.limiar > A + 0.04) { const porta = a.portaCasa; if (porta) return irAte(M, a, porta.x, porta.z, { tipo: 'embora' }); }
+  if (a.limiar > A + 0.04) return irEmbora(M, a);
   const r = Math.random();
   const hall = M.postosSede;
   if (a.tipo === 'func' && il) {
@@ -1887,6 +1897,7 @@ function passoMultidao(M, t, dt) {
     if (!a.ativo) { a.ativo = true; }
     a.visivel = visivelNaApresentacao(a);
     const f = a.fase;
+    if (a.estado === 'andando' && a.caminho && !ok && a.tarefa && a.tarefa.tipo !== 'embora' && a.tipo !== 'vigia' && a.tipo !== 'noturno') { soltarPonto(a); escolherTarefa(M, a); return; }   // escureceu (ou amanheceu): vai para casa já
     if (a.estado === 'andando' && a.caminho) {
       const alvo = a.caminho[Math.min(a.ip, a.caminho.length - 1)];
       const dx = alvo[0] - a.x, dz = alvo[1] - a.z, dist = Math.hypot(dx, dz);
@@ -4065,7 +4076,7 @@ function destinoFora(M, a) {
 // Equipe da Real Forte que trabalha nos centros e circula pela cidade
 function tarefaEquipe(M, a) {
   const A = CAMPO.atividade == null ? 1 : CAMPO.atividade;
-  if (a.limiar > A + 0.04) { const p = a.portaCasa; if (p) return irAte(M, a, p.x, p.z, { tipo: 'embora' }); }
+  if (a.limiar > A + 0.04) return irEmbora(M, a);
   const k = sortearChave(comFase([['diag', 3], ['estr', 3], ['ia', 2], ['perf', 2], ['apres', 2], ['praca', 3], ['estacao', 2], ['hall', 2], ['sedeFora', 2], ['cafeIdeias', 3], ['station', 3], ['encontros', 3]]));
   const r = k === 'praca' ? irAPraca(M, a) : k === 'encontros' ? irAoEncontro(M, a) : k === 'estacao' ? irAEstacao(M, a) : k === 'station' ? irAEstacao(M, a, 'station') : k === 'hall' ? irAoHall(M, a) : irAoCentro(M, a, k);
   if (r) return r;
@@ -4115,7 +4126,7 @@ function novoRoteiro(a) {
 }
 function tarefaVisitante(M, a) {
   const A = CAMPO.atividade == null ? 1 : CAMPO.atividade;
-  if (a.limiar > A + 0.04) { const r = irAEstacao(M, a, 'station'); if (r) return r; const p = a.portaCasa; if (p) return irAte(M, a, p.x, p.z, { tipo: 'embora' }); }
+  if (a.limiar > A + 0.04) return irEmbora(M, a);   // visitante sai pelo Terminal ou pela estação mais perto
   if (!a.roteiro || !a.roteiro.length) a.roteiro = novoRoteiro(a);
   for (let tent = 0; tent < 3 && a.roteiro.length; tent++) {
     const passo = a.roteiro.shift();
@@ -7454,7 +7465,7 @@ function gentDaNoiteNaCidade(M, sorte) {
   }
 }
 function tarefaPasseio(M, a) {
-  if (!noiteNaCidade()) { const r = irAEstacao(M, a, Math.random() < 0.5 ? 'station' : 'central'); if (r) return r; const p = a.portaCasa; if (p) return irAte(M, a, p.x, p.z, { tipo: 'embora' }); }
+  if (!noiteNaCidade()) return irEmbora(M, a);   // amanheceu: vai embora
   const k = sortearChave([['fotoMarcos', 4], ['fotoTorre', 3], ['estacao', 3], ['station', 3], ['praca', 3], ['encontro', 2], ['cafeIdeias', 2], ['sedeFora', 2], ['totem', 1]]);
   const r = k === 'estacao' ? irAEstacao(M, a) : k === 'station' ? irAEstacao(M, a, 'station') : k === 'praca' ? irAPraca(M, a) : k === 'encontro' ? irAoEncontro(M, a) : irAoCentro(M, a, k);
   if (r) return r;
@@ -7485,14 +7496,16 @@ function tarefaMorador(M, a) {
   const il = CAMPO.ilhas.get(a.il);
   if (!il || !noiteNaCidade()) {
     if (a.teto || !a.portaCasa) { a.estado = 'sumido'; a.visivel = false; a.t = 5; return true; }
-    return irAte(M, a, a.portaCasa.x, a.portaCasa.z, { tipo: 'embora' });
+    return irEmbora(M, a);
   }
   if (a.teto) {
-    const livres = (il.pontosTeto || []).filter((p) => !p.ocupado);
-    const p = livres[Math.floor(Math.random() * livres.length)];
-    if (!p) { a.estado = 'parado'; a.t = 3; return true; }
-    p.ocupado = a; a.lugar = p; a.tarefa = { tipo: 'posto', lugar: p }; a.destino = [p.x, p.z];
-    a.caminho = [[a.x, a.z], [p.x, p.z]]; a.ip = 1; a.estado = 'andando';
+    /* Na cobertura cada um fica no seu lugar (ninguém atravessa a piscina andando): quem está na
+       espreguiçadeira continua deitado; quem está em pé alterna conversa, foto, café e a vista. */
+    const p = a.lugar || (il.pontosTeto || []).find((q) => !q.ocupado);
+    if (!p) { a.estado = 'sumido'; a.visivel = false; a.t = 8; return true; }
+    p.ocupado = a; a.lugar = p; a.tarefa = { tipo: 'posto', lugar: p }; a.x = p.x; a.z = p.z; a.rot = p.rot;
+    a.anim = p.anim === 'sentar' ? 'sentar' : ['conversar', 'olhar', 'foto', 'emPeCafe', p.anim][Math.floor(Math.random() * 5)];
+    a.estado = 'atividade'; a.t = 8 + Math.random() * 14;
     return true;
   }
   if (Math.random() < 0.5) { const p = livreDe(il.pontosNoiteChao || [], a); if (p) return irAte(M, a, p.x, p.z, { tipo: 'posto', lugar: p }); }
