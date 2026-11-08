@@ -3,7 +3,7 @@
 Painel em um arquivo HTML só, publicado como Artifact no claude.ai. Quem constrói é o Lucas Smarssaro Dadalto. A Real Forte é a consultoria do pai dele. O painel serve aos consultores: empresas, setores, check-up, "o que eu vi", gargalos e oportunidades, biblioteca de soluções, RF Intelligence, RF Sinais e a cidade 3D (cada empresa fica numa ilha-satélite ligada por ponte à plataforma central, que é a cidade da Real Forte, flutuando no espaço).
 
 - **Artifact publicado (sempre atualizar este, nunca criar outro):** https://claude.ai/artifact/6fryTDCEREKpMdKnRKihm8
-- Última versão publicada: **v75** (link da ferramenta direto no cartão da biblioteca).
+- Última versão publicada: **v76** (link da ferramenta direto no cartão da biblioteca).
 - Os DADOS do painel (empresas, anotações, gargalos, arquivos, fotos, áudios) ficam guardados NO artifact (capabilities `db` e `assets`). Publicar num artifact novo = painel vazio. Sempre publicar no mesmo link, passando a URL acima.
 - Capabilities em uso: `sample` (IA), `assets`, `db`, `downloads`, `user`. Na republicação, não passar `capabilities` (assim elas continuam).
 
@@ -28,6 +28,7 @@ Precisa de `python3` e `node`. Imprime `build ok` quando está tudo certo. O arq
 | `parte-campo.js` (fim do arquivo) | **Marcos e torre**: `MARCOS_DOS_LOTES` (qual quarteirão recebe qual edifício-marco; `null` = praça), `edificioMarco`, `pracaDoQuarteirao`, `torreMonumental` (lâminas, RF aceso, coroa e mastro da torre) |
 | `parte-campo.js` (fim do arquivo) | **Edifícios da Real Forte e ilhas**: `edificioRF` (hub = Hub de Conexões no lote da frente, com `W.pontosHub` / `irAoHub` / `semearHub`; instituto, academia, pesquisa, auditorio, sinais, galeria, eventos), `alaDoTerminal` (ala nova do Terminal no quarteirão ao lado), `porticoBoasVindas` ("Bem-vindo" com a logo da empresa na chegada de cada ponte), `bairroDaIlha` (residencial alto com piscina, prédios de serviço com ícone, anel viário), placas `texturaPlacaRF` / `desenharIcone`. A sombra de contato fica desligada no celular (`CINEMA_AJUSTE.semSombraNoCelular`) |
 | `parte-campo.js` (fim do arquivo) | **Gente de dia e de noite**: `irEmbora` (longe de casa, some na estação mais perto: pegou o ônibus), `gentDaNoiteNaCidade` / `tarefaPasseio` (10 pessoas neutras que só saem à noite; de dia são 12 visitantes neutros e 34 da equipe Real Forte: estações, torre, edifícios da Real Forte, café e praças), `moradoresDasIlhas` / `tarefaMorador` (cobertura do residencial com `yFixo` e o chão da ilha), pontos de foto `W.pontosFotoRF` (`M.centros.fotoMarcos`). Janelas dos residenciais: `CAMPO.matResidencial` + `CAMPO.janelasResid` (dois mapas de janela: de dia ~10% acesas, de noite ~90% em amarelo forte; troca em `passoCeuDeCinema`). Lugar com `y` (degrau da arquibancada) faz a pessoa sentar naquela altura. Quando a hora vira, quem está andando para outro lugar muda de ideia e vai embora |
+| `parte-campo.js` (fim do arquivo) | **Apresentações no Hub**: `APRESENTACOES` (duração, intervalos de manhã/tarde), `passoApresentacoesHub` (rodízio `rodizioDoHub`, plateia `chamarPlateia`, apresentador `tarefaApresentador`), telão `telaoDasApresentacoes` / `desenharSlide` (números reais do painel em `dadosDaApresentacao`; gráficos sem número marcados "gráfico ilustrativo"), `alturasDoHub` (degraus e palco no mapa de pisar). Hub = pavilhão de vidro aberto com arquibancada em semicírculo |
 | `parte-galaxia.js` | galáxia de soluções da biblioteca |
 | `parte-app.js` | o app: estado `S`/`UI`, armazenamento, rotas (`#biblioteca`, `#sv-<setor>`, `#sg-<setor>`…), telas, check-up, IA, PowerPoint, PDF, RF Sinais, biblioteca, anotações com foto/áudio/arquivo, cliques |
 
@@ -57,6 +58,8 @@ Atenção: `parte-app.js` e `parte-campo.js` começam com `<script>` e terminam 
 - `revestir` desenha pela posição no mundo: serve para caixa esticada (lote instanciado) sem textura esticar. Material de `mat()` é compartilhado: para revestir um deles sem afetar os outros, usar `revestido(m, tipo)` (faz uma cópia guardada).
 
 - Empresas em ilha-satélite usam lote com `i: 9`: por isso não entram nas rotas dos veículos da empresa nem no ponto de ônibus (`il_temLote` dá falso). Para voltar a ter caminhão e ônibus indo até elas, falta ligar o grafo de ruas às pontes.
+
+- `K.add(geo, mat, x, y, z, sx, sy, sz)`: **sempre passar as três escalas**. Sem o `sz` a peça vira NaN (some ou fica gigante na conta). Já aconteceu em 11 lugares.
 
 ## Testes (Playwright + Chromium, sem placa de vídeo é lento)
 
