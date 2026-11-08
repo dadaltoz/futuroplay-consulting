@@ -22,6 +22,7 @@ Precisa de `python3` e `node`. Imprime `build ok` quando está tudo certo. O arq
 | `parte-topo.html` | `<head>`, CSS inteiro (tokens de cor em `:root`, tema escuro), casca do HTML |
 | `parte-meio.html` | um `<script>` pequeno do meio |
 | `parte-campo.js` | `<script>` do 3D (Three.js 0.149): CAMPO, PLANO (cidade: ruas, Praça das Conexões, Terminal, Café, Avenida da Inteligência), câmera, céu/dia/noite, pessoas e rotinas, trânsito, campus por segmento (`CAMPUS_LAYOUT`), outdoors e vídeos, espaço (`montarEspaco`, `ILHA`, `hologramaDaTorre`) |
+| `parte-campo.js` (fim do arquivo) | **Acabamento de cinema**: pós-processamento próprio (`CINEMA`, `renderizarCinema`, ajustes em `CINEMA_AJUSTE`: brilho, vinheta, grão, sombra de contato, névoa), céu e planeta assados uma vez (`montarCeuDeCinema`), rocha da ilha (`geometriaDeRocha`, `materialDeRocha`), nuvens (`nuvensDaIlha`), corpo novo das pessoas (`partesDoCorpo`), veículos com lataria arredondada (`fundir(..., true)`, `caixaArredondada`), revestimento de prédio por shader (`revestir`: chapa, concreto, reboco, telhado), fachada de vidro com caixilho (`texturaFachadaVidro`), máquinas no teto (`maquinasNoTeto`) |
 | `parte-galaxia.js` | galáxia de soluções da biblioteca |
 | `parte-app.js` | o app: estado `S`/`UI`, armazenamento, rotas (`#biblioteca`, `#sv-<setor>`, `#sg-<setor>`…), telas, check-up, IA, PowerPoint, PDF, RF Sinais, biblioteca, anotações com foto/áudio/arquivo, cliques |
 
@@ -46,6 +47,9 @@ Atenção: `parte-app.js` e `parte-campo.js` começam com `<script>` e terminam 
 - Peças no mesmo plano piscam: separar alturas (há `logarithmicDepthBuffer`, mas não basta para coplanar).
 - O cofre de arquivos (`assets`) só aceita foto, áudio, vídeo, PDF e texto, até 20 MB. Planilha e arquivo grande vão num "envelope" .json em base64, cortado em partes de 14 MB (`guardarArquivo` / `baixarAnexo`).
 - Os vídeos dos outdoors são assets do artifact (`/_blob/<id>`): só tocam no painel publicado, não no teste local.
+
+- **Acabamento de cinema**: se o aparelho não tiver WebGL2, o painel desenha direto (sem pós). O que é pesado no céu (via láctea, continentes e nuvens do planeta) é desenhado uma vez só no início (`assarTextura`); não pôr ruído de muitas oitavas no shader de cada quadro. Detalhe fino de shader precisa sumir com a distância (`fwidth`), senão vira chuvisco.
+- `revestir` desenha pela posição no mundo: serve para caixa esticada (lote instanciado) sem textura esticar. Material de `mat()` é compartilhado: para revestir um deles sem afetar os outros, usar `revestido(m, tipo)` (faz uma cópia guardada).
 
 ## Testes (Playwright + Chromium, sem placa de vídeo é lento)
 

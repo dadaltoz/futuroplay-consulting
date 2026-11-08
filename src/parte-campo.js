@@ -231,10 +231,11 @@ function placaLogo(pai, il, e, w, h, x, y, z, giro) {
    cabelo (ou careca), uniforme na cor da empresa, crachá no peito e a logo da empresa nas costas.
    O corpo parado vira uma peça só com as cores nos vértices (uma chamada de desenho), e as pernas e os
    braços são peças à parte para poderem balançar. A frente do boneco é o +x. */
-const PELES = [0xf0c9a5, 0xe0b48e, 0xc99572, 0x9c6b4c, 0xf4d3b5];
+const PELES = [0xe2b896, 0xd1a07a, 0xb9845e, 0x8d5f42, 0xeccbaa, 0x6a4530, 0xc8946c];
 const CACHE_PESSOA = new Map();
 // Junta várias formas (cada uma com a sua cor e posição) numa só geometria com cor por vértice
-function fundir(partes) {
+function fundir(partes, deVeiculo) {
+  if (deVeiculo) partes = partes.map(melhorarPecaDeVeiculo);   // lataria com cantos arredondados e pneus (acabamento de cinema)
   const pos = [], nor = [], cor = [], idx = []; let base = 0;
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3(), c = new THREE.Color(), nm = new THREE.Matrix3();
   partes.forEach(({ geo, p, r, esc, cor: hex }) => {
@@ -282,44 +283,23 @@ function matLogoRoupa(logo) {
 function novaPessoa(o) {
   formasDeGente();
   const pele = o.pele || PELES[0], roupa = o.roupa || 0x2f5ea8, calca = o.calca || 0x2b3446, detalhe = o.detalhe || roupa;
-  const chave = [roupa, detalhe, calca, pele, o.cabelo, o.capacete, o.cracha, o.saia].join('|');
+  const chave = [roupa, detalhe, calca, pele, o.cabelo, o.capacete, o.cracha, o.saia, o.estiloCabelo].join('|');
   if (!CACHE_PESSOA.has(chave)) {
-    const corpo = [
-      { geo: G3.membro, p: [0, 0.43, 0], esc: [0.072, 0.045, 0.088], cor: roupa },             // tronco
-      { geo: G3.cubo, p: [0, 0.505, 0], esc: [0.11, 0.025, 0.17], cor: roupa },               // ombros
-      { geo: G3.cubo, p: [0.035, 0.515, 0], esc: [0.05, 0.018, 0.09], cor: detalhe },         // gola na cor de destaque
-      { geo: G3.cubo, p: [0, 0.33, 0], esc: [0.125, 0.04, 0.165], cor: calca },                // cintura
-      { geo: G3.membro, p: [0, 0.545, 0], esc: [0.022, 0.012, 0.022], cor: pele },              // pescoço
-      { geo: G3.esfera, p: [0.004, 0.615, 0], esc: [0.058, 0.064, 0.055], cor: pele },         // cabeça
-      { geo: G3.esfera, p: [0.05, 0.612, 0], esc: [0.012, 0.016, 0.012], cor: pele }           // nariz
-    ];
-    if (o.cracha !== false) {
-      corpo.push({ geo: G3.cubo, p: [0.072, 0.43, 0.035], esc: [0.006, 0.042, 0.03], cor: 0xffffff });     // crachá
-      corpo.push({ geo: G3.cubo, p: [0.073, 0.452, 0.035], esc: [0.006, 0.01, 0.03], cor: o.cracha || detalhe });
-      corpo.push({ geo: G3.cubo, p: [0.07, 0.49, 0.035], esc: [0.004, 0.05, 0.004], cor: o.cracha || detalhe });   // fita
-    }
-    if (o.capacete) corpo.push({ geo: G3.meiaEsfera, p: [0, 0.632, 0], esc: [0.07, 0.06, 0.07], cor: o.capacete });
-    else if (o.cabelo && o.cabelo !== 'careca') {
-      corpo.push({ geo: G3.meiaEsfera, p: [-0.006, 0.628, 0], esc: [0.063, 0.058, 0.06], cor: o.cabelo });
-      corpo.push({ geo: G3.esfera, p: [-0.03, 0.6, 0], esc: [0.04, 0.045, 0.056], cor: o.cabelo });   // nuca
-    }
-    const perna = fundir([
-      { geo: G3.membro, p: [0, -0.13, 0], esc: [0.032, 0.085, 0.034], cor: calca },
-      { geo: G3.cubo, p: [0.018, -0.29, 0], esc: [0.075, 0.03, 0.045], cor: 0x1b1f2a }          // sapato
-    ]);
-    const braco = fundir([
-      { geo: G3.membro, p: [0, -0.085, 0], esc: [0.024, 0.058, 0.024], cor: roupa },
-      { geo: G3.esfera, p: [0, -0.19, 0], esc: [0.022, 0.024, 0.02], cor: pele }                 // mão
-    ]);
-    CACHE_PESSOA.set(chave, { corpo: fundir(corpo), perna, braco });
+    const C = partesDoCorpo(), pinta = (lista, cor) => lista.map((x) => Object.assign({}, x, { cor: x.cor != null ? x.cor : cor }));
+    let corpo = [].concat(pinta(C.roupa, roupa), pinta(C.detalhe, detalhe), pinta(C.calca, calca), pinta(C.pele, pele));
+    if (o.cracha !== false) corpo = corpo.concat(pinta(C.cracha, 0xffffff));
+    if (o.capacete) corpo = corpo.concat(pinta(C.capacete, o.capacete));
+    else if (o.cabelo && o.cabelo !== 'careca') corpo = corpo.concat(pinta(C.cabelo, o.cabelo), o.estiloCabelo === 'longo' ? pinta(C.cabeloLongo, o.cabelo) : o.estiloCabelo === 'coque' ? pinta(C.coque, o.cabelo) : []);
+    CACHE_PESSOA.set(chave, { corpo: fundir(corpo), perna: fundir(pinta(C.perna, calca)), braco: fundir(pinta(C.braco, roupa).concat(pinta(C.mao, pele))) });
   }
   const formas = CACHE_PESSOA.get(chave);
   const g = new THREE.Group();
-  const corpo = new THREE.Mesh(formas.corpo, CAMPO.matGente); corpo.castShadow = true; g.add(corpo);
-  const pernas = [-0.042, 0.042].map((z) => { const pv = new THREE.Group(); pv.position.set(0, 0.31, z); const m = new THREE.Mesh(formas.perna, CAMPO.matGente); m.castShadow = true; pv.add(m); g.add(pv); return pv; });
-  const bracos = [-0.105, 0.105].map((z) => { const pv = new THREE.Group(); pv.position.set(0, 0.5, z); const m = new THREE.Mesh(formas.braco, CAMPO.matGente); m.castShadow = false; pv.add(m); g.add(pv); return pv; });
+  const matCorpo = materiaisDeGente().corpoVC;
+  const corpo = new THREE.Mesh(formas.corpo, matCorpo); corpo.castShadow = true; g.add(corpo);
+  const pernas = [-0.042, 0.042].map((z) => { const pv = new THREE.Group(); pv.position.set(0, 0.31, z); const m = new THREE.Mesh(formas.perna, matCorpo); m.castShadow = true; pv.add(m); g.add(pv); return pv; });
+  const bracos = [-0.105, 0.105].map((z) => { const pv = new THREE.Group(); pv.position.set(0, 0.5, z); const m = new THREE.Mesh(formas.braco, matCorpo); m.castShadow = false; pv.add(m); g.add(pv); return pv; });
   const mLogo = matLogoRoupa(o.logo);
-  if (mLogo) { const p = new THREE.Mesh(G3.placa, mLogo); p.scale.set(0.11, 0.11 / (o.proporcaoLogo || 3.4), 1); p.position.set(-0.073, 0.46, 0); p.rotation.y = -Math.PI / 2; g.add(p); }
+  if (mLogo) { const p = new THREE.Mesh(G3.placa, mLogo); p.scale.set(0.1, 0.1 / (o.proporcaoLogo || 3.4), 1); p.position.set(-0.06, 0.46, 0); p.rotation.y = -Math.PI / 2; g.add(p); }
   const carga = caixa(g, 0.13, 0.11, 0.14, COR3D.papelao, 0.12, 0.36, 0); carga.visible = false;
   g.userData = { pernas, bracos, carga };
   g.scale.setScalar(o.escala || 1.32);
@@ -670,39 +650,44 @@ function materiaisDaVida() {
 /* Fachadas: um "módulo" de janela que se repete em metros (não estica com o tamanho do prédio).
    Cada estilo tem a cor (map) e a luz das janelas à noite (emissiveMap). mu e mv = tamanho do módulo. */
 const ESTILOS_FACHADA = {
-  // Galpão: chapa com nervuras, rodapé escuro e uma faixa de janelas no alto
-  galpao: { w: 128, h: 256, mu: 1.0, mv: 2.0, desenhar(g, luz, w, h) {
-    g.fillStyle = '#efebe4'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#e2ddd5'; for (let x = 0; x < w; x += 8) g.fillRect(x, 0, 2, h);
-    g.fillStyle = '#aeb6c2'; g.fillRect(0, h - 22, w, 22);
+  // Galpão: chapa com nervuras e sombra entre elas, rodapé de concreto e uma faixa de janelas no alto
+  galpao: { w: 256, h: 512, mu: 1.0, mv: 2.0, desenhar(g, luz, w, h, sorte) {
+    g.fillStyle = '#d9d6cf'; g.fillRect(0, 0, w, h);
+    for (let x = 0; x < w; x += 16) { const gr = g.createLinearGradient(x, 0, x + 16, 0); gr.addColorStop(0, '#c8c4bc'); gr.addColorStop(0.35, '#e6e2db'); gr.addColorStop(0.7, '#d2cec6'); gr.addColorStop(1, '#bcb8b0'); g.fillStyle = gr; g.fillRect(x, 0, 16, h); }
+    for (let k = 0; k < 40; k++) { g.fillStyle = `rgba(90,80,70,${0.03 + sorte() * 0.05})`; g.fillRect(sorte() * w, h * 0.45 + sorte() * h * 0.3, 2 + sorte() * 4, h * 0.25); }   // escorrido
+    const rod = g.createLinearGradient(0, h - 48, 0, h); rod.addColorStop(0, '#9da3aa'); rod.addColorStop(1, '#7c838b'); g.fillStyle = rod; g.fillRect(0, h - 44, w, 44);
     const y0 = h * 0.3, y1 = h * 0.4;
-    g.fillStyle = '#34445c'; g.fillRect(8, y0 - 3, w - 16, y1 - y0 + 6);
-    g.fillStyle = '#6f8fb8'; g.fillRect(11, y0, w - 22, y1 - y0);
-    g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(11, y0, w - 22, 4);
-    g.fillStyle = '#34445c'; for (let x = 11; x < w - 11; x += 27) g.fillRect(x, y0, 3, y1 - y0);
-    luz.fillStyle = '#ffd59a'; luz.fillRect(11, y0, w - 22, y1 - y0);
+    g.fillStyle = '#2b3340'; g.fillRect(14, y0 - 6, w - 28, y1 - y0 + 12);
+    const vg = g.createLinearGradient(0, y0, 0, y1); vg.addColorStop(0, '#b9d0e8'); vg.addColorStop(0.5, '#6f8fb3'); vg.addColorStop(1, '#3f5878'); g.fillStyle = vg; g.fillRect(20, y0, w - 40, y1 - y0);
+    g.fillStyle = '#2b3340'; for (let x = 20; x < w - 20; x += 54) g.fillRect(x, y0, 4, y1 - y0);
+    luz.fillStyle = '#ffd59a'; luz.fillRect(20, y0, w - 40, y1 - y0);
   } },
-  // Comercial (clínica, loja): faixa de janela larga em cada andar
-  comercial: { w: 128, h: 96, mu: 0.8, mv: 0.6, desenhar(g, luz, w, h) {
-    g.fillStyle = '#f4f1ea'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#e4dfd6'; g.fillRect(0, h - 8, w, 8);
-    g.fillStyle = '#2e3d55'; g.fillRect(6, 18, w - 12, 50);
-    const gr = g.createLinearGradient(0, 21, 0, 65); gr.addColorStop(0, '#a9c6ea'); gr.addColorStop(1, '#6a8fbf');
-    g.fillStyle = gr; g.fillRect(9, 21, w - 18, 44);
-    g.fillStyle = '#2e3d55'; g.fillRect(w / 2 - 2, 21, 4, 44);
-    g.fillStyle = 'rgba(255,255,255,.4)'; g.beginPath(); g.moveTo(14, 64); g.lineTo(40, 21); g.lineTo(52, 21); g.lineTo(26, 64); g.fill();
-    luz.fillStyle = '#ffe1ad'; luz.fillRect(9, 21, w - 18, 44);
+  // Comercial (clínica, loja): faixa de janela larga por andar, com caixilho, peitoril e reflexo do céu
+  comercial: { w: 256, h: 192, mu: 0.8, mv: 0.6, desenhar(g, luz, w, h, sorte) {
+    g.fillStyle = '#ebe7df'; g.fillRect(0, 0, w, h);
+    for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(0,0,0,${sorte() * 0.04})`; g.fillRect(sorte() * w, sorte() * h, 2, 2); }
+    g.fillStyle = '#d6d1c7'; g.fillRect(0, h - 16, w, 16); g.fillStyle = '#c4beb3'; g.fillRect(0, 138, w, 6);
+    g.fillStyle = '#2b3340'; g.fillRect(10, 34, w - 20, 104);
+    const gr = g.createLinearGradient(0, 40, 0, 132); gr.addColorStop(0, '#c4d8ee'); gr.addColorStop(0.45, '#7f9fc6'); gr.addColorStop(1, '#4a6488');
+    g.fillStyle = gr; g.fillRect(16, 40, w - 32, 92);
+    g.fillStyle = '#2b3340'; for (let x = 16; x < w - 16; x += (w - 32) / 3) g.fillRect(x - 2, 40, 4, 92); g.fillRect(16, 84, w - 32, 3);
+    g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.moveTo(28, 132); g.lineTo(80, 40); g.lineTo(100, 40); g.lineTo(48, 132); g.fill();
+    luz.fillStyle = '#ffe1ad'; luz.fillRect(16, 40, w - 32, 92);
   } },
-  // Prédio do setor: janelinhas em grade, algumas acesas à noite (3 colunas x 4 andares no módulo)
-  setor: { w: 192, h: 256, mu: 0.8, mv: 1.2, desenhar(g, luz, w, h, sorte) {
-    g.fillStyle = '#e8ecf1'; g.fillRect(0, 0, w, h);
+  // Prédio do setor: janelas em grade com caixilho, peitoril e reflexo; algumas acesas à noite (3 colunas x 4 andares)
+  setor: { w: 384, h: 512, mu: 0.8, mv: 1.2, desenhar(g, luz, w, h, sorte) {
+    g.fillStyle = '#e3e6ea'; g.fillRect(0, 0, w, h);
+    for (let k = 0; k < 1400; k++) { g.fillStyle = `rgba(0,0,0,${sorte() * 0.035})`; g.fillRect(sorte() * w, sorte() * h, 2, 2); }
     for (let i = 0; i < 3; i++) for (let j = 0; j < 4; j++) {
-      const x = i * 64, y = j * 64;
-      g.fillStyle = '#d8dee7'; g.fillRect(x, y + 58, 64, 6);
-      g.fillStyle = '#3a4a63'; g.fillRect(x + 12, y + 12, 40, 36);
-      g.fillStyle = '#8aa6cc'; g.fillRect(x + 15, y + 15, 34, 30);
-      g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(x + 15, y + 15, 34, 5);
-      const r = sorte(); luz.fillStyle = r < 0.55 ? '#ffe2b0' : r < 0.75 ? '#cfe3ff' : '#000'; luz.fillRect(x + 15, y + 15, 34, 30);
+      const x = i * 128, y = j * 128;
+      g.fillStyle = '#c9ced5'; g.fillRect(x, y + 116, 128, 12);
+      g.fillStyle = '#2b3340'; g.fillRect(x + 20, y + 20, 88, 80);
+      const gr = g.createLinearGradient(0, y + 26, 0, y + 94); gr.addColorStop(0, '#bcd2ea'); gr.addColorStop(0.5, '#7d9cc2'); gr.addColorStop(1, '#4c6688');
+      g.fillStyle = gr; g.fillRect(x + 26, y + 26, 76, 68);
+      g.fillStyle = '#2b3340'; g.fillRect(x + 62, y + 26, 4, 68);
+      if (sorte() < 0.25) { g.fillStyle = 'rgba(236,230,214,.9)'; g.fillRect(x + 26, y + 26, 76, 18 + sorte() * 30); }
+      g.fillStyle = '#f2f3f5'; g.fillRect(x + 16, y + 100, 96, 6);
+      const r = sorte(); luz.fillStyle = r < 0.55 ? '#ffe2b0' : r < 0.75 ? '#cfe3ff' : '#000'; luz.fillRect(x + 26, y + 26, 76, 68);
     }
   } }
 };
@@ -730,7 +715,7 @@ const materiaisDaCaixa = (fachada, teto) => [fachada, fachada, teto, teto, facha
 
 // Lote: junta as peças iguais (mesma forma e mesmo material) para desenhar todas de uma vez
 function novoLote() {
-  const grupos = new Map();
+  const grupos = new Map(), malhas = [];
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3();
   return {
     add(geo, material, x, y, z, sx, sy, sz, rx, ry, rz, sombra) {
@@ -744,7 +729,9 @@ function novoLote() {
       const c = Math.cos(giro), sn = Math.sin(giro);
       this.add(geo, material, cx + ox * c + oz * sn, y, cz - ox * sn + oz * c, sx, sy, sz, 0, giro, 0, sombra);
     },
+    malha(geo, material, x, y, z, giro, esc) { malhas.push([geo, material, x, y, z, giro, esc]); },
     montar(pai, lista) {
+      malhas.forEach(([geo, material, x, y, z, giro, esc]) => { const m = new THREE.Mesh(geo, material); m.position.set(x, y, z); m.rotation.y = giro || 0; m.scale.setScalar(esc || 1); m.castShadow = m.receiveShadow = true; pai.add(m); });
       grupos.forEach(({ geo, material, ms, sombra }) => {
         const im = new THREE.InstancedMesh(geo, material, ms.length);
         ms.forEach((m, i) => im.setMatrixAt(i, m)); im.instanceMatrix.needsUpdate = true; variarCorDasCopas(im);
@@ -924,17 +911,23 @@ function pecaGirada(K, geo, m, cx, cz, giro, ox, y, oz, sx, sy, sz, incl, sombra
 /* Veículos parados (montados em lote: pesam pouco). A frente do veículo é o +x dele.
    giro: 0 = olha para +x; Math.PI/2 = olha para -z; -Math.PI/2 = olha para +z. */
 function veiculo(K, tipo, cx, cz, giro, esc, c1, c2, y0) {
-  const e = esc || 1, base = y0 || 0;
-  const P = (geo, m, ox, y, oz, sx, sy, sz, incl) => pecaGirada(K, geo, typeof m === 'number' ? mat(m) : m, cx, cz, giro, ox * e, base + y * e, oz * e, sx * e, sy * e, sz * e, incl);
-  const R = (x, z, r, l) => P(G3.roda, 0x1a1f2b, x, r, z, r, r, l || 0.1);
+  const e = esc || 1, base = y0 || 0, partes = [];
   const vidro = luzMat(COR3D.vidro, 0.35), branco = COR3D.parede, escuro = 0x2b3446;
+  // Cada peça entra numa lista (no sistema do veículo); no fim vira uma peça só, com cantos arredondados
+  const corDe = (m) => (typeof m === 'number' ? m : m === vidro ? 0x1d2b40 : m.color.getHex());
+  const P = (geo, m, ox, y, oz, sx, sy, sz, incl) => partes.push({ geo, p: [ox, y, oz], esc: [sx, sy, sz], r: [0, 0, incl || 0], cor: corDe(m) });
+  const R = (x, z, r, l) => { P(G3.roda, 0x1a1f2b, x, r, z, r, r, l || 0.1); P(G3.roda, 0xb8c2d0, x, r, z + Math.sign(z) * ((l || 0.1) / 2 + 0.004), r * 0.55, r * 0.55, 0.01); };
   const cabine = () => { P(G3.caixa, c1, 0.82, 0.2, 0, 0.62, 0.62, 0.56); P(G3.caixa, c1, 0.74, 0.82, 0, 0.42, 0.14, 0.52); P(G3.caixa, vidro, 1.14, 0.52, 0, 0.04, 0.22, 0.48); P(G3.caixa, escuro, 0, 0.1, 0, 3.4, 0.12, 0.44); [-1.85, -1.5, 0.45, 0.95].forEach((x) => [0.29, -0.29].forEach((z) => R(x, z, 0.16))); };
   const tipos = {
     caminhao() { P(G3.caixa, branco, -0.22, 0.2, 0, 1.3, 0.62, 0.52); P(G3.caixa, c2, -0.22, 0.56, 0, 1.31, 0.09, 0.53); P(G3.caixa, c1, 0.68, 0.2, 0, 0.44, 0.52, 0.5); P(G3.caixa, vidro, 0.91, 0.47, 0, 0.05, 0.18, 0.42); P(G3.caixa, escuro, 0.05, 0.08, 0, 1.75, 0.12, 0.42); [-0.6, 0.1, 0.7].forEach((x) => [0.27, -0.27].forEach((z) => R(x, z, 0.15))); },
     carreta() { P(G3.caixa, branco, -0.78, 0.26, 0, 2.5, 0.72, 0.58); P(G3.caixa, c2, -0.78, 0.62, 0, 2.52, 0.14, 0.6); cabine(); },
     prancha() { P(G3.caixa, escuro, -0.78, 0.26, 0, 2.5, 0.1, 0.62); [-1.6, -0.85, -0.1].forEach((x) => P(G3.roda, 0x9aa6b8, x, 0.62, 0, 0.26, 0.26, 0.46)); cabine(); },
     graneleiro() { P(G3.caixa, c2, -0.78, 0.26, 0, 2.5, 0.56, 0.6); P(G3.caixa, 0xd9b96a, -0.78, 0.8, 0, 2.4, 0.05, 0.52); cabine(); },
-    carro() { P(G3.caixa, c1, 0, 0.1, 0, 0.9, 0.24, 0.44); P(G3.caixa, vidro, -0.05, 0.34, 0, 0.48, 0.2, 0.4); [[-0.3, 0.22], [-0.3, -0.22], [0.3, 0.22], [0.3, -0.22]].forEach(([x, z]) => R(x, z, 0.11, 0.08)); },
+    carro() {   // sedã: carroceria, capô, cabine de vidro com teto, faróis e lanternas
+      P(G3.caixaC, c1, 0, 0.19, 0, 0.94, 0.17, 0.44); P(G3.caixaC, 0x15181f, 0, 0.115, 0, 0.97, 0.05, 0.45);
+      P(G3.caixaC, vidro, -0.07, 0.34, 0, 0.5, 0.15, 0.39); P(G3.caixaC, c1, -0.08, 0.425, 0, 0.4, 0.03, 0.38);
+      [1, -1].forEach((s) => { P(G3.caixaC, 0xfff4d6, 0.468, 0.21, s * 0.15, 0.012, 0.035, 0.08); P(G3.caixaC, 0xc23a30, -0.468, 0.22, s * 0.15, 0.012, 0.035, 0.08); });
+      [[-0.3, 0.2], [-0.3, -0.2], [0.3, 0.2], [0.3, -0.2]].forEach(([x, z]) => R(x, z, 0.11, 0.08)); },
     van() { P(G3.caixa, c1, -0.05, 0.12, 0, 1.15, 0.55, 0.5); P(G3.caixa, c2, -0.05, 0.42, 0, 1.16, 0.06, 0.51); P(G3.caixa, vidro, 0.53, 0.44, 0, 0.04, 0.18, 0.44); [[-0.38, 0.24], [-0.38, -0.24], [0.36, 0.24], [0.36, -0.24]].forEach(([x, z]) => R(x, z, 0.12, 0.08)); },
     ambulancia() { P(G3.caixa, 0xffffff, -0.1, 0.12, 0, 1.1, 0.55, 0.5); P(G3.caixa, 0xf0523f, -0.1, 0.4, 0, 1.11, 0.1, 0.51); P(G3.caixa, 0xffffff, 0.62, 0.12, 0, 0.35, 0.42, 0.48); P(G3.caixa, vidro, 0.8, 0.36, 0, 0.05, 0.18, 0.4); P(G3.caixa, luzMat(0xf0523f, 1.5), 0.45, 0.67, 0.1, 0.1, 0.05, 0.14); P(G3.caixa, luzMat(0x4d8ff0, 1.5), 0.45, 0.67, -0.1, 0.1, 0.05, 0.14); [[-0.45, 0.26], [-0.45, -0.26], [0.5, 0.26], [0.5, -0.26]].forEach(([x, z]) => R(x, z, 0.13, 0.08)); },
     trator() { P(G3.caixa, c1, 0.05, 0.16, 0, 0.62, 0.3, 0.36); P(G3.caixa, vidro, -0.12, 0.46, 0, 0.3, 0.32, 0.34); P(G3.caixa, c1, -0.12, 0.78, 0, 0.36, 0.04, 0.4); R(-0.2, 0.24, 0.23, 0.13); R(-0.2, -0.24, 0.23, 0.13); R(0.26, 0.22, 0.13, 0.1); R(0.26, -0.22, 0.13, 0.1); },
@@ -945,6 +938,10 @@ function veiculo(K, tipo, cx, cz, giro, esc, c1, c2, y0) {
     helicoptero() { P(G3.bola, c1, 0, 0.42, 0, 0.55, 0.3, 0.3); P(G3.bola, vidro, 0.3, 0.46, 0, 0.24, 0.2, 0.22); P(G3.caixaC, c1, -0.78, 0.5, 0, 1.0, 0.08, 0.08); P(G3.caixa, c2, -1.25, 0.46, 0, 0.14, 0.3, 0.03); [0.22, -0.22].forEach((z) => P(G3.caixaC, escuro, 0.05, 0.06, z, 0.85, 0.03, 0.04)); P(G3.cil, escuro, 0, 0.7, 0, 0.04, 0.12, 0.04); P(G3.caixaC, escuro, 0, 0.84, 0, 2.0, 0.02, 0.08); P(G3.caixaC, escuro, 0, 0.84, 0, 0.08, 0.02, 2.0); P(G3.caixa, c2, 0, 0.38, 0, 0.56, 0.06, 0.31); }
   };
   (tipos[tipo] || tipos.carro)();
+  const chave = tipo + '|' + c1 + '|' + c2;
+  G3.veiculosParados = G3.veiculosParados || new Map();
+  if (!G3.veiculosParados.has(chave)) G3.veiculosParados.set(chave, fundir(partes, true));
+  K.malha(G3.veiculosParados.get(chave), matDeVeiculo(), cx, base, cz, giro, e);
 }
 // Ajudantes para montar o kit de cada segmento (tudo em lote, no sistema da quadra)
 function ajudantesDoKit(il, D, g, K, P) {
@@ -952,8 +949,8 @@ function ajudantesDoKit(il, D, g, K, P) {
   const m = (cor, op) => (typeof cor === 'number' ? mat(cor, op) : cor);
   const H = {
     il, D, g, K, c,
-    bx: (cor, x, y, z, w, h, d, giro, sombra) => K.add(G3.caixa, m(cor), x, y, z, w, h, d, 0, giro || 0, 0, sombra),
-    cil: (cor, x, y, z, r, h, sombra) => K.add(G3.cil, m(cor), x, y, z, r, h, r, 0, 0, 0, sombra),
+    bx: (cor, x, y, z, w, h, d, giro, sombra) => K.add(G3.caixa, typeof cor === 'number' && Math.max(w, d) >= 0.9 && h >= 0.8 ? revestido(mat(cor), 'chapa') : m(cor), x, y, z, w, h, d, 0, giro || 0, 0, sombra),   // peça grande pintada: chapa de verdade
+    cil: (cor, x, y, z, r, h, sombra) => K.add(G3.cil, typeof cor === 'number' && r >= 0.4 && h >= 1.5 ? revestido(mat(cor), 'chapa') : m(cor), x, y, z, r, h, r, 0, 0, 0, sombra),
     cone: (cor, x, y, z, r, h) => K.add(G3.cone, m(cor), x, y, z, r, h, r),
     bola: (cor, x, y, z, sx, sy, sz) => K.add(G3.bola, m(cor), x, y, z, sx, sy, sz),
     deitado: (cor, x, y, z, comp, r, giro) => K.add(G3.cilDeitado, m(cor), x, y, z, comp, r, r, 0, giro || 0, 0),
@@ -1645,21 +1642,12 @@ function acharCaminho(ax, az, bx, bz, dono, limiteNos) {
    destino e acha o caminho sozinha (sempre por onde dá para pisar, entrando e saindo pelas portas),
    faz curvas suaves, desvia de quem está na frente e, à noite, a maioria vai embora. */
 const MULTIDAO_MAX = 520;
-const PARTES = ['roupa', 'detalhe', 'cracha', 'calca', 'pele', 'cabelo', 'capacete', 'pernaE', 'pernaD', 'bracoE', 'bracoD', 'maoE', 'maoD', 'prancheta', 'caixa', 'tablet', 'xicara', 'lanterna', 'facho'];
+const PARTES = ['roupa', 'detalhe', 'cracha', 'calca', 'pele', 'cabelo', 'cabeloLongo', 'coque', 'capacete', 'pernaE', 'pernaD', 'bracoE', 'bracoD', 'maoE', 'maoD', 'prancheta', 'caixa', 'tablet', 'xicara', 'lanterna', 'facho'];
 function geometriaDasPartes() {
   formasDeGente();
-  const P = {};
-  const f = (lista) => { const g = fundir(lista.map((x) => Object.assign({ cor: 0xffffff }, x))); return g; };
-  P.roupa = f([{ geo: G3.membro, p: [0, 0.43, 0], esc: [0.072, 0.045, 0.088] }, { geo: G3.cubo, p: [0, 0.505, 0], esc: [0.11, 0.025, 0.17] }]);
-  P.detalhe = f([{ geo: G3.cubo, p: [0.035, 0.515, 0], esc: [0.05, 0.018, 0.09] }, { geo: G3.cubo, p: [0.07, 0.49, 0.035], esc: [0.004, 0.05, 0.004] }, { geo: G3.cubo, p: [0.073, 0.452, 0.035], esc: [0.006, 0.01, 0.03] }]);
-  P.cracha = f([{ geo: G3.cubo, p: [0.072, 0.43, 0.035], esc: [0.006, 0.042, 0.03] }]);
-  P.calca = f([{ geo: G3.cubo, p: [0, 0.33, 0], esc: [0.125, 0.04, 0.165] }]);
-  P.pele = f([{ geo: G3.membro, p: [0, 0.545, 0], esc: [0.022, 0.012, 0.022] }, { geo: G3.esfera, p: [0.004, 0.615, 0], esc: [0.058, 0.064, 0.055] }, { geo: G3.esfera, p: [0.05, 0.612, 0], esc: [0.012, 0.016, 0.012] }]);
-  P.cabelo = f([{ geo: G3.meiaEsfera, p: [-0.006, 0.628, 0], esc: [0.063, 0.058, 0.06] }, { geo: G3.esfera, p: [-0.03, 0.6, 0], esc: [0.04, 0.045, 0.056] }]);
-  P.capacete = f([{ geo: G3.meiaEsfera, p: [0, 0.632, 0], esc: [0.07, 0.06, 0.07] }, { geo: G3.cubo, p: [0.05, 0.635, 0], esc: [0.05, 0.006, 0.1] }]);
-  P.perna = fundir([{ geo: G3.membro, p: [0, -0.13, 0], esc: [0.032, 0.085, 0.034], cor: 0xffffff }, { geo: G3.cubo, p: [0.018, -0.29, 0], esc: [0.075, 0.03, 0.045], cor: 0x2a2a30 }]);
-  P.braco = f([{ geo: G3.membro, p: [0, -0.085, 0], esc: [0.024, 0.058, 0.024] }]);
-  P.mao = f([{ geo: G3.esfera, p: [0, -0.19, 0], esc: [0.022, 0.024, 0.02] }]);
+  const P = {}, C = partesDoCorpo();
+  const f = (lista) => fundir(lista.map((x) => Object.assign({ cor: 0xffffff }, x)));
+  ['roupa', 'detalhe', 'cracha', 'calca', 'pele', 'cabelo', 'cabeloLongo', 'coque', 'capacete', 'perna', 'braco', 'mao'].forEach((k) => { P[k] = f(C[k]); });   // corpo novo (acabamento de cinema)
   P.prancheta = fundir([{ geo: G3.cubo, p: [0.13, 0.31, 0.06], esc: [0.014, 0.15, 0.11], cor: 0x8a5a2b }, { geo: G3.cubo, p: [0.136, 0.32, 0.06], esc: [0.006, 0.13, 0.095], cor: 0xffffff }, { geo: G3.cubo, p: [0.136, 0.39, 0.06], esc: [0.008, 0.02, 0.045], cor: 0xd9681a }]);
   P.caixa = f([{ geo: G3.cubo, p: [0.13, 0.38, 0], esc: [0.13, 0.11, 0.15] }]);
   P.tablet = f([{ geo: G3.cubo, p: [0.12, 0.42, 0.03], esc: [0.07, 0.008, 0.11], r: [0, 0, 0.5] }]);
@@ -1676,7 +1664,8 @@ function criarMultidao() {
   const fixo = { cracha: 0xffffff, caixa: COR3D.papelao, tablet: 0x1a2233, xicara: 0xffffff, lanterna: 0xfff2b0, facho: 0xffe2a0 };
   PARTES.forEach((p) => {
     const g = p.startsWith('perna') ? geo.perna : p.startsWith('braco') ? geo.braco : p.startsWith('mao') ? geo.mao : geo[p];
-    let m = p.startsWith('perna') || p === 'prancheta' ? matVC : mat;
+    const MG = materiaisDeGente();
+    let m = p.startsWith('perna') ? MG.panoVC : p === 'prancheta' ? matVC : p === 'pele' || p.startsWith('mao') ? MG.pele : p.startsWith('cabelo') || p === 'coque' ? MG.cabelo : MG.pano;
     if (fixo[p] != null) m = new T.MeshStandardMaterial({ color: fixo[p], roughness: 0.5, emissive: p === 'tablet' ? 0x3a7bd5 : 0x000000, emissiveIntensity: p === 'tablet' ? 0.6 : 0 });
     if (p === 'lanterna') m = new T.MeshBasicMaterial({ color: fixo[p], toneMapped: false });
     if (p === 'facho') m = new T.MeshBasicMaterial({ map: CAMPO.texBrilho, color: fixo[p], transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false });
@@ -1696,7 +1685,7 @@ function logoDaMultidao(M, logo, prop) {
   if (!logo) return null;
   if (!M.logos.has(logo)) {
     const m = matLogoRoupa(logo), g = new THREE.PlaneGeometry(1, 1);
-    g.scale(0.11, 0.11 / (prop || 3.4), 1); g.rotateY(-Math.PI / 2); g.translate(-0.074, 0.46, 0);
+    g.scale(0.1, 0.1 / (prop || 3.4), 1); g.rotateY(-Math.PI / 2); g.translate(-0.06, 0.46, 0);
     const im = new THREE.InstancedMesh(g, m, MULTIDAO_MAX); im.frustumCulled = false; im.count = 0; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     M.grupo.add(im); M.logos.set(logo, im);
   }
@@ -1711,7 +1700,7 @@ function desenharMultidao(M) {
     T.q.setFromAxisAngle(T.eixoY, a.rot); T.B.compose(T.v.set(a.x, a.y + (a.dyVista != null ? a.dyVista : a.dy || 0), a.z), T.q, T.s.setScalar(a.esc));
     const L = a.look, P = a.poseVista || a.pose, lanterna = L.vigia && M.noite > 0.25;
     por('roupa', T.B, L.roupa); por('detalhe', T.B, L.detalhe); por('cracha', T.B); por('calca', T.B, L.calca); por('pele', T.B, L.pele);
-    if (L.capacete) por('capacete', T.B, L.capacete); else if (L.cabelo) por('cabelo', T.B, L.cabelo);
+    if (L.capacete) por('capacete', T.B, L.capacete); else if (L.cabelo) { por('cabelo', T.B, L.cabelo); const est = estiloDoCabelo(L); if (est === 'longo') por('cabeloLongo', T.B, L.cabelo); else if (est === 'coque') por('coque', T.B, L.cabelo); }
     [['pernaE', P.pernaE], ['pernaD', P.pernaD]].forEach(([p, ang]) => { T.L.multiplyMatrices(T.B, T[p]).multiply(T.R.makeRotationZ(ang)); por(p, T.L, L.calca); });
     [['bracoE', 'maoE', P.bracoE], ['bracoD', 'maoD', lanterna ? 0.85 : P.bracoD]].forEach(([p, m, ang]) => { T.L.multiplyMatrices(T.B, T[p]).multiply(T.R.makeRotationZ(ang)); por(p, T.L, L.roupa); por(m, T.L, L.pele); if (p === 'bracoD' && P.prop === 'xicara') por('xicara', T.L); if (p === 'bracoD' && lanterna) por('lanterna', T.L); });
     if (lanterna) por('facho', T.B);   // o círculo de luz da lanterna no chão, na frente
@@ -2637,7 +2626,8 @@ function texturaTexto(linhas, fundo, cor, w, h) {
 // Vidro com janelas que acendem à noite (entra na lista que o céu controla)
 function vidroComJanelas(cols, linhas, cor, corLuz, acesas, forca) {
   const j = texturaJanelas(cols, linhas, acesas == null ? 0.55 : acesas, corLuz || '#ffe9b8');
-  const m = new THREE.MeshStandardMaterial({ color: cor, roughness: 0.22, metalness: 0.5, emissive: 0xffffff, emissiveMap: j.tex, emissiveIntensity: forca || 0.75, envMap: CAMPO.ambiente, envMapIntensity: 0.65 });
+  const fx = texturaFachadaVidro(cols, linhas, cor);   // caixilho, laje e vidro refletindo o céu (acabamento de cinema)
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, map: fx.mapa, roughness: 1, metalness: 0.75, roughnessMap: fx.aspereza, metalnessMap: fx.aspereza, emissive: 0xffffff, emissiveMap: j.tex, emissiveIntensity: forca || 0.75, envMap: CAMPO.ambiente, envMapIntensity: 1.0 });
   (CAMPO.matsTorre = CAMPO.matsTorre || []).push([m, forca || 0.75]);
   return m;
 }
@@ -2706,7 +2696,8 @@ function montarPlano() {
     vidroGuarda: new T.MeshStandardMaterial({ color: 0xcfe4f7, transparent: true, opacity: 0.3, roughness: 0.05, metalness: 0.4, depthWrite: false }),
     cabecaPoste: new T.MeshStandardMaterial({ color: 0xffe9c4, emissive: 0xffd28a, emissiveIntensity: 0.2, toneMapped: false })
   };
-  [M.copa, M.copa2, M.sebe].forEach((m) => { m.userData.variarCor = true; });   // cada árvore com o seu tom de verde
+  [M.copa, M.copa2, M.sebe].forEach((m) => { m.userData.variarCor = true; });
+  revestir(M.branco, 'reboco'); revestir(M.pedraBege, 'concreto');   // paredes da cidade com revestimento (acabamento de cinema)   // cada árvore com o seu tom de verde
   const caixaV = (m, x0, x1, z0, z1, y0, h, sombra) => K.add(G3.caixa, m, (x0 + x1) / 2, y0 || 0, (z0 + z1) / 2, x1 - x0, h, z1 - z0, 0, 0, 0, sombra);
   const obst = (x0, x1, z0, z1) => P.obst.push([Math.min(x0, x1), Math.max(x0, x1), Math.min(z0, z1), Math.max(z0, z1)]);
   const obstCirculo = (cx, cz, r) => { obst(cx - r * 0.92, cx + r * 0.92, cz - r * 0.38, cz + r * 0.38); obst(cx - r * 0.38, cx + r * 0.38, cz - r * 0.92, cz + r * 0.92); obst(cx - r * 0.7, cx + r * 0.7, cz - r * 0.7, cz + r * 0.7); };
@@ -3398,7 +3389,19 @@ function preencherLotes(n, W) {
       const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, d = L.dir, lado = [-d[1], d[0]];
       caixaV(MP.saibro, x0 + 1.2, x1 - 1.2, z0 + 1.2, z1 - 1.2, 0.035, 0.01, false);
       caixaV(V.grama, x0 + 2.4, x1 - 2.4, z0 + 2.4, z1 - 2.4, 0.035, 0.014, false);
-      caixaV(MP.pedraClara, cx - 7.5, cx + 7.5, cz - 6.5, cz + 6.5, 0.035, 0.03, false);
+      // praça-parque (acabamento de cinema): caminhos em cruz, fonte no meio e um bosque em cada canto
+      caixaV(MP.pedraClara, cx - 7.5, cx + 7.5, cz - 1.0, cz + 1.0, 0.035, 0.03, false); caixaV(MP.pedraClara, cx - 1.0, cx + 1.0, cz - 6.5, cz + 6.5, 0.036, 0.03, false);
+      caixaV(MP.pedraClara, cx - 2.4, cx + 2.4, cz - 2.4, cz + 2.4, 0.037, 0.03, false);
+      K.add(G3.cil, MP.pedraBege, cx, 0.035, cz, 1.5, 0.38, 1.5); K.add(G3.cil, MP.agua, cx, 0.4, cz, 1.32, 0.02, 1.32, 0, 0, 0, false); K.add(G3.cil, MP.pedraBege, cx, 0.4, cz, 0.22, 0.7, 0.22);
+      obst.push([cx - 1.6, cx + 1.6, cz - 1.6, cz + 1.6]);
+      [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
+        for (let q = 0; q < 6; q++) {
+          const x = cx + sx * (2.6 + sorte() * 4.4), z = cz + sz * (2.3 + sorte() * 3.7), e = 0.75 + sorte() * 0.75;
+          K.add(G3.cil, MP.tronco, x, 0.035, z, 0.07 * e, 0.8 * e, 0.07 * e); K.add(G3.copa, sorte() < 0.5 ? MP.copa : MP.copa2, x, 1.25 * e, z, 0.75 * e, 0.85 * e, 0.75 * e, 0, x, 0);
+          obst.push([x - 0.3, x + 0.3, z - 0.3, z + 0.3]);
+        }
+        for (let q = 0; q < 4; q++) K.add(G3.copa, MP.sebe, cx + sx * (2.2 + sorte() * 5), 0.2, cz + sz * (1.8 + sorte() * 4.5), 0.45, 0.3, 0.45, 0, q, 0);   // arbustos
+      });
       [[-7.5, -6.5], [7.5, -6.5], [-7.5, 6.5], [7.5, 6.5]].forEach(([a, b]) => { K.add(G3.cil, MP.navy, cx + a, 0.035, cz + b, 0.1, 0.9, 0.1); K.add(G3.cil, MP.laranja, cx + a, 0.93, cz + b, 0.12, 0.08, 0.12, 0, 0, 0, false); obst.push([cx + a - 0.2, cx + a + 0.2, cz + b - 0.2, cz + b + 0.2]); });
       for (let u = x0 + 1.9; u <= x1 - 1.8; u += 4.4) [z0 + 0.75, z1 - 0.75].forEach((w) => { K.add(G3.cil, MP.tronco, u, 0.035, w, 0.07, 0.65, 0.07); K.add(G3.copa, MP.copa, u, 1.15, w, 0.6, 0.75, 0.6, 0, u % 3, 0); obst.push([u - 0.3, u + 0.3, w - 0.3, w + 0.3]); });
       for (let w = z0 + 4.2; w <= z1 - 4; w += 4.4) [x0 + 0.75, x1 - 0.75].forEach((u) => { K.add(G3.cil, MP.tronco, u, 0.035, w, 0.07, 0.65, 0.07); K.add(G3.copa, MP.copa2, u, 1.15, w, 0.6, 0.75, 0.6, 0, w % 3, 0); obst.push([u - 0.3, u + 0.3, w - 0.3, w + 0.3]); });
@@ -3642,7 +3645,7 @@ function modelosDeVeiculo() {
         cx(0, 0.2, 0, 1.9, 0.12, 0.84, chassi), cx(0.3, 0.6, 0.453, 0.5, 0.62, 0.012, 0xc9d0da)].concat(rodas([-0.65, 0.65], 0.4, 0.15)),
       cor: [] }
   };
-  Object.keys(M).forEach((k) => { M[k].geoBase = fundir(M[k].base); M[k].geoCor = M[k].cor.length ? fundir(M[k].cor) : null; });
+  Object.keys(M).forEach((k) => { M[k].geoBase = fundir(M[k].base, true); M[k].geoCor = M[k].cor.length ? fundir(M[k].cor, true) : null; });
   CAMPO.modelosVeiculo = M;
   return M;
 }
@@ -4662,29 +4665,37 @@ function placaTexto(g, linhas, fundo, cor, w, h, x, y, z, giro, larg, alt, desca
   const m = new THREE.MeshBasicMaterial({ map: tx, toneMapped: false }); descartar.push(m);
   const pl = new THREE.Mesh(G3.placa, m); pl.scale.set(w, h, 1); pl.position.set(x, y, z); pl.rotation.y = giro || 0; g.add(pl); return pl;
 }
-function V_pedra() { return CAMPO.matPedraCampus || (CAMPO.matPedraCampus = pisoNoturno(new THREE.MeshStandardMaterial({ color: 0xd6d3cc, roughness: 0.7 }))); }
+function V_pedra() { if (!CAMPO.matPedraCampus) { CAMPO.matPedraCampus = pisoNoturno(new THREE.MeshStandardMaterial({ color: 0xc4c0b7, roughness: 0.7 })); pisoRealista(CAMPO.matPedraCampus, { escala: 0.8, linha: 0.24, variacao: 0.1, manchas: 0.1 }); } return CAMPO.matPedraCampus; }
 function materiaisDoCampus() {
   if (CAMPO.matsCampus) return CAMPO.matsCampus;
-  return (CAMPO.matsCampus = {
+  const pisoDoCampus = (M) => { pisoRealista(M.asfalto, { escala: 2.2, variacao: 0.05, manchas: 0.22 }); pisoRealista(M.concreto, { escala: 0.55, linha: 0.22, variacao: 0.07, manchas: 0.14 }); return M; };   // acabamento de cinema
+  return (CAMPO.matsCampus = pisoDoCampus({
     metal: mat(0xb4bac2, { roughness: 0.5, metalness: 0.12 }), branco: mat(0xf2f4f7, { roughness: 0.55 }), grafite: mat(0x23282f, { roughness: 0.4, metalness: 0.4 }),
     concreto: mat(0xbfbcb5, { roughness: 0.85 }), asfalto: mat(0x4d545f, { roughness: 0.92 }), terra: mat(0xb89a6a, { roughness: 1 }), agua: mat(0x4f8fd6, { roughness: 0.1, metalness: 0.3 }),
     vidroQ: vidroComJanelas(10, 3, 0x4a6a8e, '#ffdcaa', 0.8, 0.9), vidroAz: vidroComJanelas(8, 12, 0x2f5f92, '#e3f2ff', 0.55, 0.7),
     hospital: vidroComJanelas(12, 6, 0xeef1f5, '#cfe6ff', 0.5, 0.55), escritorio: vidroComJanelas(10, 5, 0xdfe3e8, '#ffe9c4', 0.55, 0.6),
     flores: [mat(0x9b6bd6, { roughness: 0.8 }), mat(0xe887b5, { roughness: 0.8 }), mat(0xf2d33a, { roughness: 0.8 }), mat(0xf07a5a, { roughness: 0.8 })]
-  });
+  }));
 }
 // Ferramentas comuns a todos os campi
 function ferramentasDoCampus(H, il, D, g) {
   const T = THREE, M = materiaisDoCampus(), c = il.cores, desc = il.descartar, sorte = sorteio(D.id + 'campus');
   const C = {
-    T, M, H, il, D, g, c, desc, sorte, luz: luzMat(c.destaque, 1.3),
+    T, M, H, il, D, g, c, desc, sorte, luz: luzMat(c.destaque, 1.3), predios: [],
     // piso em camadas: nivel 0 = base, 1 e 2 = por cima (cada um numa altura, para não piscar)
     piso: (m, x0, x1, z0, z1, nivel) => H.bx(m, (x0 + x1) / 2, 0.004 + (nivel || 0) * 0.009, (z0 + z1) / 2, x1 - x0, 0.02, z1 - z0, 0, false),
     // prédio: corpo, platibanda e o filete aceso no alto da fachada da frente
     predio: (x0, x1, z0, z1, h, m, o) => {
       const op = o || {}, w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-      if (m && m.emissiveMap) { const corpo = new T.Mesh(G3.caixa, m); corpo.scale.set(w, h, d); corpo.position.set(cx, 0, cz); corpo.castShadow = corpo.receiveShadow = true; g.add(corpo); } else H.bx(m, cx, 0, cz, w, h, d);
-      if (op.platibanda !== false) H.bx(op.topo || 0x8f979f, cx, h, cz, w + 0.2, 0.2, d + 0.2);
+      if (m && m.emissiveMap) { const corpo = new T.Mesh(G3.caixa, m); corpo.scale.set(w, h, d); corpo.position.set(cx, 0, cz); corpo.castShadow = corpo.receiveShadow = true; g.add(corpo); }
+      else { const mm = typeof m === 'number' ? mat(m) : m; H.bx(revestido(mm, mm === M.metal ? 'chapa' : mm === M.concreto ? 'concreto' : 'reboco'), cx, 0, cz, w, h, d); }   // revestimento de verdade
+      if (op.platibanda !== false) {
+        H.bx(op.topo || matTelhado(), cx, h, cz, w + 0.2, 0.2, d + 0.2);   // laje com manta
+        const beiral = revestido(mat(0xa3a9b0), 'concreto');   // mureta (platibanda) em volta do teto
+        H.bx(beiral, cx, h + 0.2, z0 - 0.05, w + 0.2, 0.3, 0.1); H.bx(beiral, cx, h + 0.2, z1 + 0.05, w + 0.2, 0.3, 0.1);
+        H.bx(beiral, x0 - 0.05, h + 0.2, cz, 0.1, 0.3, d); H.bx(beiral, x1 + 0.05, h + 0.2, cz, 0.1, 0.3, d);
+        C.predios.push({ x0, x1, z0, z1, h, cx, cz });
+      }
       if (op.filete !== false) H.bx(C.luz, cx, h - 0.05, z1 + 0.11, w + 0.2, 0.05, 0.04, 0, false);
       return { x0, x1, z0, z1, h, cx, cz };
     },
@@ -4709,7 +4720,7 @@ function ferramentasDoCampus(H, il, D, g) {
       C.piso(M.asfalto, x0, x1, z0, z1, 1);
       if (z1 - z0 >= 4.6) { C.carros(x0, x1, z0 + 0.8, 1); C.carros(x0, x1, z1 - 0.8, -1); } else C.carros(x0, x1, (z0 + z1) / 2, 1);
     },
-    arvore: (x, z, k) => { const e = k || 1; H.cil(0x7a5a3c, x, 0, z, 0.07 * e, 0.6 * e); H.bola(0x4f9a5e, x, 0.95 * e, z, 0.5 * e, 0.55 * e, 0.5 * e); H.bola(0x3f8a52, x + 0.22 * e, 1.15 * e, z + 0.1 * e, 0.32 * e, 0.34 * e, 0.32 * e); },
+    arvore: (x, z, k) => { const e = k || 1, MP = PLANO.mats; H.cil(MP.tronco, x, 0, z, 0.06 * e, 0.7 * e); H.K.add(G3.copa, MP.copa, x, 0.98 * e, z, 0.5 * e, 0.55 * e, 0.5 * e, 0, x * 3, 0); H.K.add(G3.copa, MP.copa2, x + 0.2 * e, 1.18 * e, z + 0.1 * e, 0.34 * e, 0.36 * e, 0.34 * e, 0, z * 3, 0); },
     canteiro: (x, z, w, d) => { H.bx(0x3f7a4c, x, 0, z, w, 0.28, d); const n = Math.max(2, Math.floor(w / 0.38)); for (let k = 0; k < n; k++) H.bola(M.flores[k % 4], x - w / 2 + 0.2 + k * (w - 0.4) / (n - 1), 0.36, z + (k % 2 ? 0.1 : -0.1) * d, 0.16, 0.13, 0.16); },
     banco: (x, z, rot) => { H.bx(0x9a6a42, x, 0, z, Math.abs(Math.sin(rot)) > 0.5 ? 0.42 : 1.2, 0.4, Math.abs(Math.sin(rot)) > 0.5 ? 1.2 : 0.42); },
     mesas: (x, z, guarda) => { H.cil(0xf4f6fa, x, 0, z, 0.36, 0.6); if (guarda) { H.cil(0x2b3446, x, 0.6, z, 0.025, 0.7); H.cone(c.destaque, x, 1.2, z, 0.8, 0.3); } [0, 2.1, 4.2].forEach((a) => { const px = x + Math.cos(a) * 0.72, pz = z + Math.sin(a) * 0.72; H.cil(0x9a6a42, px, 0, pz, 0.12, 0.4); H.p(px, pz, Math.atan2(-(z - pz), x - px), 'cafe', { dur: 16 }); }); },
@@ -4723,6 +4734,8 @@ function campusPadrao(H, il, D, g) {
   const C = ferramentasDoCampus(H, il, D, g);
   il.campusVerticais = null; il.telaoCampus = null; il.campusTelhado = null;
   (CAMPUS_LAYOUT[D.cena] || CAMPUS_LAYOUT.servicos)(C);
+  // máquinas no teto de cada prédio (menos no prédio que leva os setores)
+  const TT = il.campusTelhado; C.predios.forEach((B) => { if (TT && Math.abs(TT.x0 - B.x0) < 0.01 && Math.abs(TT.z0 - B.z0) < 0.01) return; maquinasNoTeto(H, B, C.sorte); });
   // Frente comum: canteiros floridos dos dois lados do portão (o corredor do portão fica livre)
   [[-7.2, 9.35, 8.6], [7.6, 9.35, 6.8]].forEach(([x, z, w]) => C.canteiro(x, z, w, 0.55));
 }
@@ -6353,18 +6366,245 @@ function fbm3(x, y, z, oitavas) {
   return soma / total;
 }
 
+/* ---------- 8. Gente com corpo de verdade ----------
+   Proporção humana (cabeça ~1/7,5 da altura), tronco com peito e cintura, ombros, gola e faixa na cor
+   de destaque da empresa, camisa de manga curta (antebraço com pele), mãos, pernas afinando até o
+   tornozelo, sapato, cabeça com queixo, nariz e orelhas, e três jeitos de cabelo (curto, comprido e
+   coque). As peças mantêm os mesmos nomes e pontos de giro de antes: as rotinas não mudam.
+   Sistema da pessoa: frente = +x, para cima = +y, lado = z. */
+function torno(perfil, seg) { return new THREE.LatheGeometry(perfil.map(([r, y]) => new THREE.Vector2(r, y)), seg || 16); }
+function partesDoCorpo() {
+  if (G3.corpoNovo) return G3.corpoNovo;
+  formasDeGente();
+  const T = THREE, esf = G3.esfera, P = {};
+  const tronco = torno([[0, 0.335], [0.079, 0.335], [0.083, 0.36], [0.079, 0.392], [0.084, 0.43], [0.093, 0.47], [0.096, 0.5], [0.089, 0.526], [0.062, 0.545], [0.03, 0.553], [0, 0.553]], 18);
+  const quadril = torno([[0, 0.288], [0.08, 0.288], [0.086, 0.31], [0.084, 0.345], [0, 0.345]], 18);
+  const gola = new T.TorusGeometry(0.034, 0.008, 6, 18).rotateX(Math.PI / 2);
+  const faixa = torno([[0.0965, 0.468], [0.0975, 0.476], [0.0965, 0.484]], 18);
+  const perna = torno([[0, 0.012], [0.039, 0.01], [0.041, -0.03], [0.037, -0.09], [0.028, -0.15], [0.03, -0.19], [0.026, -0.235], [0.019, -0.27], [0, -0.275]], 12);
+  const manga = torno([[0, 0.025], [0.029, 0.018], [0.03, -0.02], [0.027, -0.072], [0, -0.075]], 12);
+  const antebraco = torno([[0, -0.068], [0.021, -0.072], [0.02, -0.13], [0.015, -0.19], [0, -0.196]], 10);
+  const sapato = G3.membro;   // cápsula deitada
+  P.roupa = [{ geo: tronco, p: [0, 0, 0], esc: [0.62, 1, 1] }, ...[1, -1].map((s) => ({ geo: esf, p: [0, 0.5, s * 0.092], esc: [0.034, 0.032, 0.03] }))];
+  P.detalhe = [{ geo: gola, p: [0.004, 0.545, 0], esc: [0.8, 1, 1] }, { geo: faixa, p: [0, 0, 0], esc: [0.63, 1, 1] }, { geo: G3.cubo, p: [0.059, 0.495, 0.02], esc: [0.004, 0.09, 0.004] }];
+  P.cracha = [{ geo: G3.cubo, p: [0.061, 0.43, 0.02], esc: [0.005, 0.04, 0.028] }];
+  P.calca = [{ geo: quadril, p: [0, 0, 0], esc: [0.66, 1, 1] }];
+  P.pele = [
+    { geo: G3.membro, p: [0, 0.562, 0], esc: [0.019, 0.012, 0.019] },                    // pescoço
+    { geo: esf, p: [0.004, 0.623, 0], esc: [0.045, 0.053, 0.04] },                       // crânio
+    { geo: esf, p: [0.013, 0.6, 0], esc: [0.035, 0.032, 0.033] },                        // queixo e bochechas
+    { geo: esf, p: [0.046, 0.617, 0], esc: [0.009, 0.012, 0.007] },                      // nariz
+    ...[1, -1].map((s) => ({ geo: esf, p: [-0.002, 0.62, s * 0.04], esc: [0.01, 0.014, 0.006] }))   // orelhas
+  ];
+  P.cabelo = [{ geo: G3.meiaEsfera, p: [-0.004, 0.627, 0], esc: [0.049, 0.055, 0.044] }, { geo: esf, p: [-0.022, 0.612, 0], esc: [0.031, 0.04, 0.042] }];
+  P.cabeloLongo = [{ geo: esf, p: [-0.032, 0.57, 0], esc: [0.026, 0.072, 0.043] }, ...[1, -1].map((s) => ({ geo: esf, p: [-0.008, 0.592, s * 0.037], esc: [0.022, 0.046, 0.011] }))];
+  P.coque = [{ geo: esf, p: [-0.042, 0.656, 0], esc: [0.022, 0.022, 0.022] }];
+  P.capacete = [{ geo: G3.meiaEsfera, p: [0, 0.636, 0], esc: [0.053, 0.05, 0.049] }, { geo: G3.cubo, p: [0.045, 0.628, 0], esc: [0.045, 0.005, 0.088] }];
+  P.perna = [{ geo: perna, p: [0, 0, 0], esc: [1.05, 1, 1] }, { geo: sapato, p: [0.022, -0.284, 0], esc: [0.016, 0.031, 0.021], r: [0, 0, Math.PI / 2], cor: 0x23262c }];
+  P.braco = [{ geo: manga, p: [0, 0, 0], esc: [1, 1, 1] }];
+  P.mao = [{ geo: antebraco, p: [0, 0, 0], esc: [1, 1, 1] }, { geo: esf, p: [0.004, -0.211, 0], esc: [0.015, 0.023, 0.011] }];
+  return (G3.corpoNovo = P);
+}
+// Estilo de cabelo de cada pessoa (sempre o mesmo para a mesma pessoa)
+const ESTILOS_CABELO = ['curto', 'curto', 'longo', 'coque'];
+function estiloDoCabelo(L) {
+  if (L.estiloCabelo == null) L.estiloCabelo = ESTILOS_CABELO[Math.floor(Math.random() * ESTILOS_CABELO.length)];
+  return L.estiloCabelo;
+}
+// Materiais de gente: pano fosco, pele um pouco mais lisa, cabelo com brilho leve
+function materiaisDeGente() {
+  if (CAMPO.matsGente) return CAMPO.matsGente;
+  const T = THREE;
+  return (CAMPO.matsGente = {
+    pano: new T.MeshStandardMaterial({ roughness: 0.86, metalness: 0 }),
+    panoVC: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0 }),
+    pele: new T.MeshStandardMaterial({ roughness: 0.52, metalness: 0 }),
+    cabelo: new T.MeshStandardMaterial({ roughness: 0.45, metalness: 0.05 }),
+    corpoVC: new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0 })
+  });
+}
+
+/* ---------- 9. Veículos com carroceria de verdade ----------
+   Toda "caixa" de veículo vira uma caixa de cantos arredondados (o canto pega luz, como lataria),
+   e toda roda vira um pneu com ombro arredondado. Pintura com verniz (reflete o céu). */
+function caixaArredondada(w, h, d) {
+  const r = Math.min(0.045, Math.min(w, h, d) * 0.28);
+  if (r < 0.006) return null;
+  const chave = [w, h, d].map((v) => v.toFixed(3)).join('|');
+  G3.arredondadas = G3.arredondadas || new Map();
+  if (G3.arredondadas.has(chave)) return G3.arredondadas.get(chave);
+  const T = THREE, ww = w / 2 - r, hh = h / 2 - r, rc = Math.min(r * 0.35, ww * 0.9, hh * 0.9), s = new T.Shape();
+  s.moveTo(-ww + rc, -hh); s.lineTo(ww - rc, -hh); s.quadraticCurveTo(ww, -hh, ww, -hh + rc); s.lineTo(ww, hh - rc); s.quadraticCurveTo(ww, hh, ww - rc, hh);
+  s.lineTo(-ww + rc, hh); s.quadraticCurveTo(-ww, hh, -ww, hh - rc); s.lineTo(-ww, -hh + rc); s.quadraticCurveTo(-ww, -hh, -ww + rc, -hh);
+  const geo = new T.ExtrudeGeometry(s, { depth: Math.max(0.0005, d - 2 * r), bevelEnabled: true, bevelSize: r, bevelThickness: r, bevelSegments: 3, curveSegments: 3 });
+  geo.translate(0, 0, -(d - 2 * r) / 2);
+  G3.arredondadas.set(chave, geo);
+  return geo;
+}
+function pneu() {
+  if (G3.pneu) return G3.pneu;
+  G3.pneu = torno([[0.56, -0.5], [0.88, -0.5], [0.97, -0.44], [1.0, -0.28], [1.0, 0.28], [0.97, 0.44], [0.88, 0.5], [0.56, 0.5]], 22).rotateX(Math.PI / 2);
+  G3.discoRoda = new THREE.CylinderGeometry(1, 1, 1, 22).rotateX(Math.PI / 2);
+  return G3.pneu;
+}
+// Troca as formas simples por formas melhores na hora de juntar (só para veículos)
+function melhorarPecaDeVeiculo(x) {
+  if (x.geo === G3.caixaC) { const g = caixaArredondada(x.esc[0], x.esc[1], x.esc[2]); if (g) return Object.assign({}, x, { geo: g, esc: [1, 1, 1] }); }
+  if (x.geo === G3.caixa) { const g = caixaArredondada(x.esc[0], x.esc[1], x.esc[2]); if (g) return Object.assign({}, x, { geo: g, esc: [1, 1, 1], p: [x.p[0], x.p[1] + x.esc[1] / 2, x.p[2]] }); }
+  if (x.geo === G3.roda) { pneu(); return Object.assign({}, x, { geo: x.esc[2] < 0.03 ? G3.discoRoda : G3.pneu }); }
+  return x;
+}
+function matDeVeiculo() {
+  return CAMPO.matCarro || (CAMPO.matCarro = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.38, metalness: 0.12, clearcoat: 0.85, clearcoatRoughness: 0.12, envMap: CAMPO.ambiente, envMapIntensity: 0.9 }));
+}
+
+/* ---------- 10. Prédios com revestimento de verdade ----------
+   O desenho é calculado na posição do mundo (não depende de textura nem do tamanho da caixa):
+   - chapa: telha metálica ondulada nas paredes (com relevo), juntas de painel e sujeira embaixo;
+   - concreto: placas com juntas, manchas e escorrido;
+   - reboco: parede pintada com manchas leves e sujeira de chuva perto do chão e no alto;
+   - telhado: manta clara com emendas, manchas de água e aspecto gasto.
+   Em todos, o que está virado para cima vira telhado. */
+const GLSL_REVESTIR = `
+varying vec3 vRvP, vRvN;
+float rvH(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+float rvR(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(rvH(i), rvH(i + vec2(1.0, 0.0)), f.x), mix(rvH(i + vec2(0.0, 1.0)), rvH(i + vec2(1.0, 1.0)), f.x), f.y); }
+float rvF(vec2 p) { return rvR(p) * 0.55 + rvR(p * 2.3 + 7.1) * 0.3 + rvR(p * 5.1 + 3.7) * 0.15; }
+// linha fina que some de longe (sem serrilhado): período "per", espessura "esp" (em metros)
+float rvLinha(float c, float per, float esp) { float w = fwidth(c); float d = abs(fract(c / per + 0.5) - 0.5) * per; return (1.0 - smoothstep(esp, esp + w * 1.5, d)) * (1.0 - smoothstep(per * 0.25, per * 0.6, w)); }
+`;
+function revestir(m, tipo) {
+  if (!m || m.userData.revestido) return m;
+  m.userData.revestido = tipo;
+  const TIPOS = { chapa: 0, concreto: 1, reboco: 2, telhado: 3 }, k = TIPOS[tipo] || 0;
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vRvP, vRvN;')
+      .replace('#include <project_vertex>', `#include <project_vertex>
+  vec4 rvP4 = vec4(transformed, 1.0);
+  #ifdef USE_INSTANCING
+  rvP4 = instanceMatrix * rvP4;
+  #endif
+  vRvP = (modelMatrix * rvP4).xyz;
+  vRvN = normalize((vec4(transformedNormal, 0.0) * viewMatrix).xyz);`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + GLSL_REVESTIR + '\nfloat rvRelevo; vec3 rvTang;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+  {
+    vec3 P = vRvP, N = normalize(vRvN);
+    bool topo = N.y > 0.7;
+    float u = abs(N.x) > abs(N.z) ? P.z : P.x, v = P.y;
+    rvTang = abs(N.x) > abs(N.z) ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+    rvRelevo = 0.0;
+    float f = 1.0;
+    int tipo = ${k};
+    if (topo || tipo == 3) {
+      // telhado: manta com emendas, manchas de água e desgaste
+      vec2 q = P.xz;
+      f *= 0.9 + 0.2 * rvF(q * 0.35);
+      f *= 1.0 - 0.18 * smoothstep(0.62, 0.8, rvF(q * 0.18 + 4.0));
+      f *= 1.0 - 0.25 * rvLinha(q.x, 1.5, 0.012);
+      f *= 1.0 - 0.12 * rvLinha(q.y, 6.0, 0.01);
+      if (!topo) f *= 0.85;
+    } else if (tipo == 0) {
+      // chapa ondulada: nervura a cada 22 cm, junta de painel a cada 2,4 m de altura
+      float onda = sin(u * 28.56);
+      float longe = 1.0 - smoothstep(0.05, 0.14, fwidth(u));
+      rvRelevo = onda * 0.35 * longe;
+      f *= 1.0 - 0.06 * (onda * 0.5 + 0.5) * longe;
+      f *= 1.0 - 0.3 * rvLinha(v, 2.4, 0.012);
+      f *= 0.94 + 0.12 * rvF(vec2(u * 0.4, v * 0.15));
+    } else if (tipo == 1) {
+      // concreto em placas 1,6 x 1,2 m
+      f *= 1.0 - 0.35 * max(rvLinha(u, 1.6, 0.012), rvLinha(v, 1.2, 0.012));
+      f *= 0.88 + 0.22 * rvF(vec2(u, v) * 0.9) + (rvH(floor(vec2(u / 1.6, v / 1.2))) - 0.5) * 0.08;
+    } else {
+      // reboco pintado
+      f *= 0.93 + 0.12 * rvF(vec2(u, v) * 0.6);
+    }
+    if (!topo) {
+      // sujeira de chuva: escorrido vertical e o pé da parede mais escuro
+      float escorre = rvR(vec2(u * 2.2, v * 0.12 + 3.0));
+      f *= 1.0 - 0.12 * smoothstep(0.55, 0.9, escorre) * smoothstep(0.0, 3.0, v);
+      f *= 1.0 - 0.22 * (1.0 - smoothstep(0.0, 0.7, v));
+    }
+    diffuseColor.rgb *= f;
+  }`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+  if (rvRelevo != 0.0) normal = normalize(normal + (viewMatrix * vec4(rvTang, 0.0)).xyz * rvRelevo);`);
+  };
+  m.customProgramCacheKey = () => 'revestir_' + tipo;
+  m.needsUpdate = true;
+  return m;
+}
+// Material revestido a partir de um material liso (guardado: o mesmo liso dá o mesmo revestido)
+function revestido(m, tipo) {
+  if (!m || !m.isMeshStandardMaterial || m.map || m.emissiveMap) return m;
+  CAMPO.revestidos = CAMPO.revestidos || new Map();
+  const chave = m.uuid + '|' + tipo;
+  if (!CAMPO.revestidos.has(chave)) { const c = m.clone(); CAMPO.revestidos.set(chave, revestir(c, tipo)); }
+  return CAMPO.revestidos.get(chave);
+}
+function matTelhado(cor) {
+  CAMPO.telhados = CAMPO.telhados || new Map();
+  const k = cor || 0xb9bcbf;
+  if (!CAMPO.telhados.has(k)) CAMPO.telhados.set(k, revestir(new THREE.MeshStandardMaterial({ color: k, roughness: 0.92, metalness: 0 }), 'telhado'));
+  return CAMPO.telhados.get(k);
+}
+// Equipamentos no teto (ar-condicionado com ventilador, exaustores): enfileirados junto da borda do fundo
+function maquinasNoTeto(H, B, sorte) {
+  const w = B.x1 - B.x0, n = Math.min(5, Math.floor((w - 1.6) / 1.5)); if (n < 1) return;
+  const y = B.h + 0.2, z = B.z0 + 0.75, caixaM = 0xc9ced6, escuro = 0x2a2f37;
+  for (let k = 0; k < n; k++) {
+    if (sorte() < 0.3) continue;
+    const x = B.x0 + 1.1 + k * 1.5 + (sorte() - 0.5) * 0.3;
+    if (sorte() < 0.65) {   // condensadora: caixa, grade e dois ventiladores em cima
+      H.bx(caixaM, x, y, z, 1.0, 0.42, 0.62); H.bx(0x9aa2ad, x, y + 0.08, z + 0.312, 0.92, 0.26, 0.01, 0, false);
+      [-0.24, 0.24].forEach((d) => { H.cil(escuro, x + d, y + 0.42, z, 0.17, 0.02, false); H.cil(0x7d858e, x + d, y + 0.44, z, 0.04, 0.02, false); });
+    } else {   // exaustor redondo
+      H.cil(0xb7bdc5, x, y, z, 0.2, 0.32); H.cil(escuro, x, y + 0.32, z, 0.23, 0.05, false);
+    }
+  }
+  if (sorte() < 0.7) { H.cil(0x9aa2ad, B.x1 - 0.7, y, B.z0 + 0.6, 0.05, 0.6); H.cil(escuro, B.x1 - 0.7, y + 0.6, B.z0 + 0.6, 0.09, 0.08); }   // respiro
+}
+/* Vidro de fachada com caixilho: cada célula da grade é uma janela com a laje clara em cima, o
+   montante escuro do lado e o vidro refletindo o céu (mais claro em cima). Áspero no caixilho,
+   liso no vidro. A grade é a mesma das luzes da noite, então a luz acende dentro da janela. */
+function texturaFachadaVidro(cols, linhas, cor) {
+  const T = THREE, P = 32, c = new T.Color(cor), sorte = sorteio('fachada' + cols + 'x' + linhas + cor);
+  const hex = (k, a) => '#' + c.clone().lerp(new T.Color(a ? 0xffffff : 0x000000), Math.abs(k)).getHexString();
+  const mapa = telaDe(cols * P, linhas * P, (g) => {
+    g.fillStyle = '#c9ced4'; g.fillRect(0, 0, cols * P, linhas * P);
+    for (let i = 0; i < cols; i++) for (let j = 0; j < linhas; j++) {
+      const x = i * P, y = j * P, gr = g.createLinearGradient(0, y + 6, 0, y + P);
+      const var_ = (sorte() - 0.5) * 0.12;
+      gr.addColorStop(0, hex(0.45 + var_, true)); gr.addColorStop(0.45, hex(0.08 + var_, true)); gr.addColorStop(1, hex(0.35, false));
+      g.fillStyle = gr; g.fillRect(x + 2, y + 6, P - 2, P - 6);
+      if (sorte() < 0.18) { g.fillStyle = 'rgba(236,230,214,0.85)'; g.fillRect(x + 2, y + 6, P - 2, 6 + sorte() * 14); }   // persiana baixada
+      g.fillStyle = 'rgba(255,255,255,0.10)'; g.beginPath(); g.moveTo(x + 6, y + P); g.lineTo(x + 16, y + 6); g.lineTo(x + 21, y + 6); g.lineTo(x + 11, y + P); g.fill();
+      g.fillStyle = '#2b3340'; g.fillRect(x, y + 4, 2, P - 4); g.fillRect(x + P / 2 - 0.5, y + 6, 1, P - 6);
+      g.fillStyle = '#e1e4e8'; g.fillRect(x, y, P, 4); g.fillStyle = '#8d949c'; g.fillRect(x, y + 4, P, 2);
+    }
+  });
+  const aspereza = telaDe(cols * P, linhas * P, (g) => {
+    g.fillStyle = 'rgb(0,235,0)'; g.fillRect(0, 0, cols * P, linhas * P);
+    g.fillStyle = 'rgb(0,30,200)'; for (let i = 0; i < cols; i++) for (let j = 0; j < linhas; j++) g.fillRect(i * P + 2, j * P + 6, P - 2, P - 6);
+  });
+  const tMapa = new T.CanvasTexture(mapa); tMapa.encoding = T.sRGBEncoding; tMapa.anisotropy = 8;
+  const tAsp = new T.CanvasTexture(aspereza); tAsp.anisotropy = 8;
+  return { mapa: tMapa, aspereza: tAsp };
+}
+
 /* ---------- 1. Pós-processamento ----------
    A cena é desenhada numa imagem de alta precisão (com antisserrilhado). Dela sai o brilho das
    luzes (só o que passa do branco: LEDs, telões, sol, propulsores), espalhado em 6 tamanhos.
    Depois junta tudo na tela com a correção de cor. */
 const CINEMA = { ligado: null, largura: 0, altura: 0, niveis: [] };
 const CINEMA_AJUSTE = {
-  limiar: 0.92,        // a partir de quanto a luz começa a brilhar em volta
-  joelho: 0.35,        // transição suave do brilho
+  limiar: 1.05,        // a partir de quanto a luz começa a brilhar em volta (só luz de verdade: LED, sol, telão)
+  joelho: 0.15,        // transição suave do brilho
   forcaBrilho: 0.42,   // quanto do brilho volta para a imagem
   vinheta: 0.32,       // escurecimento das bordas
   grao: 0.022,         // granulação de filme
-  aberracao: 0.0022,   // separação de cor nas bordas (lente)
+  aberracao: 0.0010,   // separação de cor nas bordas (lente)
   sombraContato: 0.9,  // força da sombra de contato (oclusão de ambiente): cantos, pés de prédio, embaixo de carro
   verSombraContato: false,  // true mostra só a sombra de contato, em preto e branco (para conferir)
   nevoa: 0.22          // névoa de distância: quanto o fundo clareia (dá escala de cidade grande)
