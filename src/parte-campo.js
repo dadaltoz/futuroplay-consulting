@@ -1761,6 +1761,41 @@ function irEmbora(M, a) {
   if (casa) return irAte(M, a, casa.x, casa.z, { tipo: 'embora' });
   a.estado = 'sumido'; a.visivel = false; a.t = 5; return true;
 }
+/* Rotina de carga (distribuição, indústria, varejo, agro, construção): agacha e pega a caixa na pilha,
+   leva até um ponto de entrega (doca, expedição) e larga; volta para outra pilha. Nos outros segmentos
+   vira ronda de serviço (tablet na mão, para e confere). */
+const SEGMENTOS_COM_CARGA = { distribuicao: 1, industria: 1, varejo: 1, agro: 1, construcao: 1 };
+function tarefaCarga(M, a, il, anterior) {
+  const T = il.trabalho; if (!T) return null;
+  if (anterior && anterior.carga === 'pegar') a.levando = 'caixa';
+  if (anterior && anterior.carga === 'entregar') a.levando = null;
+  if (!T.comCaixa) { const p = livreDe(T.ronda, a); return p ? irAte(M, a, p.x, p.z, { tipo: 'posto', lugar: p }) : null; }
+  const p = livreDe(a.levando ? T.entregar : T.pegar, a);
+  return p ? irAte(M, a, p.x, p.z, { tipo: 'posto', lugar: p }) : null;
+}
+// Monta os pontos de carga de cada empresa (e as pilhas de caixas nos pontos de pegar)
+function pontosDeTrabalho(il, W, daIlha) {
+  const T = THREE, comCaixa = !!SEGMENTOS_COM_CARGA[il.dados.cena], so = sorteio('trabalho' + il.id), T0 = { comCaixa, pegar: [], entregar: [], ronda: [] };
+  const sortear = () => { for (let k = 0; k < 30; k++) { const q = pontoAleatorio(il.area, il.navDono); if (q && [].concat(T0.pegar, T0.entregar, T0.ronda).every((p) => Math.hypot(p.x - q[0], p.z - q[1]) > 3)) return q; } return null; };
+  if (comCaixa) {
+    const g = new T.Group(); W.grupo.add(g); daIlha(il.id, g);
+    const papelao = mat(0xc49a62, { roughness: 0.85 }), palete = mat(0x8a6a48, { roughness: 0.9 });
+    for (let k = 0; k < 6; k++) {
+      const q = sortear(); if (!q) break;
+      const giro = so() * 6.28, px = q[0] + Math.cos(giro) * 0.75, pz = q[1] - Math.sin(giro) * 0.75;   // a pilha fica do lado de quem pega
+      if (podePisar(navI(px, pz), il.navDono)) {
+        caixa(g, 0.8, 0.12, 0.8, palete, px, ALTURA_ILHA, pz).rotation.y = giro;
+        for (let n = 0; n < 3 + Math.floor(so() * 3); n++) caixa(g, 0.34, 0.3, 0.34, papelao, px + ((n % 2) - 0.5) * 0.38, ALTURA_ILHA + 0.12 + Math.floor(n / 2) * 0.3, pz + ((Math.floor(n / 2) % 2) - 0.5) * 0.3);
+        navBloquear(new T.Matrix4(), px - 0.45, px + 0.45, pz - 0.45, pz + 0.45, 0);
+      }
+      T0.pegar.push(ponto(q[0], q[1], rotDe(px - q[0], pz - q[1]), 'agachar', { dur: 2.5, carga: 'pegar' }));
+    }
+    for (let k = 0; k < 6; k++) { const q = sortear(); if (q) T0.entregar.push(ponto(q[0], q[1], so() * 6.28, 'carregar', { dur: 2, carga: 'entregar' })); }
+  } else {
+    for (let k = 0; k < 10; k++) { const q = sortear(); if (q) T0.ronda.push(ponto(q[0], q[1], so() * 6.28, k % 3 ? 'tablet' : 'operar', { dur: 6 })); }
+  }
+  il.trabalho = T0;
+}
 // Escolhe o que fazer agora
 function escolherTarefa(M, a) {
   const anterior = a.lugar;
@@ -1780,20 +1815,14 @@ function escolherTarefa(M, a) {
   const r = Math.random();
   const hall = M.postosSede;
   if (a.tipo === 'func' && il) {
-    if (r < 0.56) { const p = livreDe(il.postos || [], a); if (p) return irAte(M, a, p.x, p.z, { tipo: 'posto', lugar: p }); }
-    if (r < 0.64) { const q = destinoFora(M, a); if (q) return q; }
-    if (r < 0.71 && A > 0.6) { const q = irAoHub(M, a); if (q) return q; }   // de dia, ir ao Hub de Conexões   // sai da quadra: praça, centro de diagnóstico, estação
-    if (r < 0.74) {
-      // Às vezes sai para a calçada de fora: dá uma volta ou senta num banco
-      if (Math.random() < 0.3 && il.calcadaPts && il.calcadaPts.length) {
-        const b = Math.random() < 0.5 && livreDe(il.bancosFora || [], a); if (b) return irAte(M, a, b.x, b.z, { tipo: 'posto', lugar: b });
-        const q = il.calcadaPts[Math.floor(Math.random() * il.calcadaPts.length)]; return irAte(M, a, q[0], q[1], { tipo: 'passear' });
-      }
-      const q = pontoAleatorio(il.area, a.dono); if (q) return irAte(M, a, q[0], q[1], { tipo: 'passear' });
-    }
-    if (r < 0.74 + 0.08 * A) return irAoHall(M, a);
-    if (r < 0.9) { const q = irAPraca(M, a); if (q) return q; }   // de dia, uma em cada quatro saídas é para o hall da Real Forte
-    const q = pontoAleatorio(M.areaPraca, a.dono); if (q) return irAte(M, a, q[0], q[1], { tipo: 'passear' });
+    /* Funcionário trabalha na empresa: quem é da carga (papel fixo) vive pegando e levando caixa (ou
+       fazendo a ronda de serviço); os outros vão para o posto. Só uma parte pequena sai da ilha. */
+    if (a.papel === 'carga' || r < 0.25) { const q = tarefaCarga(M, a, il, anterior); if (q) return q; }
+    if (r < 0.72) { const p = livreDe(il.postos || [], a); if (p) return irAte(M, a, p.x, p.z, { tipo: 'posto', lugar: p }); const q = tarefaCarga(M, a, il, anterior); if (q) return q; }
+    if (r < 0.84) { const q = pontoAleatorio(il.area, a.dono); if (q) return irAte(M, a, q[0], q[1], { tipo: 'passear' }); }   // anda pela própria empresa
+    if (r < 0.9) { const q = destinoFora(M, a); if (q) return q; }   // poucos saem: estação, praça, Terminal
+    if (r < 0.93 && A > 0.6) { const q = irAoHub(M, a); if (q) return q; }   // e menos ainda vão ao Hub
+    const q = pontoAleatorio(il.area, a.dono); if (q) return irAte(M, a, q[0], q[1], { tipo: 'passear' });
   }
   if (a.tipo === 'consultor') {
     if (a.emCampo) { a.emCampo = false; return (Math.random() < 0.6 && irAoCentro(M, a, sortearChave([['diag', 3], ['estr', 2], ['apres', 2], ['perf', 1]]))) || irAoHall(M, a); }
@@ -2166,6 +2195,7 @@ function montarMundo(lista) {
     il.postos = il.postos.filter((p) => ajustarPonto(p, il.navDono));
     il.visitas = il.visitas.filter((p) => ajustarPonto(p, il.navDono));
     il.portas = il.portas.filter((p) => ajustarPonto(p, il.navDono));
+    pontosDeTrabalho(il, W, daIlha);   // pilhas de caixas e pontos de entrega (ou ronda de serviço)
   });
   const P = CAMPO.sedePontos;
   ['fila', 'mesas', 'sofas', 'telas', 'arena', 'reuniao', 'empe', 'elevadores'].forEach((k) => { P[k].forEach((p) => { p.ocupado = null; p.falhas = 0; }); });
@@ -2199,13 +2229,13 @@ function montarMundo(lista) {
   const porCidade = Math.max(14, Math.min(60, Math.floor((MULTIDAO_MAX - 260) / Math.max(1, lista.length))));
   const CAPACETE = { industria: 0xf0b429, construcao: 0xf0b429, distribuicao: 0xf0b429 };
   lista.forEach((il) => {
-    const n = Math.min(porCidade, 32 + il.setores.size * 2), cena = il.dados.cena;   // de manhã a empresa cheia   // poucos e com destino
+    const n = Math.min(porCidade, 40 + il.setores.size * 2), cena = il.dados.cena;   // de manhã a empresa cheia   // poucos e com destino
     for (let i = 0; i < n; i++) {
       const u = uniformeDa(il, 200 + i);
       if (CAPACETE[cena] && i % 5 < 2) u.capacete = CAPACETE[cena];
       if (cena === 'saude' && i % 3 === 0) { u.roupa = 0xffffff; u.detalhe = 0x4d8ff0; }   // jaleco
       const a = novoAgente(M, { tipo: 'func', il: il.id, dono: il.navDono, look: lookDe(u), sorte, limiar: i % 10 < Math.round(turnoDe(il) * 1.6) ? 0.04 + sorte() * 0.12 : 0.24 + sorte() * 0.7 });
-      a.portaCasa = il.portaCasa;
+      a.portaCasa = il.portaCasa; if (i % 5 < 2) a.papel = 'carga';   // 2 em cada 5 ficam na carga (ou na ronda)
       nascer(a, il.area, il.postos);
     }
     // Quem trabalha por dentro (no galpão, dá para ver pelo telhado de vidro)
@@ -4048,7 +4078,7 @@ const comFase = (pesos) => { const f = PESO_DA_FASE[faseDoDia().chave] || {}; re
 function semearHub(M) {
   CAMPO.hubAp = null;   // o mundo foi montado de novo: a rotina recomeça
   const todos = (M.centros && M.centros.hub) || [], H = todos.filter((p) => !p.plateia); if (!todos.length || (CAMPO.atividade != null && CAMPO.atividade < 0.6)) return;
-  const quem = M.agentes.filter((a) => a.visivel && ['func', 'equipe', 'consultor'].includes(a.tipo) && !a.semNav);
+  const quem = M.agentes.filter((a) => a.visivel && ['equipe', 'consultor', 'visitante'].includes(a.tipo) && !a.semNav).concat(M.agentes.filter((a) => a.visivel && a.tipo === 'func' && a.papel !== 'carga' && !a.semNav).filter((_, i) => i % 6 === 0));   // funcionário no Hub é minoria
   let n = 0;
   quem.forEach((a, i) => {
     if (n >= Math.round(H.length * 0.75) || i % 3 !== 1) return;
@@ -7815,7 +7845,7 @@ function chamarPlateia(M, quantos) {
   const W = CAMPO.mundo, A = W && W.alturaHub; if (!A) return;
   const lugares = ((M.centros && M.centros.hub) || []).filter((p) => p.plateia && !p.ocupado);
   const quem = M.agentes.filter((a) => a.visivel && !a.apresentador && !a.semNav && ['func', 'equipe', 'consultor', 'visitante'].includes(a.tipo) && !(a.lugar && a.lugar.plateia) && a.limiar < (CAMPO.atividade == null ? 1 : CAMPO.atividade))
-    .map((a) => [a, Math.hypot(a.x - A.cx, a.z - A.zs)]).filter(([, d]) => d < 170).sort((x, y) => x[1] - y[1]).map(([a]) => a);
+    .filter((a) => a.tipo !== 'func' || (a.papel !== 'carga' && Math.random() < 0.25)).map((a) => [a, Math.hypot(a.x - A.cx, a.z - A.zs)]).filter(([, d]) => d < 170).sort((x, y) => x[1] - y[1]).map(([a]) => a);   /* a plateia é sobretudo da Real Forte e de visitantes */
   let n = 0;
   for (const a of quem) { if (n >= quantos || !lugares.length) break; const i = Math.floor(Math.random() * Math.min(lugares.length, 12)), p = lugares.splice(i, 1)[0]; soltarPonto(a); irAte(M, a, p.x, p.z, { tipo: 'centro', lugar: p }); n++; }
 }
