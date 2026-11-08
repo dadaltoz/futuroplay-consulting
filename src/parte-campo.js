@@ -5107,7 +5107,7 @@ function montarEspaco() {
     const sp = new T.Sprite(fundo(new T.SpriteMaterial({ map: brilhoTex, color: cor, transparent: true, opacity: op * 0.35, blending: T.AdditiveBlending }))); sp.scale.set(s, s * 0.6, 1); sp.position.set(x, y, z).setLength(540); sp.renderOrder = -9; ceu.add(sp); });
   // planeta gigante com anel
   const texGas = texturaCanvas(512, 256, (q, w, h) => { for (let y = 0; y < h; y++) { const t = y / h, b = Math.sin(t * 40) * 0.5 + Math.sin(t * 13 + 1) * 0.5; q.fillStyle = `hsl(${26 + b * 10}, ${55 + b * 15}%, ${46 + b * 14}%)`; q.fillRect(0, y, w, 1); } q.fillStyle = 'rgba(170,60,30,0.6)'; q.beginPath(); q.ellipse(w * 0.62, h * 0.62, 40, 16, 0, 0, Math.PI * 2); q.fill(); });
-  const gigante = new T.Group(); gigante.position.set(200, 150, -420).setLength(470); ceu.add(gigante);
+  const gigante = new T.Group(); gigante.position.set(200, 150, -420).setLength(470); gigante.scale.setScalar(0.5);   /* longe: metade do tamanho */ ceu.add(gigante);
   const pg = new T.Mesh(new T.SphereGeometry(80, 64, 32), new T.MeshStandardMaterial({ map: texGas, roughness: 0.9, fog: false, emissive: 0x2a1406, emissiveIntensity: 0.6 })); gigante.add(pg);
   const texAnel = texturaCanvas(512, 8, (q, w) => { for (let x = 0; x < w; x++) { const a = (0.15 + 0.6 * Math.abs(Math.sin(x * 0.09))) * (x > 60 ? 1 : 0); q.fillStyle = `rgba(230,200,160,${a})`; q.fillRect(x, 0, 1, 8); } });
   const anelG = new T.Mesh(new T.RingGeometry(105, 165, 128, 1), new T.MeshBasicMaterial({ map: texAnel, transparent: true, side: T.DoubleSide, toneMapped: false, fog: false, depthWrite: false }));
@@ -7014,8 +7014,8 @@ function renderizarCinema() {
 }
 
 // Direção do centro do planeta grande (embaixo, à esquerda de quem olha a ilha de frente)
-const CENTRO_PLANETA = [-0.82, -0.35, -0.45];
-const estaNoPlaneta = (v) => { const c = new THREE.Vector3().fromArray(CENTRO_PLANETA).normalize(); return v.clone().normalize().dot(c) > 0.77; };
+const CENTRO_PLANETA = [-0.96, 0.1, -0.27];   // longe, na lateral e perto do horizonte (não fica atrás da ilha)
+const estaNoPlaneta = (v) => { const c = new THREE.Vector3().fromArray(CENTRO_PLANETA).normalize(); return v.clone().normalize().dot(c) > 0.94; };
 /* ---------- 2. Céu do espaço e o planeta lá embaixo ----------
    Uma esfera que acompanha a câmera. Para cada direção do olhar, o shader vê se ela bate no planeta
    (uma esfera grande abaixo da ilha: o horizonte dele fica uns 27° abaixo do olhar reto) ou se vai
@@ -7079,7 +7079,7 @@ ${GLSL_RUIDO2}
 void main() {
   float nv = rfFbm2p(vUv, 5.0, 9);
   float fiapos = rfFbm2p(vUv + 0.5, 24.0, 4);
-  float nuvem = smoothstep(0.5, 0.78, nv + (fiapos - 0.5) * 0.18);
+  float nuvem = smoothstep(0.57, 0.82, nv + (fiapos - 0.5) * 0.18);
   gl_FragColor = vec4(nuvem, fiapos, 0.0, 1.0);
 }`;
 const CEU_FRAG = `
@@ -7088,8 +7088,8 @@ uniform vec3 uSol, uSolPlaneta; uniform float uForcaSol, uNoite;
 varying vec3 vDir;
 ${GLSL_RUIDO2}
 float rfH3(vec3 p) { p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419)); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-const float RP = 0.6;     // raio do planeta (a distância até o centro é 1): ocupa ~37° do céu, de lado
-const float RA = 0.618;   // topo da atmosfera
+const float RP = 0.3;     // raio do planeta (a distância até o centro é 1): longe, ocupa ~17° do céu
+const float RA = 0.309;   // topo da atmosfera
 vec3 rfEstrelas(vec3 d, float escala, float limite, float brilho) {
   vec3 p = d * escala, i = floor(p), f = fract(p);
   float h = rfH3(i);
@@ -7109,7 +7109,7 @@ void main() {
     noPlaneta = 1.0;
     float t = b - sqrt(RP * RP - m2);
     vec3 n = normalize(d * t - C);
-    vec2 uv = vec2(dot(n, T1), dot(n, T2)) * 0.62 + 0.5;
+    vec2 uv = vec2(dot(n, T1), dot(n, T2)) * 0.5 + 0.5;
     vec4 pl = texture2D(tPlaneta, uv + uDeriva * 0.35);
     vec4 plFino = texture2D(tPlaneta, uv * 7.0 + 0.31 + uDeriva * 2.45);   // a mesma imagem bem menor: detalhe de perto
     pl.rgb *= 0.85 + 0.3 * plFino.a * pl.a + (1.0 - pl.a) * 0.15;
