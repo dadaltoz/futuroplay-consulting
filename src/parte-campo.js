@@ -2121,11 +2121,13 @@ function montarMundo(lista) {
   const W = CAMPO.mundo = { grupo, porIlha: new Map() };
   const daIlha = (id, o) => { if (!W.porIlha.has(id)) W.porIlha.set(id, []); W.porIlha.get(id).push(o); return o; };
   // 1) Mapa de onde dá para pisar: o tamanho cobre todas as cidades
-  criarNav(PLANO.lim);   // o mapa cobre a cidade inteira (o plano diretor é fixo)
+  criarNav(limiteDosSatelites(lista.length + 1));   // o mapa cobre a plataforma central, as ilhas das empresas e as pontes
   const I = new T.Matrix4(), S = CAMPO.sedeNav;
   S.alturas.forEach(([x0, x1, z0, z1, h]) => navRetangulo(I, x0, x1, z0, z1, 0, (k) => { NAV.alt[k] = Math.max(NAV.alt[k], h); }));
   S.obst.forEach(([x0, x1, z0, z1]) => navBloquear(I, x0, x1, z0, z1));
   marcarPlanoNoNav();   // ruas (só se atravessa na faixa), calçadas, centros e praças
+  const lotesSat = lista.map((il) => il.lote).concat([loteSatelite(lista.length)]), pontes = lotesSat.map(ponteDoSatelite);
+  marcarVazioNoNav(lotesSat, pontes);   // fora da plataforma, das ilhas e das pontes é vazio
   lista.forEach((il, i) => {
     il.navDono = i + 1;
     il.grupo.updateMatrixWorld(true);
@@ -2134,7 +2136,9 @@ function montarMundo(lista) {
     obstaculosDaCidade(il).forEach(([x0, x1, z0, z1]) => navBloquear(m, x0, x1, z0, z1));
   });
   // Lotes livres: canteiro de obras ou área verde reservada
-  W.extras = []; W.idsPorLote = lista.map((il) => il.id); preencherLotes(lista.length, W);
+  W.extras = []; W.idsPorLote = lista.map((il) => il.id);
+  cidadeRealForte(W);   // os quarteirões do centro viram a cidade da Real Forte
+  lotesSat.forEach((L, k) => ilhaSatelite(W, L, pontes[k], lista[k] || null, daIlha));   // ilha de cada empresa (e a próxima, preparada)
   pontosDeOnibus(lista, W);   // ponto do ônibus da Real Forte na frente de cada empresa
   outdoorsDasEmpresas(lista, W, daIlha);   // peça de cada empresa no gramado da frente (e os vídeos da Lança na Elson's)
   // Sombras do sol cobrindo o mundo todo
@@ -5075,12 +5079,12 @@ function montarEspaco() {
   const ilhotas = [];
   { const s4 = sorteio('ilhotas-rf');
     for (let k = 0; k < 6; k++) {   // estações secundárias (cenário, não são empresas)
-      const gg = new T.Group(), a = k / 6 * Math.PI * 2 + 0.3, rr = 225 + s4() * 45; gg.position.set(Math.cos(a) * rr, -16 + s4() * 40, cz + Math.sin(a) * rr); g.add(gg);
+      const gg = new T.Group(), a = k / 6 * Math.PI * 2 + 0.3, rr = 390 + s4() * 50; gg.position.set(Math.cos(a) * rr, 25 + s4() * 50, cz + Math.sin(a) * rr); g.add(gg);
       estacaoSecundaria(gg, 7 + s4() * 5, s4, k);
       ilhotas.push({ gg, y0: gg.position.y, f: s4() * 6 });
     }
     const n = 480, im = new T.InstancedMesh(geometriaDePedra(), materialDeRocha({ topo: 0, altura: 30, relevo: 0.5 }), n), m4 = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler();
-    for (let k = 0; k < n; k++) { const a = s4() * Math.PI * 2, rr = 265 + s4() * 80, sc = 0.6 + s4() ** 3 * 6; e.set(s4() * 3, s4() * 3, s4() * 3); q.setFromEuler(e); im.setMatrixAt(k, m4.compose(new T.Vector3(Math.cos(a) * rr, -45 + (s4() - 0.5) * 30, Math.sin(a) * rr), q, new T.Vector3(sc, sc * (0.6 + s4() * 0.6), sc))); }
+    for (let k = 0; k < n; k++) { const a = s4() * Math.PI * 2, rr = 430 + s4() * 80, sc = 0.6 + s4() ** 3 * 6; e.set(s4() * 3, s4() * 3, s4() * 3); q.setFromEuler(e); im.setMatrixAt(k, m4.compose(new T.Vector3(Math.cos(a) * rr, -45 + (s4() - 0.5) * 30, Math.sin(a) * rr), q, new T.Vector3(sc, sc * (0.6 + s4() * 0.6), sc))); }
     const cinturao = new T.Group(); cinturao.position.z = cz; cinturao.add(im); g.add(cinturao); CAMPO.cinturao = cinturao;
   }
   // ---- Luz de baixo (azulada) para a rocha e o fundo das peças não ficarem pretos ----
@@ -5645,7 +5649,7 @@ function ajustarTamanho() {
    Dois dedos girando: gira a cidade. Dois cliques: chega perto do ponto.
    Botões na tela: + e −, girar para os dois lados e "Torre RF". Só a apresentação gira sozinha. */
 const CAM = { theta: 0.42, phi: 0.95, raio: 110, raioAlvo: 110, alvo: null, vTheta: 0, vPhi: 0, vx: 0, vz: 0, parada: 0, anim: null, ancora: null };
-const PHI_MIN = 0.08, RAIO_MIN = 3.5, RAIO_MAX = 380;
+const PHI_MIN = 0.08, RAIO_MIN = 3.5, RAIO_MAX = 560;
 // De perto dá para olhar quase na horizontal; de longe a câmera fica mais de cima
 const phiMaxDe = (raio) => (CAMPO.espaco && raio > 90 ? Math.min(1.9, 1.25 + (raio - 90) / 80 * 0.65) : raio < 18 ? 1.47 : raio < 70 ? 1.47 - (raio - 18) / 52 * 0.22 : 1.25);   /* no espaço, de longe, a câmera desce até ver a ilha por baixo */
 function visaoGeral() {
@@ -5654,13 +5658,14 @@ function visaoGeral() {
   const proporcao = CAMPO.largura && CAMPO.altura ? CAMPO.largura / CAMPO.altura : 1.6;
   // Distância para caber a largura (campo de visão de 38°) e a profundidade (a câmera olha inclinada)
   const raio = Math.min(RAIO_MAX, Math.max(110, (x1 - x0) / (2 * 0.344 * proporcao) * 1.1, (z1 - z0) * 1.08));
-  return { alvo: new THREE.Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2 + raio * 0.14), raio, theta: 0.42, phi: 0.8 };   // um pouco para a frente: a legenda não cobre a primeira fila de empresas
+  const largo = proporcao >= 1;   // a plataforma central inteira, com as ilhas das empresas em volta (como a imagem de referência)
+  return { alvo: new THREE.Vector3(0, 0, 30), raio: largo ? 440 : 560, theta: 0.42, phi: 0.95 };   // um pouco para a frente: a legenda não cobre a primeira fila de empresas
 }
 function visaoDaIlha(il) { return { alvo: il.pos.clone().add(new THREE.Vector3(0, 1.2, 0)), raio: CAMPO.largura / CAMPO.altura < 1 ? 46 : 31, theta: il.grupo.rotation.y + 0.22, phi: 0.92 }; }
 function visaoDaTorre() { return { alvo: new THREE.Vector3(0, 13, 3), raio: CAMPO.largura / CAMPO.altura < 1 ? 70 : 52, theta: CAM.theta, phi: 1.2 }; }
 // O alvo da câmera não sai da cidade
 function limiteDoAlvo() {
-  CAM.alvo.x = Math.max(-135, Math.min(135, CAM.alvo.x)); CAM.alvo.z = Math.max(-130, Math.min(140, CAM.alvo.z)); CAM.alvo.y = Math.max(0, Math.min(34, CAM.alvo.y));
+  const lim = SATELITE.raio2 + 30; CAM.alvo.x = Math.max(-lim, Math.min(lim, CAM.alvo.x)); CAM.alvo.z = Math.max(-lim, Math.min(lim, CAM.alvo.z));   /* alcança as ilhas das empresas */ CAM.alvo.y = Math.max(0, Math.min(34, CAM.alvo.y));
 }
 function animarCamera(para, duracao, depois) {
   CAM.ancora = null; CAM.vx = CAM.vz = CAM.vTheta = CAM.vPhi = 0;
@@ -5827,7 +5832,7 @@ function ligarControles(palco) {
     if (z === '+') zoom(0.6); else if (z === '-') zoom(1.6);
     else if (z === 'ge' || z === 'gd') animarCamera({ alvo: CAM.alvo.clone(), raio: CAM.raio, theta: CAM.theta + (z === 'ge' ? -Math.PI / 4 : Math.PI / 4), phi: CAM.phi }, 450);
     else if (z === 'torre') animarCamera(visaoDaTorre(), 900);
-    else if (z === 'orbita') animarCamera({ alvo: new THREE.Vector3(0, 0, 6), raio: 360, theta: CAM.theta, phi: 1.32 }, 1600);   // visão orbital
+    else if (z === 'orbita') animarCamera({ alvo: new THREE.Vector3(0, 0, 6), raio: 540, theta: CAM.theta, phi: 1.22 }, 1600);   // visão orbital
   });
   palco.appendChild(botoes); CAMPO.botoesCamera = botoes;
   // Rótulo do centro (aparece ao passar o mouse)
@@ -5865,7 +5870,7 @@ function atualizarIlhas() {
   const lista = empresas.map((e) => CAMPO.ilhas.get(e.id));
   const chave = lista.map((il) => il.id).join('|');
   lista.forEach((il, i) => {
-    const L = loteDaEmpresa(i); il.lote = L;
+    const L = loteSatelite(i); il.lote = L;   // cada empresa na sua ilha, ligada por ponte à cidade central
     if (!il.posicionada || il.pos.x !== L.cx || il.pos.z !== L.cz || il.grupo.rotation.y !== L.giro) { posicionarIlha(il, L.cx, L.cz, L.giro); mudou = true; }
   });
   if (CAMPO.lotesOcupados !== lista.length) { CAMPO.lotesOcupados = lista.length; mudou = true; }
@@ -6651,6 +6656,7 @@ function megaestrutura(g, cx, cz) {
     q.fillStyle = '#163048'; q.fillRect(0, h * 0.35, w, h * 0.08); luz.fillStyle = '#38b6ff'; luz.fillRect(0, h * 0.35, w, h * 0.08);
   }), 1.8);
   const chapa = revestir(new T.MeshStandardMaterial({ color: 0x272e38, roughness: 0.48, metalness: 0.6, envMap: CAMPO.ambiente, envMapIntensity: 0.7 }), 'chapa');
+  CAMPO.matsCasco = { principal, aro, chanfro, chapa };   // as ilhas das empresas usam o mesmo casco
   const chapaClara = revestido(mat(0x59626e, { roughness: 0.45, metalness: 0.55 }), 'chapa');
   // Faixas do casco (de cima para baixo)
   const faixa = (d0, y0, d1, y1, m, rep) => { const me = new T.Mesh(faixaDoCasco(N, d0, y0, d1, y1, rep), m); me.receiveShadow = true; g.add(me); return me; };
@@ -6842,6 +6848,174 @@ function globoDaPraca(g, x, z) {
   const disco = new T.Mesh(G3.cil, mat(0x2a313c, { metalness: 0.7, roughness: 0.3 })); disco.scale.set(1.8, 0.25, 1.8); proj.add(disco);
   const lente = new T.Mesh(G3.cil, luzMat(ciano, 2)); lente.scale.set(1.2, 0.27, 1.2); proj.add(lente);
   return { H, varre, part, halo, halo2, faceM, linhaM, ALT, y0: 4.4, centro, aneis };
+}
+
+/* ---------- 14. Ilhas-satélite das empresas e a cidade da Real Forte no centro ----------
+   Cada empresa fica numa ilha própria, num anel em volta da plataforma central, ligada a ela por uma
+   ponte (pista no meio e calçadas dos lados). Na ilha: a empresa no meio (o mesmo campus por segmento
+   de antes, com o portão virado para a ponte) e, em volta, um bairro residencial com prédios, árvores
+   e postes. A primeira empresa cadastrada fica na frente; as seguintes vão alternando dos dois lados.
+   No centro, os quarteirões que eram das empresas viram a cidade da Real Forte: torres de vidro com
+   coroa de LED, prédios redondos, telões com gráficos, jardins no teto e heliponto.
+   O mapa de onde dá para pisar passa a cobrir as ilhas e as pontes; o vazio entre elas é bloqueado. */
+const SATELITE = { raio: 232, raio2: 318, ilha: 36, porAnel: 12 };
+function loteSatelite(k) {
+  const anel = k < SATELITE.porAnel ? 0 : 1, n = SATELITE.porAnel, m = anel ? k - n : k, passo = Math.PI * 2 / n;
+  const lado = m % 2 ? 1 : -1, a = Math.PI / 2 + lado * (passo / 2 + (2 + Math.floor(m / 2)) * passo) + anel * passo / 2;   // as primeiras nas laterais (a frente fica livre para a vista)   // ângulos fora dos eixos (lá ficam as pontes de entrada)
+  const R = anel ? SATELITE.raio2 : SATELITE.raio, cx = Math.cos(a) * R, cz = 6 + Math.sin(a) * R, b = SATELITE.ilha * 0.66;
+  return { i: 9, j: 9, satelite: true, ang: a, b: { x0: cx - b, x1: cx + b, z0: cz - b, z1: cz + b, cx, cz }, dir: [0, -1], cx, cz, giro: Math.atan2(-cx, -(cz - 6)) };
+}
+const limiteDosSatelites = (n) => Math.ceil((n > SATELITE.porAnel ? SATELITE.raio2 : SATELITE.raio) + SATELITE.ilha + 6);
+// Ponte: da beira da ilha até a beira da plataforma central
+function ponteDoSatelite(L) {
+  const ux = -Math.cos(L.ang), uz = -Math.sin(L.ang), x0 = L.cx + ux * (SATELITE.ilha - 1), z0 = L.cz + uz * (SATELITE.ilha - 1);
+  let d = 0; while (d < 200 && !dentroDaIlha(x0 + ux * d, z0 + uz * d, 2)) d += 0.5;
+  return { x0, z0, x1: x0 + ux * (d + 2), z1: z0 + uz * (d + 2), ux, uz, comp: d + 2 };
+}
+// Libera no mapa só o que é chão: plataforma central, ilhas e pontes (o resto é vazio)
+function marcarVazioNoNav(lotes, pontes) {
+  const N = NAV.n;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const k = j * N + i, x = NAV.x0 + (i + 0.5) * NAV.cel, z = NAV.z0 + (j + 0.5) * NAV.cel;
+    if (dentroDaIlha(x, z, 0.6)) continue;
+    let chao = lotes.some((L) => Math.hypot(x - L.cx, z - L.cz) < SATELITE.ilha - 1.2);
+    if (!chao) chao = pontes.some((p) => { const t = (x - p.x0) * p.ux + (z - p.z0) * p.uz; if (t < -0.5 || t > p.comp + 0.5) return false; const lx = p.x0 + p.ux * t, lz = p.z0 + p.uz * t; return Math.hypot(x - lx, z - lz) < 2.3; });
+    if (!chao) NAV.livre[k] = 0;
+  }
+}
+// Materiais da cidade nova (guardados: os mesmos em todos os quarteirões e ilhas)
+function fachadaRepetida(cols, linhas, cor, corLuz, acesas, forca) {
+  const fx = texturaFachadaVidro(cols, linhas, cor), j = texturaJanelas(cols, linhas, acesas, corLuz);
+  [fx.mapa, fx.aspereza, j.tex].forEach((t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.needsUpdate = true; });
+  const m = new THREE.MeshStandardMaterial({ map: fx.mapa, roughness: 1, metalness: 0.75, roughnessMap: fx.aspereza, metalnessMap: fx.aspereza, emissive: 0xffffff, emissiveMap: j.tex, emissiveIntensity: forca, envMap: CAMPO.ambiente, envMapIntensity: 1 });
+  (CAMPO.matsTorre = CAMPO.matsTorre || []).push([m, forca]);
+  return m;
+}
+function materiaisDaMetropole() {
+  if (CAMPO.matsMetropole) return CAMPO.matsMetropole;
+  const T = THREE;
+  // Residencial: parede clara, janela com caixilho e a laje da varanda com guarda-corpo de vidro
+  const resid = telaDe(256, 256, (g) => {
+    g.fillStyle = '#d8d3c8'; g.fillRect(0, 0, 256, 256);
+    for (let k = 0; k < 500; k++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.04})`; g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); }
+    [0, 128].forEach((x) => [0, 128].forEach((y) => {
+      g.fillStyle = '#2b3340'; g.fillRect(x + 16, y + 18, 96, 80);
+      const gr = g.createLinearGradient(0, y + 22, 0, y + 94); gr.addColorStop(0, '#b9cfe6'); gr.addColorStop(1, '#4d6588'); g.fillStyle = gr; g.fillRect(x + 20, y + 22, 88, 72);
+      g.fillStyle = '#2b3340'; g.fillRect(x + 62, y + 22, 4, 72);
+      g.fillStyle = '#9aa2ad'; g.fillRect(x, y + 100, 128, 10); g.fillStyle = 'rgba(190,220,245,.55)'; g.fillRect(x + 4, y + 84, 120, 16);
+    }));
+  });
+  const residLuz = telaDe(256, 256, (g) => { g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256); [0, 128].forEach((x) => [0, 128].forEach((y) => { if (Math.random() < 0.6) { g.fillStyle = Math.random() < 0.8 ? '#ffd29a' : '#cfe3ff'; g.fillRect(x + 20, y + 22, 88, 72); } })); });
+  const tR = texturaRepetida(resid), tL = texturaRepetida(residLuz);
+  const residencial = new T.MeshStandardMaterial({ map: tR, emissive: 0xffffff, emissiveMap: tL, emissiveIntensity: 0.9, roughness: 0.75, metalness: 0.05 });
+  (CAMPO.matsTorre = CAMPO.matsTorre || []).push([residencial, 0.9]);
+  // Telões com gráficos (barras, linha e mapa) para as fachadas
+  const tela = (desenhar) => { const t = new T.CanvasTexture(telaDe(512, 288, desenhar)); t.encoding = T.sRGBEncoding; t.anisotropy = 8; return new T.MeshBasicMaterial({ map: t, toneMapped: false }); };
+  const fundoTela = (g) => { const gr = g.createLinearGradient(0, 0, 512, 288); gr.addColorStop(0, '#071a33'); gr.addColorStop(1, '#0c2a52'); g.fillStyle = gr; g.fillRect(0, 0, 512, 288); g.strokeStyle = 'rgba(80,170,255,.18)'; for (let x = 0; x < 512; x += 32) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 288); g.stroke(); } for (let y = 0; y < 288; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke(); } g.strokeStyle = '#46b4ff'; g.lineWidth = 6; g.strokeRect(3, 3, 506, 282); };
+  const telas = [
+    tela((g) => { fundoTela(g); const v = [0.35, 0.5, 0.42, 0.66, 0.58, 0.8, 0.92]; v.forEach((h, i) => { g.fillStyle = i % 2 ? '#38b6ff' : '#ff8a3d'; g.fillRect(50 + i * 62, 250 - h * 200, 38, h * 200); }); }),
+    tela((g) => { fundoTela(g); g.strokeStyle = '#7fe0ff'; g.lineWidth = 6; g.beginPath(); [[30, 230], [100, 190], [170, 205], [240, 140], [310, 160], [380, 90], [470, 50]].forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); g.fillStyle = '#ff8a3d'; g.beginPath(); g.moveTo(470, 30); g.lineTo(495, 60); g.lineTo(445, 60); g.fill(); }),
+    tela((g) => { fundoTela(g); const s = sorteio('mapa-tela'); for (let k = 0; k < 2600; k++) { const x = s() * 512, y = 30 + s() * 230; if (fbm3(x / 90, y / 90, 3.3, 3) > 0.55) { g.fillStyle = s() < 0.25 ? '#ff9a52' : '#5fd0ff'; g.fillRect(x, y, 3, 3); } } })
+  ];
+  const vidros = [fachadaRepetida(4, 4, 0x1d3550, '#bfe3ff', 0.55, 0.9), fachadaRepetida(4, 4, 0x24506a, '#ffe2b0', 0.5, 0.85), fachadaRepetida(4, 4, 0xdfe3e8, '#ffe9c4', 0.5, 0.7), fachadaRepetida(4, 4, 0x2a2f38, '#ffcf8a', 0.6, 0.95)];
+  return (CAMPO.matsMetropole = { residencial, telas, vidros, ledL: luzMat(COR3D.laranja, 1.6), ledA: luzMat(0x38b6ff, 1.6), teto: matTelhado(0x6f7680), escuro: revestido(mat(0x232a33, { roughness: 0.4, metalness: 0.6 }), 'chapa') });
+}
+// Caixa com UV em metros (a fachada não estica) e cilindro idem
+function cilindroUV(r, h, mu, mv) {
+  const geo = new THREE.CylinderGeometry(r, r, h, 40, 1, true).translate(0, h / 2, 0), uv = geo.attributes.uv, k = 2 * Math.PI * r / mu;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * Math.round(k), uv.getY(i) * h / mv);
+  return geo;
+}
+// Um prédio da cidade nova: corpo (caixa ou cilindro), coroa de LED, teto (jardim, heliponto ou máquinas) e às vezes um telão
+function predioFuturista(K, g, extras, x, z, w, d, h, s, MM, obst, giro) {
+  const T = THREE, redondo = s() < 0.25 && Math.abs(w - d) < 3, m = MM.vidros[Math.floor(s() * MM.vidros.length)], mu = 10.4, mv = 12.8;
+  let corpo;
+  if (redondo) { const r = Math.min(w, d) / 2; corpo = new T.Mesh(cilindroUV(r, h, mu, mv), m); K.add(G3.cil64, MM.teto, x, h, z, r, 0.25, r); K.add(G3.toroFino, s() < 0.5 ? MM.ledL : MM.ledA, x, h + 0.3, z, r * 1.01, 40, r * 1.01, 0, 0, 0, false); }
+  else { corpo = new T.Mesh(caixaUV(w, h, d, mu, mv), m); K.add(G3.caixa, MM.teto, x, h, z, w + 0.3, 0.35, d + 0.3, 0, giro, 0);
+    const led = s() < 0.5 ? MM.ledL : MM.ledA, c = Math.cos(giro), sn = Math.sin(giro), pt = (ox, oz) => [x + ox * c + oz * sn, z - ox * sn + oz * c];
+    [[0, d / 2 + 0.16, w + 0.34, 0.08], [0, -d / 2 - 0.16, w + 0.34, 0.08], [w / 2 + 0.16, 0, 0.08, d + 0.34], [-w / 2 - 0.16, 0, 0.08, d + 0.34]].forEach(([ox, oz, ww, dd]) => { const [px, pz] = pt(ox, oz); K.add(G3.caixa, led, px, h + 0.3, pz, ww, 0.1, dd, 0, giro, 0, false); });
+    if (s() < 0.55) { const [px, pz] = pt(0, d / 2 + 0.06); const tl = new T.Mesh(G3.placa, MM.telas[Math.floor(s() * MM.telas.length)]); const tw = Math.min(w * 0.7, 9); tl.scale.set(tw, tw * 0.5625, 1); tl.position.set(px, Math.min(h * 0.55, h - tw * 0.4), pz); tl.rotation.y = giro; g.add(tl);
+      const [fx, fz] = pt(0, d / 2 + 0.03); K.add(G3.caixa, MM.escuro, fx, tl.position.y - tw * 0.3, fz, tw + 0.4, tw * 0.6, 0.06, 0, giro, 0, false); }
+  }
+  corpo.position.set(x, 0, z); corpo.rotation.y = redondo ? 0 : giro; corpo.castShadow = corpo.receiveShadow = true; g.add(corpo); extras.push(corpo.geometry);
+  // teto: jardim, heliponto ou máquinas
+  const r = s(), topo = h + 0.35;
+  if (r < 0.4) { K.add(G3.caixa, CAMPO.vida.grama, x, topo, z, w * 0.7, 0.12, d * 0.7, 0, giro, 0, false); for (let q = 0; q < 3; q++) K.add(G3.copa, PLANO.mats.copa, x + (s() - 0.5) * w * 0.5, topo + 0.7, z + (s() - 0.5) * d * 0.5, 0.7, 0.8, 0.7, 0, q, 0); }
+  else if (r < 0.55 && w > 7) { K.add(G3.cil64, mat(0x2b3446), x, topo, z, Math.min(w, d) * 0.38, 0.12, Math.min(w, d) * 0.38); K.add(G3.toroFino, MM.ledL, x, topo + 0.14, z, Math.min(w, d) * 0.3, 30, Math.min(w, d) * 0.3, 0, 0, 0, false); }
+  else { K.add(G3.caixa, mat(0xc9ced6), x, topo, z, 1.4, 0.6, 1.0, 0, giro, 0); K.add(G3.cil, mat(0x2a2f37), x + 1.2, topo, z, 0.35, 0.5, false); }
+  const e = Math.max(w, d) / 2 + 0.4; obst.push([x - e, x + e, z - e, z + e]);
+}
+// Quarteirão da cidade da Real Forte (no lugar dos lotes de empresa da plataforma central)
+function quarteiraoFuturista(K, g, extras, x0, x1, z0, z1, s, obst) {
+  const MM = materiaisDaMetropole(), MP = PLANO.mats, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, W = x1 - x0, D = z1 - z0;
+  K.add(G3.caixa, MP.pedraClara, cx, 0.035, cz, W, 0.03, D, 0, 0, 0, false);
+  // quatro prédios nos cantos (um deles torre alta), praça com fonte e árvores no meio
+  const mw = W / 2 - 6.5, md = D / 2 - 6.5;   // os prédios ficam nos cantos e deixam a praça do meio livre
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz], k) => {
+    const w = Math.min(mw, 7 + s() * 5), d = Math.min(md, 7 + s() * 5), alta = k === Math.floor(s() * 4);
+    const h = alta ? 22 + s() * 22 : 7 + s() * 9;
+    predioFuturista(K, g, extras, cx + sx * (W / 2 - 1.6 - w / 2), cz + sz * (D / 2 - 1.6 - d / 2), w, d, h, s, MM, obst, 0);
+  });
+  K.add(G3.cil, MP.pedraBege, cx, 0.035, cz, 1.6, 0.4, 1.6); K.add(G3.cil, MP.agua, cx, 0.42, cz, 1.4, 0.02, 1.4, 0, 0, 0, false); K.add(G3.toroFino, MM.ledA, cx, 0.45, cz, 1.6, 30, 1.6, 0, 0, 0, false);
+  obst.push([cx - 1.7, cx + 1.7, cz - 1.7, cz + 1.7]);
+  for (let q = 0; q < 6; q++) { const a = q / 6 * Math.PI * 2 + 0.4, r = 3.6, x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r * 0.8; K.add(G3.cil, MP.tronco, x, 0.035, z, 0.07, 0.7, 0.07); K.add(G3.copa, q % 2 ? MP.copa : MP.copa2, x, 1.15, z, 0.7, 0.8, 0.7, 0, q, 0); obst.push([x - 0.3, x + 0.3, z - 0.3, z + 0.3]); }
+}
+function cidadeRealForte(W) {
+  const T = THREE, P = PLANO, I = new T.Matrix4(); formasDaVida();
+  W.gruas = []; W.reservasOcupadas = []; W.obras = [];
+  const K = novoLote(), obst = [], g = new T.Group(); W.grupo.add(g);
+  for (let k = 0; k < P.ORDEM_LOTES.length; k++) {
+    const b = loteDaEmpresa(k).b, C = P.CALC + 0.4;
+    quarteiraoFuturista(K, g, W.extras, b.x0 + C, b.x1 - C, b.z0 + C, b.z1 - C, sorteio('quarteirao' + k), obst);
+  }
+  K.montar(g, W.extras);
+  obst.forEach(([a0, a1, c0, c1]) => navBloquear(I, a0, a1, c0, c1));
+}
+// A ilha da empresa: plataforma redonda (mesmo casco da central), bairro residencial e a ponte
+function materiaisDoSatelite() {
+  if (CAMPO.matsSatelite) return CAMPO.matsSatelite;
+  const MC = CAMPO.matsCasco, rep = (m, r, base) => { const c = m.clone(); c.map = m.map.clone(); c.map.needsUpdate = true; c.map.repeat.set(r, 1); c.emissiveMap = m.emissiveMap.clone(); c.emissiveMap.needsUpdate = true; c.emissiveMap.repeat.set(r, 1); c.emissiveIntensity = base; (CAMPO.matsTorre = CAMPO.matsTorre || []).push([c, base]); return c; };
+  return (CAMPO.matsSatelite = { principal: rep(MC.principal, 7, 1.9), aro: rep(MC.aro, 14, 1.8), chanfro: rep(MC.chanfro, 14, 1.8), chapa: MC.chapa });
+}
+function ilhaSatelite(W, L, ponte, il, daIlha) {
+  const T = THREE, MS = materiaisDoSatelite(), MM = materiaisDaMetropole(), MP = PLANO.mats, R = SATELITE.ilha, g = new T.Group(); g.position.set(L.cx, 0, L.cz); W.grupo.add(g);
+  if (il) daIlha(il.id, g);   // na apresentação só aparece a ilha do cliente
+  const K = novoLote(), s = sorteio('satelite' + (il ? il.id : 'livre')), obst = [];
+  // casco e fundo
+  const anel = (r0, r1, y0, y1, m) => { const me = new T.Mesh(new T.CylinderGeometry(r0, r1, y0 - y1, 96, 1, true).translate(0, (y0 + y1) / 2, 0), m); me.receiveShadow = true; g.add(me); };
+  anel(R, R + 1.5, 0.02, -1.5, MS.aro); anel(R + 1.5, R + 1.5, -1.5, -6, MS.principal); anel(R + 1.5, R - 4, -6, -8.5, MS.chanfro);
+  const fundo = new T.Mesh(new T.CylinderGeometry(R - 4, 3, 14, 64, 1, false).translate(0, -15.5, 0), MS.chapa); g.add(fundo);
+  K.add(G3.toroFino, MM.ledL, 0, -10, 0, R - 6, 40, R - 6, 0, 0, 0, false); K.add(G3.toroFino, MM.ledA, 0, -16, 0, R - 15, 40, R - 15, 0, 0, 0, false);
+  brilho(g, 0x7fd0ff, 16, 0, -23, 0, 0.8);
+  // piso: calçada de pedra e um anel de grama na beira
+  K.add(G3.cil64, V_pedra(), 0, -0.6, 0, R, 0.62, R);
+  const grama = new T.Mesh(new T.RingGeometry(R - 5.5, R - 0.4, 96).rotateX(-Math.PI / 2), CAMPO.vida.grama); grama.position.y = 0.035; g.add(grama);
+  // bairro residencial em volta da empresa (fora do lado da ponte)
+  const giro = L.giro, c = Math.cos(giro), sn = Math.sin(giro), mundo = (ox, oz) => [ox * c + oz * sn, -ox * sn + oz * c];
+  const nPred = 7;
+  for (let q = 0; q < nPred; q++) {
+    const th = (40 + q * (280 / (nPred - 1))) * Math.PI / 180, r = 25.5, [x, z] = mundo(Math.sin(th) * r, Math.cos(th) * r), w = 4.2 + s() * 1.6, d = 4.2 + s() * 1.6, h = 5 + s() * 7;   // prédios de morar, mais baixos que a empresa em destaque
+    const pr = new T.Mesh(caixaUV(w, h, d, 6, 6), MM.residencial); pr.position.set(x, 0, z); pr.rotation.y = giro + th; pr.castShadow = pr.receiveShadow = true; g.add(pr); W.extras.push(pr.geometry);
+    K.add(G3.caixa, MM.teto, x, h, z, w + 0.3, 0.3, d + 0.3, 0, giro + th, 0);
+    if (s() < 0.6) { K.add(G3.caixa, CAMPO.vida.grama, x, h + 0.3, z, w * 0.7, 0.1, d * 0.7, 0, giro + th, 0, false); K.add(G3.copa, MP.copa, x, h + 0.9, z, 0.6, 0.7, 0.6, 0, q, 0); }
+    K.add(G3.caixa, q % 2 ? MM.ledL : MM.ledA, x, h + 0.32, z, w + 0.34, 0.06, d + 0.34, 0, giro + th, 0, false);
+    const e = Math.max(w, d) * 0.72; obst.push([L.cx + x - e, L.cx + x + e, L.cz + z - e, L.cz + z + e]);
+  }
+  for (let q = 0; q < 14; q++) { const th = (25 + q * 22) * Math.PI / 180, r = 31.5, [x, z] = mundo(Math.sin(th) * r, Math.cos(th) * r); K.add(G3.cil, MP.tronco, x, 0, z, 0.07, 0.7, 0.07); K.add(G3.copa, q % 2 ? MP.copa : MP.copa2, x, 1.15, z, 0.75, 0.85, 0.75, 0, q, 0); obst.push([L.cx + x - 0.3, L.cx + x + 0.3, L.cz + z - 0.3, L.cz + z + 0.3]); }
+  for (let q = 0; q < 10; q++) { const th = q / 10 * Math.PI * 2, [x, z] = mundo(Math.sin(th) * 20.5, Math.cos(th) * 20.5); K.add(G3.cil, MP.navy, x, 0, z, 0.05, 2.6, 0.05); K.add(G3.bola, MP.lampadaQuente, x, 2.6, z, 0.17, 0.17, 0.17, 0, 0, 0, false); }
+  if (!il) {   // ilha preparada para a próxima empresa
+    const tex = texturaTexto(['ILHA PREPARADA', 'para a próxima empresa · Real Forte'], '#0f2342', '#ffffff', 640, 160); W.extras.push(tex);
+    const pl = new T.Mesh(G3.placa, new T.MeshBasicMaterial({ map: tex, toneMapped: false })); pl.scale.set(6, 1.5, 1); pl.position.set(0, 2.2, 0); pl.rotation.y = giro; g.add(pl);
+  }
+  K.montar(g, W.extras);
+  // ponte
+  const gp = new T.Group(); W.grupo.add(gp); if (il) daIlha(il.id, gp);
+  const ang = Math.atan2(-ponte.uz, ponte.ux), mx = (ponte.x0 + ponte.x1) / 2, mz = (ponte.z0 + ponte.z1) / 2, Lp = ponte.comp + 2, Kp = novoLote();
+  const P = (m, oy, oz, sy, sz, sombra) => { const ox = 0, c2 = Math.cos(ang), s2 = Math.sin(ang); Kp.add(G3.caixa, m, mx + ox * c2 + oz * s2, oy, mz - ox * s2 + oz * c2, Lp, sy, sz, 0, ang, 0, sombra); };
+  P(MS.chapa, -1.4, 0, 1.4, 5.6); P(MP.asfalto, 0.0, 0, 0.04, 2.6, false); P(V_pedra(), 0.0, 1.85, 0.05, 1.3, false); P(V_pedra(), 0.0, -1.85, 0.05, 1.3, false);
+  [-2.65, 2.65].forEach((o) => { P(MP.vidroGuarda, 0.05, o, 1.0, 0.06, false); P(o > 0 ? MM.ledL : MM.ledA, 1.05, o, 0.06, 0.1, false); P(MM.ledA, -0.75, o * 1.05, 0.08, 0.08, false); });
+  Kp.montar(gp, W.extras);
+  obst.forEach(([a0, a1, c0, c1]) => navBloquear(new T.Matrix4(), a0, a1, c0, c1));
 }
 
 /* ---------- 1. Pós-processamento ----------
