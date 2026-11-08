@@ -6909,15 +6909,19 @@ function materiaisDaMetropole() {
       g.fillStyle = '#9aa2ad'; g.fillRect(x, y + 100, 128, 10); g.fillStyle = 'rgba(150,170,190,.35)'; g.fillRect(x + 4, y + 84, 120, 16);
     }));
   });
-  const residLuz = telaDe(1024, 1024, (g) => {   // 8 x 8 apartamentos por repetição: quase todos com luz amarela (gente em casa)
+  /* Janelas acesas: 8 x 8 apartamentos por repetição. De noite quase todos com luz amarela (gente em casa);
+     de dia só um ou outro. "acesas" = parte das janelas com luz. */
+  const luzDasJanelas = (acesas, semente) => telaDe(1024, 1024, (g) => {
+    const so = sorteio('janelas-resid-' + semente);
     g.fillStyle = '#000'; g.fillRect(0, 0, 1024, 1024);
-    for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { if (Math.random() < 0.12) continue; const x = i * 128, y = j * 128, k = 0.7 + Math.random() * 0.3;
+    for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { if (so() > acesas) continue; const x = i * 128, y = j * 128, k = 0.7 + Math.random() * 0.3;
       const gr = g.createRadialGradient(x + 64, y + 60, 6, x + 64, y + 60, 60); gr.addColorStop(0, `rgba(255,${Math.round(214 * k)},${Math.round(120 * k)},1)`); gr.addColorStop(1, `rgba(255,${Math.round(170 * k)},${Math.round(60 * k)},${0.75 * k})`);
       g.fillStyle = gr; g.fillRect(x + 20, y + 22, 88, 72); } });
+  const residLuz = luzDasJanelas(0.9, 'noite'), residLuzDia = luzDasJanelas(0.1, 'dia');
   const residCor = telaDe(1024, 1024, (g) => { for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) g.drawImage(resid, i * 256, j * 256); });
-  const tR = texturaRepetida(residCor), tL = texturaRepetida(residLuz);
-  const residencial = new T.MeshStandardMaterial({ map: tR, emissive: 0xffc24a, emissiveMap: tL, emissiveIntensity: 0.2, roughness: 0.75, metalness: 0.05 });   // luz âmbar: amarelo de casa com gente
-  CAMPO.matResidencial = residencial;   // a força da luz das janelas segue a noite (passoCeuDeCinema)
+  const tR = texturaRepetida(residCor), tL = texturaRepetida(residLuz), tLDia = texturaRepetida(residLuzDia);
+  const residencial = new T.MeshStandardMaterial({ map: tR, emissive: 0xffc23c, emissiveMap: tLDia, emissiveIntensity: 1.1, roughness: 0.75, metalness: 0.05 });   // luz âmbar: amarelo de casa com gente
+  CAMPO.matResidencial = residencial; CAMPO.janelasResid = { dia: tLDia, noite: tL };   // a força da luz das janelas segue a noite (passoCeuDeCinema)
   // Telões com gráficos (barras, linha e mapa) para as fachadas
   const tela = (desenhar) => { const t = new T.CanvasTexture(telaDe(512, 288, desenhar)); t.encoding = T.sRGBEncoding; t.anisotropy = 8; return new T.MeshBasicMaterial({ map: t, toneMapped: false }); };
   const fundoTela = (g) => { const gr = g.createLinearGradient(0, 0, 512, 288); gr.addColorStop(0, '#0a2a5a'); gr.addColorStop(1, '#1450a0'); g.fillStyle = gr; g.fillRect(0, 0, 512, 288); g.strokeStyle = 'rgba(160,210,255,.08)'; for (let x = 0; x < 512; x += 32) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 288); g.stroke(); } for (let y = 0; y < 288; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke(); } g.strokeStyle = '#46b4ff'; g.lineWidth = 6; g.strokeRect(3, 3, 506, 282); };
@@ -7868,7 +7872,11 @@ function passoCeuDeCinema(t) {
   // à noite a "luz do sol" da cena é a lua: o planeta fica de costas para o sol
   U.uSolPlaneta.value.copy(U.uSol.value).lerp(CINEMA.tmpNoite || (CINEMA.tmpNoite = new THREE.Vector3(0.25, -0.9, -0.35).normalize()), Math.min(1, noite * 1.1)).normalize();
   U.uForcaSol.value = 1 - noite * 0.55; U.uNoite.value = noite;
-  if (CAMPO.matResidencial) CAMPO.matResidencial.emissiveIntensity = 0.1 + noite * 1.5;   // de dia quase apagadas; à noite amarelas e fortes
+  if (CAMPO.matResidencial) {   // de dia uma ou outra janela acesa; à noite quase todas, amarelas e bem fortes
+    const mr = CAMPO.matResidencial, J = CAMPO.janelasResid, deNoite = noite > 0.35, mapa = deNoite ? J.noite : J.dia;
+    if (mr.emissiveMap !== mapa) mr.emissiveMap = mapa;
+    mr.emissiveIntensity = deNoite ? 1.4 + noite * 2.4 : 1.1;
+  }
   (CAMPO.matsFiletes || []).forEach(([mf, base]) => { mf.emissiveIntensity = base * (0.12 + 0.88 * noite); });
   U.uDeriva.value.set(t * 0.00016, t * 0.00005);   // o planeta e as nuvens andam devagar lá embaixo
 }
