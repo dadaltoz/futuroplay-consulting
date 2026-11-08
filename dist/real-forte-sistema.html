@@ -3288,6 +3288,7 @@ function escolherTarefa(M, a) {
   if (a.tipo === 'obra') return tarefaObra(M, a);
   if (a.tipo === 'visitante') return tarefaVisitante(M, a);
   if (a.tipo === 'passeio') return tarefaPasseio(M, a);
+  if (a.tipo === 'circula') return tarefaCircula(M, a);
   if (a.tipo === 'morador') return tarefaMorador(M, a);
   const A = CAMPO.atividade == null ? 1 : CAMPO.atividade, il = a.il && CAMPO.ilhas.get(a.il);
   if (a.limiar > A + 0.04) return irEmbora(M, a);
@@ -3729,7 +3730,7 @@ function montarMundo(lista) {
   // Vigias, manutenção e limpeza
   gentDaNoite(M, lista, sorte);
   // Centros, praças e estações; a equipe da Real Forte pela cidade, a obra e o trânsito
-  prepararLugaresDaCidade(M); gentDaCidade(M, sorte); visitantesDaCidade(M, sorte); semearHub(M); gentDaNoiteNaCidade(M, sorte); moradoresDasIlhas(M, lista, sorte); montarTransito(lista);
+  prepararLugaresDaCidade(M); gentDaCidade(M, sorte); visitantesDaCidade(M, sorte); circulantesDaCidade(M, sorte); semearHub(M); gentDaNoiteNaCidade(M, sorte); moradoresDasIlhas(M, lista, sorte); montarTransito(lista);
 }
 
 /* ---------- Gráficos dos telões do hall (com os números do painel) ----------
@@ -5628,6 +5629,53 @@ function tarefaObra(M, a) {
   if (p) return irAte(M, a, p.x, p.z, { tipo: 'posto', lugar: p });
   const q = pontoAleatorio(o.area, a.dono); if (q) return irAte(M, a, q[0], q[1], { tipo: 'limpar', lugar: ponto(q[0], q[1], Math.random() * 6.28, Math.random() < 0.5 ? 'carregar' : 'agachar', { dur: 8 }) });
   a.estado = 'parado'; a.t = 3; return true;
+}
+/* Quem circula pela cidade: anda pelas calçadas de um quarteirão a outro (destinos perto, para o
+   caminho ser curto e natural), para um pouco, olha a vitrine, conversa com quem encontra, passa nas
+   praças, tira foto dos edifícios e às vezes pega a condução na estação. Um terço com o uniforme da
+   Real Forte, um terço com o da empresa (com a logo) e um terço à paisana. À noite a maioria vai embora. */
+const PLATAFORMA = { x0: -98, x1: 98, z0: -92, z1: 104 };
+// Ponto na calçada de um quarteirão perto (a 0,8 m do meio-fio): assim a gente aparece na rua
+function pontoNaCalcada(a, raio) {
+  const Q = PLANO.quadras.filter(([x0, x1, z0, z1]) => Math.hypot((x0 + x1) / 2 - a.x, (z0 + z1) / 2 - a.z) < raio); if (!Q.length) return null;
+  for (let k = 0; k < 12; k++) {
+    const [x0, x1, z0, z1] = Q[Math.floor(Math.random() * Q.length)], u = Math.random(), lado = Math.floor(Math.random() * 4), m = 0.8;
+    const x = lado < 2 ? x0 + m + u * (x1 - x0 - 2 * m) : lado === 2 ? x0 + m : x1 - m, z = lado >= 2 ? z0 + m + u * (z1 - z0 - 2 * m) : lado === 0 ? z0 + m : z1 - m;
+    if (podePisar(navI(x, z), 0)) return [x, z];
+  }
+  return null;
+}
+function tarefaCircula(M, a) {
+  const A = CAMPO.atividade == null ? 1 : CAMPO.atividade;
+  if (a.limiar > A + 0.04) return irEmbora(M, a);
+  const r = Math.random();
+  if (r < 0.58) {   // um quarteirão ou dois adiante, pela calçada
+    const c = pontoNaCalcada(a.bairro || a, 42); if (c) return irAte(M, a, c[0], c[1], { tipo: 'passear' });   // roda pelo próprio bairro
+    const area = { x0: Math.max(PLATAFORMA.x0, a.x - 45), x1: Math.min(PLATAFORMA.x1, a.x + 45), z0: Math.max(PLATAFORMA.z0, a.z - 45), z1: Math.min(PLATAFORMA.z1, a.z + 45) };
+    const q = pontoAleatorio(area, 0); if (q) return irAte(M, a, q[0], q[1], { tipo: 'passear' });
+  }
+  if (r < 0.7) { const q = irAoCentro(M, a, Math.random() < 0.6 ? 'fotoMarcos' : 'fotoTorre'); if (q) return q; }
+  if (r < 0.82) { const q = irAPraca(M, a); if (q) return q; }
+  if (r < 0.9) { const q = irAoEncontro(M, a); if (q) return q; }
+  if (r < 0.96) { const q = irAEstacao(M, a); if (q) return q; }
+  const q = pontoAleatorio(PLATAFORMA, 0); if (q) return irAte(M, a, q[0], q[1], { tipo: 'passear' });
+  a.estado = 'parado'; a.t = 2 + Math.random() * 4; return true;
+}
+function circulantesDaCidade(M, sorte) {
+  const ilhas = [...CAMPO.ilhas.values()], cabelos = [0x1b1b1f, 0x3a2a1e, 0x5a3a22, 0xe8c66a, 'careca', 0x8a5a3a, 0x2a1e16], E = M.estacoes || [];
+  for (let i = 0; i < 90; i++) {
+    const tipoLook = i % 3, il = ilhas.length ? ilhas[i % ilhas.length] : null;
+    const look = tipoLook === 0 || !il ? lookDe(uniformeRealForte(cabelos[i % cabelos.length], PELES[(i * 2) % PELES.length]))
+      : tipoLook === 1 ? lookDe(uniformeDa(il, 600 + i))
+      : lookDe(Object.assign({ pele: PELES[(i * 5 + 3) % PELES.length], cabelo: cabelos[(i + 3) % cabelos.length] }, LOOKS_VISITANTE[i % LOOKS_VISITANTE.length]));
+    /* quem veste o uniforme de uma empresa leva o "il" dela: no modo apresentação some junto com a empresa */
+    const a = novoAgente(M, Object.assign({ tipo: 'circula', dono: 0, look, sorte, limiar: 0.12 + sorte() * 0.78 }, tipoLook === 1 && il ? { il: il.id } : {}));
+    nascer(a, PLATAFORMA, []);
+    if (a.visivel) { const c = pontoNaCalcada(a, 400); if (c) { a.x = c[0]; a.z = c[1]; a.y = alturaEm(a.x, a.z); } }   // começa já numa calçada
+    a.bairro = { x: a.x, z: a.z };   // o bairro dele: os passeios ficam por perto
+    let st = null, d = 1e9; E.forEach((e) => { const dd = Math.hypot(e.saida.x - a.x, e.saida.z - a.z); if (dd < d) { d = dd; st = e; } });
+    a.portaCasa = st ? st.saida : { x: a.x, z: a.z };
+  }
 }
 // Gente da cidade: a equipe da Real Forte nos centros e quem trabalha nas obras
 function gentDaCidade(M, sorte) {
