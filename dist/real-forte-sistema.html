@@ -8913,11 +8913,11 @@ function edificioRF(forma, K, g, W, cx, cz, LW, LD, obst) {
     const ea = new T.Mesh(new T.RingGeometry(5.2, 7.0, 48, 1, Math.PI * 0.05, Math.PI * 0.55).rotateX(-Math.PI / 2), PLANO.mats.agua); ea.position.set(cx - 5.5, 0.1, frente - 0.5); g.add(ea); W.extras.push(ea.geometry);
     const borda = new T.Mesh(new T.RingGeometry(6.95, 7.15, 48, 1, Math.PI * 0.05, Math.PI * 0.55).rotateX(-Math.PI / 2), bronzeF); borda.position.set(cx - 5.5, 0.11, frente - 0.5); g.add(borda); W.extras.push(borda.geometry);
     for (let k = 0; k < 9; k++) { const a = Math.PI * 0.05 + k / 8 * Math.PI * 0.55; const bx = cx - 5.5 + Math.cos(a) * 6.1, bz = frente - 0.5 - Math.sin(a) * 6.1; obst.push([bx - 0.9, bx + 0.9, bz - 0.9, bz + 0.9]); }
-    balizas(K, [[cx - 2, z1 + 2.2], [cx + 3, z1 + 2.2], [cx + 8, z1 + 2.2], [cx + 13, frente - 1.6], [cx - 13, frente - 1.6]]);
+    balizas(K, [[cx - 2, z1 + 2.2], [cx + 3, z1 + 2.2], [cx + 8, z1 + 2.2], [cx + LW / 2 - 2, frente - 1.4], [cx - LW / 2 + 4, frente - 1.4]]);
     [[cx + 2, z1 + 5.5], [cx + 8, z1 + 6.5], [cx + 13.5, z1 + 4.5]].forEach(([rx, rz]) => { for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2 + rx, px = rx + Math.cos(a) * 0.7, pz = rz + Math.sin(a) * 0.7; net.push(ponto(px, pz, rotDe(rx - px, rz - pz), k === 2 ? 'tablet' : 'conversar', { dur: 135 })); } });
-    canteiroRF(K, cx + 15.5, frente - 2.6, 3.2, 1.2, true); canteiroRF(K, cx - 15.5, z1 + 6.5, 2.6, 1.2, true);
-    arvoreRF(K, cx - 16.5, frente - 1.6, 1.1); arvoreRF(K, cx + 16.8, z1 + 1.5, 1.0, true); arvoreRF(K, cx - 9, frente - 1.5, 0.9);
-    obst.push([cx + 14, cx + 17, frente - 3.4, frente - 1.8]);
+    canteiroRF(K, cx + LW / 2 - 3, frente - 2.6, 3.2, 1.2, true); canteiroRF(K, cx - LW / 2 + 3, z1 + 6.5, 2.6, 1.2, true);
+    arvoreRF(K, cx - LW / 2 + 2, frente - 2, 1.0); arvoreRF(K, cx + LW / 2 - 2, z1 + 1.5, 1.0, true); arvoreRF(K, cx - 9, frente - 1.5, 0.9);
+    obst.push([cx + LW / 2 - 4.7, cx + LW / 2 - 1.3, frente - 3.4, frente - 1.8], [cx - LW / 2 + 1.5, cx - LW / 2 + 4.5, z1 + 5.7, z1 + 7.3], [cx - LW / 2 + 1.6, cx - LW / 2 + 2.4, frente - 2.4, frente - 1.6], [cx + LW / 2 - 2.4, cx + LW / 2 - 1.6, z1 + 1.1, z1 + 1.9]);
   } else if (forma === 'hub') {
     /* Hub de Conexões Real Forte. Só o auditório fica dentro do vidro (palco, telão e arquibancada em
        semicírculo); o resto do quarteirão é área aberta de convivência: quiosque de bebidas e de comidas,
