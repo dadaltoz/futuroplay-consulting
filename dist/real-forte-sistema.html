@@ -8759,9 +8759,7 @@ function edificioRF(forma, K, g, W, cx, cz, LW, LD, obst) {
     const teto = new T.Mesh(G3.caixa, vidro); teto.scale.set(px1 - px0, 0.08, pz1 - pz0); teto.position.set(cx, HH, pzm); g.add(teto);
     for (let k = 0; k <= 4; k++) K.add(G3.caixa, coluna, px0 + k * (px1 - px0) / 4, HH, pzm, 0.16, 0.22, pz1 - pz0, 0, 0, 0, false);
     [[cx, pz1, px1 - px0 + 0.2, 0.2], [cx, pz0, px1 - px0 + 0.2, 0.2], [px0, pzm, 0.2, pz1 - pz0], [px1, pzm, 0.2, pz1 - pz0]].forEach(([x, z, ww, dd]) => K.add(G3.caixa, bronzeF, x, HH + 0.1, z, ww, 0.35, dd, 0, 0, 0, false));
-    // a onda de bronze (fosca) passando por cima da entrada
-    const onda = new T.CatmullRomCurve3([[px0 - 0.6, 0, pz1 + 0.6], [px0 + 0.4, HH * 0.75, pz1 + 0.5], [cx - 5, HH + 1.8, pz1 + 0.3], [cx + 3, HH + 0.9, pz1 + 0.3], [px1 - 0.4, HH * 0.8, pz1 + 0.4], [px1 + 0.6, 0, pz1 + 0.6]].map((p) => new T.Vector3(...p)));
-    const tubo = new T.Mesh(new T.TubeGeometry(onda, 90, 0.36, 10, false), bronzeF); tubo.castShadow = true; g.add(tubo); W.extras.push(tubo.geometry);
+    /* (a onda que passava na frente do letreiro saiu: atrapalhava a leitura) */
     K.add(G3.caixa, mat(0x0d1015, { roughness: 0.3, metalness: 0.6 }), cx, HH + 0.45, pz1 - 0.2, 11, 3.0, 0.35);
     placaRF(g, texturaPlacaRF('HUB DE CONEXÕES|REAL FORTE', 'COLABORAÇÃO · NETWORKING · NEGÓCIOS', 'pessoas', 1024, 288), cx, HH + 1.95, pz1 - 0.01, 10.4, 2.93, 0, false);
     // palco e telão (duas faces: plateia e cidade)
@@ -8994,7 +8992,8 @@ function texturaBoasVindas(il) {
     q.fillStyle = '#fff'; q.textBaseline = 'middle'; q.font = '800 120px Arial, sans-serif'; q.fillText('BEM-VINDO', 70, 150);
     q.fillStyle = '#ff9a52'; q.font = '500 44px Arial, sans-serif'; q.fillText('à Cidade Real Forte', 76, 270);
     const x0 = 820, w = 650, h = 300;
-    q.fillStyle = '#ffffff'; q.beginPath(); q.roundRect ? q.roundRect(x0, 42, w, h, 28) : q.rect(x0, 42, w, h); q.fill();
+    if (img && img.clara == null) img.clara = logoEhClara(img);
+    q.fillStyle = corDoCartao(img); q.beginPath(); q.roundRect ? q.roundRect(x0, 42, w, h, 28) : q.rect(x0, 42, w, h); q.fill();
     if (img) { const k = Math.min((w - 60) / img.width, (h - 60) / img.height); q.drawImage(img, x0 + (w - img.width * k) / 2, 42 + (h - img.height * k) / 2, img.width * k, img.height * k); }
     else { q.fillStyle = '#0f2342'; let tam = 90; q.font = `800 ${tam}px Arial`; const nome = String(D.nome || 'Empresa'); while (q.measureText(nome).width > w - 60 && tam > 20) { tam *= 0.9; q.font = `800 ${tam}px Arial`; } q.textAlign = 'center'; q.fillText(nome, x0 + w / 2, 42 + h / 2); q.textAlign = 'left'; }
     t.needsUpdate = true;
@@ -9177,15 +9176,31 @@ function telaoDasApresentacoes(W) {
 function imagemDaLogo(src) {
   if (!src) return null; CAMPO.logosImg = CAMPO.logosImg || new Map();
   if (!CAMPO.logosImg.has(src)) { const img = new Image(); img.onload = () => { if (CAMPO.telaoHub) CAMPO.telaoHub.ultimo = ''; }; img.src = src; CAMPO.logosImg.set(src, img); }
-  const img = CAMPO.logosImg.get(src); return img.complete && img.naturalWidth ? img : null;
+  const img = CAMPO.logosImg.get(src); if (!(img.complete && img.naturalWidth)) return null;
+  if (img.clara == null) img.clara = logoEhClara(img);
+  return img;
 }
+/* A logo é clara (feita para fundo escuro)? Mede o brilho médio dos pontos que aparecem (não
+   transparentes). Logo clara vai em cartão azul-marinho; logo escura, em cartão branco. */
+function logoEhClara(img) {
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 48; const q = c.getContext('2d'); q.drawImage(img, 0, 0, 48, 48);
+    const d = q.getImageData(0, 0, 48, 48).data; let soma = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 128) continue; soma += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; n++; }
+    if (n < 40) return false;
+    // logo sem transparência (fundo pintado): olha só a borda para saber a cor do fundo
+    const cheia = n > 48 * 48 * 0.9; if (cheia) { let b = 0, nb = 0; for (let k = 0; k < 48; k++) [[k, 0], [k, 47], [0, k], [47, k]].forEach(([x, y]) => { const i = (y * 48 + x) * 4; b += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; nb++; }); return b / nb < 0.35 ? 'fundoEscuro' : false; }
+    return soma / n > 0.72;
+  } catch (x) { return false; }
+}
+const corDoCartao = (img) => (img && img.clara === true ? '#0f2342' : img && img.clara === 'fundoEscuro' ? '#0b0e13' : '#ffffff');
 // Os números de verdade de quem apresenta ('rf' = a Real Forte com o conjunto das empresas)
 function dadosDaApresentacao(id) {
   const ap = CAMPO.ap, todas = empresasAtivas().filter((e) => !ap || e.id === ap.id);
   const porSituacao = (itens) => SITUACOES.map((s) => [s, itens.filter((g) => !ehOport(g) && situacaoDe(g) === s).length]);
   if (id === 'rf') {
     const itens = [].concat(...todas.map((e) => itensDa(e.id)));
-    return { rf: true, nome: 'Real Forte Consultoria', sub: 'Consultoria · desde 1982', logo: (typeof LOGO !== 'undefined' && LOGO.claro) || null,
+    return { rf: true, nome: 'Real Forte Consultoria', sub: 'Consultoria · desde 1982', logo: (typeof LOGO !== 'undefined' && (LOGO.escuro || LOGO.claro)) || null,   /* versão escura: vai no cartão branco */
       empresas: todas.map((e) => ({ nome: e.nome, nota: checkupDa(e.id).nota, horas: somaHoras(itensDa(e.id)) })), porSituacao: porSituacao(itens), horas: somaHoras(itens),
       setores: todas.reduce((t, e) => t + checkupDa(e.id).setores.length, 0) };
   }
@@ -9212,7 +9227,7 @@ function desenharSlide(c, D, u, semApresentacao) {
   const img = imagemDaLogo(D.logo), k = Math.max(0, Math.min(1, (u - A.abertura) / 1.6)), e = k * k * (3 - 2 * k);
   const fim = u > A.duracao - A.fechamento;
   const lw = (fim ? 520 : 520 - 330 * e), lh = lw * 0.5, lx = (fim ? W / 2 - lw / 2 : (W / 2 - lw / 2) * (1 - e) + 36 * e), ly = (fim ? H * 0.2 : (H * 0.16) * (1 - e) + 28 * e);
-  q.fillStyle = '#ffffff'; q.beginPath(); q.roundRect ? q.roundRect(lx, ly, lw, lh, 18) : q.rect(lx, ly, lw, lh); q.fill();
+  q.fillStyle = corDoCartao(img); q.beginPath(); q.roundRect ? q.roundRect(lx, ly, lw, lh, 18) : q.rect(lx, ly, lw, lh); q.fill();
   if (img) { const s = Math.min((lw - 40) / img.width, (lh - 30) / img.height); q.drawImage(img, lx + (lw - img.width * s) / 2, ly + (lh - img.height * s) / 2, img.width * s, img.height * s); }
   else { const t = D.nome; const tam = caber(t, lw - 40, lh * 0.32); texto(t, lx + lw / 2, ly + lh / 2, tam, '#0f2342', 800, 'center'); }
   if (u < A.abertura) { texto(D.nome, W / 2, H * 0.66, caber(D.nome, W - 160, 64), '#fff', 800, 'center'); texto(D.sub || '', W / 2, H * 0.75, 30, '#bcd2ee', 500, 'center'); texto('APRESENTAÇÃO DE RESULTADOS · HUB DE CONEXÕES', W / 2, H * 0.86, 24, '#ff9a52', 600, 'center'); return; }
