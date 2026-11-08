@@ -7195,7 +7195,7 @@ function placaRF(g, m, x, y, z, w, h, giro, comFundo) {
   return pl;
 }
 const VIDRO_QUENTE = () => CAMPO.vidroQuente || (CAMPO.vidroQuente = fachadaRepetida(4, 4, 0x30261c, '#ffcf8a', 0.85, 1.25));   // vidro com o interior aceso (luz quente)
-const BRONZE = () => luzMat(0xff9a40, 1.35);
+const BRONZE = () => luzMat(0xff9a40, 0.95);   // abaixo do ponto de brilho: o filete aparece sem ofuscar
 // Escultura: globo dourado com dois anéis (gira devagar)
 function esculturaGlobo(g, W, x, y, z, R) {
   const T = THREE, gg = new T.Group(); gg.position.set(x, y, z); g.add(gg);
@@ -7236,48 +7236,46 @@ function edificioRF(forma, K, g, W, cx, cz, LW, LD, obst) {
   const totem = (titulo, icone, x, z) => { K.add(G3.caixa, mat(0x101318, { roughness: 0.3, metalness: 0.6 }), x, 0.04, z, 1.6, 3.2, 0.4); K.add(G3.caixa, bronze, x + 0.82, 0.04, z, 0.05, 3.2, 0.42, 0, 0, 0, false); placaRF(g, texturaPlacaRF(titulo, '', icone, 512, 1024), x, 1.75, z + 0.21, 1.4, 2.8, 0, false); obst.push([x - 0.9, x + 0.9, z - 0.3, z + 0.3]); };
   const corpo = (m, x, y, z, w, h, d) => { const me = caixaDeVidro(g, W.extras, m, x, y, z, w, h, d); return me; };
   if (forma === 'hub') {
-    /* Hub de Conexões Real Forte: pavilhão aberto de vidro (como o hall da Real Forte), com o auditório
-       dentro. Palco e telão de LED no fundo; arquibancada em semicírculo de 6 degraus virada para o palco;
-       anéis de luz pendurados; coworking nas laterais; globo, lounge e rodas de conversa na entrada.
-       O telão tem uma segunda face virada para a cidade. As apresentações estão em "APRESENTACOES". */
-    const hub = W.pontosHub = W.pontosHub || [], HH = 9, x0 = cx - LW / 2 + 1, x1 = cx + LW / 2 - 1, z0 = fundo + 0.5, z1 = frente - 1.5;
-    const vidro = new T.MeshStandardMaterial({ color: 0xbcd6f2, transparent: true, opacity: 0.16, roughness: 0.05, metalness: 0.5, depthWrite: false, side: T.DoubleSide, envMap: CAMPO.ambiente, envMapIntensity: 0.8 }); W.extras.push(vidro);
-    const coluna = mat(0x1c2027, { roughness: 0.35, metalness: 0.6 });
-    K.add(G3.caixa, PLANO.mats.pedraClara, cx, 0.04, (z0 + z1) / 2, x1 - x0, 0.05, z1 - z0, 0, 0, 0, false);
-    // paredes de vidro: frente com a entrada larga (12 m), laterais com porta no meio, fundo fechado
+    /* Hub de Conexões Real Forte. Só o auditório fica dentro do vidro (palco, telão e arquibancada em
+       semicírculo); o resto do quarteirão é área aberta de convivência: quiosque de bebidas e de comidas,
+       mesas altas, cabines de conversa, lounge, coworking ao ar livre e o globo na fonte.
+       Pouca luz própria: o metal é bronze fosco (não brilha) e só o palco e o letreiro são acesos. */
+    const hub = W.pontosHub = W.pontosHub || [], HH = 8;
+    const bronzeF = new T.MeshStandardMaterial({ color: 0xa8743c, roughness: 0.32, metalness: 0.85, envMap: CAMPO.ambiente, envMapIntensity: 0.9 }); W.extras.push(bronzeF);
+    const vidro = new T.MeshStandardMaterial({ color: 0xbcd6f2, transparent: true, opacity: 0.14, roughness: 0.05, metalness: 0.5, depthWrite: false, side: T.DoubleSide, envMap: CAMPO.ambiente, envMapIntensity: 0.7 }); W.extras.push(vidro);
+    const coluna = mat(0x1c2027, { roughness: 0.35, metalness: 0.6 }), madeira = mat(0x8a6a48, { roughness: 0.7 }), branco = mat(0xf2f3f5, { roughness: 0.5 });
+    const px0 = cx - 13.6, px1 = cx + 13.6, pz0 = fundo + 0.5, pz1 = fundo + 17.8, pzm = (pz0 + pz1) / 2;
+    K.add(G3.caixa, PLANO.mats.pedraClara, cx, 0.04, (fundo + frente) / 2, LW - 0.6, 0.04, LD - 0.6, 0, 0, 0, false);
+    // ---- auditório de vidro ----
     const parede = (a0, a1, c0, c1) => { const me = new T.Mesh(G3.caixa, vidro); me.scale.set(Math.max(0.06, a1 - a0), HH, Math.max(0.06, c1 - c0)); me.position.set((a0 + a1) / 2, 0.05, (c0 + c1) / 2); g.add(me); obst.push([a0 - 0.1, a1 + 0.1, c0 - 0.1, c1 + 0.1]); };
-    parede(x0, cx - 6, z1 - 0.03, z1 + 0.03); parede(cx + 6, x1, z1 - 0.03, z1 + 0.03); parede(x0, x1, z0 - 0.03, z0 + 0.03);
-    const zm = (z0 + z1) / 2; [x0, x1].forEach((x) => { parede(x - 0.03, x + 0.03, z0, zm - 2); parede(x - 0.03, x + 0.03, zm + 2, z1); });
-    for (let x = x0; x <= x1 + 0.01; x += (x1 - x0) / 9) { if (Math.abs(x - cx) < 6.2) continue; [z0, z1].forEach((z) => { K.add(G3.caixa, coluna, x, 0.05, z, 0.25, HH, 0.25); K.add(G3.caixa, bronze, x, 0.05, z + (z > zm ? 0.13 : -0.13), 0.06, HH, 0.02, 0, 0, 0, false); }); }
-    for (let z = z0; z <= z1 + 0.01; z += (z1 - z0) / 6) [x0, x1].forEach((x) => K.add(G3.caixa, coluna, x, 0.05, z, 0.25, HH, 0.25));
-    // teto de vidro com vigas e o filete laranja na borda
-    const teto = new T.Mesh(G3.caixa, vidro); teto.scale.set(x1 - x0, 0.08, z1 - z0); teto.position.set(cx, HH, zm); g.add(teto);
-    for (let x = x0; x <= x1 + 0.01; x += (x1 - x0) / 6) K.add(G3.caixa, coluna, x, HH, zm, 0.18, 0.25, z1 - z0, 0, 0, 0, false);
-    K.add(G3.caixa, coluna, cx, HH, zm, x1 - x0, 0.25, 0.18, 0, 0, 0, false);
-    [[cx, z1, x1 - x0 + 0.2, 0.14], [cx, z0, x1 - x0 + 0.2, 0.14], [x0, zm, 0.14, z1 - z0], [x1, zm, 0.14, z1 - z0]].forEach(([x, z, ww, dd]) => K.add(G3.caixa, bronze, x, HH + 0.25, z, ww, 0.1, dd, 0, 0, 0, false));
-    // a onda de bronze por cima da fachada e o letreiro em cima da entrada
-    const onda = new T.CatmullRomCurve3([[x0 - 1, 0, z1 + 0.8], [x0 + 0.5, HH * 0.7, z1 + 0.6], [cx - 8, HH + 2.2, z1 + 0.4], [cx, HH + 1.2, z1 + 0.3], [cx + 8, HH + 2.8, z1 + 0.3], [x1 - 0.5, HH * 0.75, z1 + 0.4], [x1 + 0.8, 0, z1 + 0.6]].map((p) => new T.Vector3(...p)));
-    const tubo = new T.Mesh(new T.TubeGeometry(onda, 100, 0.42, 10, false), bronze); g.add(tubo); W.extras.push(tubo.geometry);
-    K.add(G3.caixa, mat(0x0d1015, { roughness: 0.3, metalness: 0.6 }), cx, HH + 0.3, z1 - 0.3, 13, 3.6, 0.4);
-    placaRF(g, texturaPlacaRF('HUB DE CONEXÕES|REAL FORTE', 'COLABORAÇÃO · NETWORKING · NEGÓCIOS', 'pessoas', 1024, 288), cx, HH + 2.1, z1 - 0.06, 12.4, 3.49, 0, false);
-    // palco e o telão (duas faces: a de dentro para a plateia e a de fora para a cidade)
-    const zs = z0 + 2.6, tw = 14, th = tw * 9 / 16;
-    K.add(G3.caixa, mat(0x14171d, { roughness: 0.3, metalness: 0.6 }), cx, 0.05, z0 + 0.5, tw + 2, th + 1.6, 0.6); obst.push([cx - tw / 2 - 1.1, cx + tw / 2 + 1.1, z0 - 0.2, z0 + 0.9]);
-    K.add(G3.cil64, mat(0x1c2027, { roughness: 0.4, metalness: 0.5 }), cx, 0.05, zs, 6, 0.5, 2.6); K.add(G3.toroFino, bronze, cx, 0.56, zs, 6, 8, 2.6, 0, 0, 0, false);
+    parede(px0, cx - 4, pz1 - 0.03, pz1 + 0.03); parede(cx + 4, px1, pz1 - 0.03, pz1 + 0.03); parede(px0, px1, pz0 - 0.03, pz0 + 0.03);
+    [px0, px1].forEach((x) => { parede(x - 0.03, x + 0.03, pz0, pzm - 1.6); parede(x - 0.03, x + 0.03, pzm + 1.6, pz1); });
+    for (let k = 0; k <= 6; k++) { const x = px0 + k * (px1 - px0) / 6; if (Math.abs(x - cx) < 4.2) continue; [pz0, pz1].forEach((z) => K.add(G3.caixa, coluna, x, 0.05, z, 0.22, HH, 0.22)); }
+    for (let k = 0; k <= 4; k++) { const z = pz0 + k * (pz1 - pz0) / 4; [px0, px1].forEach((x) => K.add(G3.caixa, coluna, x, 0.05, z, 0.22, HH, 0.22)); }
+    const teto = new T.Mesh(G3.caixa, vidro); teto.scale.set(px1 - px0, 0.08, pz1 - pz0); teto.position.set(cx, HH, pzm); g.add(teto);
+    for (let k = 0; k <= 4; k++) K.add(G3.caixa, coluna, px0 + k * (px1 - px0) / 4, HH, pzm, 0.16, 0.22, pz1 - pz0, 0, 0, 0, false);
+    [[cx, pz1, px1 - px0 + 0.2, 0.2], [cx, pz0, px1 - px0 + 0.2, 0.2], [px0, pzm, 0.2, pz1 - pz0], [px1, pzm, 0.2, pz1 - pz0]].forEach(([x, z, ww, dd]) => K.add(G3.caixa, bronzeF, x, HH + 0.1, z, ww, 0.35, dd, 0, 0, 0, false));
+    // a onda de bronze (fosca) passando por cima da entrada
+    const onda = new T.CatmullRomCurve3([[px0 - 0.6, 0, pz1 + 0.6], [px0 + 0.4, HH * 0.75, pz1 + 0.5], [cx - 5, HH + 1.8, pz1 + 0.3], [cx + 3, HH + 0.9, pz1 + 0.3], [px1 - 0.4, HH * 0.8, pz1 + 0.4], [px1 + 0.6, 0, pz1 + 0.6]].map((p) => new T.Vector3(...p)));
+    const tubo = new T.Mesh(new T.TubeGeometry(onda, 90, 0.36, 10, false), bronzeF); tubo.castShadow = true; g.add(tubo); W.extras.push(tubo.geometry);
+    K.add(G3.caixa, mat(0x0d1015, { roughness: 0.3, metalness: 0.6 }), cx, HH + 0.45, pz1 - 0.2, 11, 3.0, 0.35);
+    placaRF(g, texturaPlacaRF('HUB DE CONEXÕES|REAL FORTE', 'COLABORAÇÃO · NETWORKING · NEGÓCIOS', 'pessoas', 1024, 288), cx, HH + 1.95, pz1 - 0.01, 10.4, 2.93, 0, false);
+    // palco e telão (duas faces: plateia e cidade)
+    const zs = pz0 + 2.6, tw = 13, th = tw * 9 / 16;
+    K.add(G3.caixa, mat(0x14171d, { roughness: 0.3, metalness: 0.6 }), cx, 0.05, pz0 + 0.5, tw + 1.6, th + 1.2, 0.6); obst.push([cx - tw / 2 - 0.9, cx + tw / 2 + 0.9, pz0 - 0.2, pz0 + 0.9]);
+    K.add(G3.cil64, mat(0x1c2027, { roughness: 0.4, metalness: 0.5 }), cx, 0.05, zs, 6, 0.5, 2.6); K.add(G3.toroFino, luzMat(COR3D.laranja, 0.9), cx, 0.56, zs, 6, 5, 2.6, 0, 0, 0, false);
     const telao = telaoDasApresentacoes(W);
-    [[z0 + 0.81, 0], [z0 + 0.19, Math.PI]].forEach(([z, r]) => { const pl = new T.Mesh(G3.placa, telao.mat); pl.scale.set(tw, th, 1); pl.position.set(cx, 0.85 + th / 2, z); pl.rotation.y = r; g.add(pl); });
-    [-1, 1].forEach((sd) => K.add(G3.caixa, luzMat(0x38b6ff, 1.4), cx + sd * (tw / 2 + 0.25), 0.6, z0 + 0.82, 0.08, th + 0.5, 0.06, 0, 0, 0, false));
-    // arquibancada em semicírculo: 6 degraus virados para o palco, filete de luz em cada degrau
-    const ABRE = 62 * Math.PI / 180, R0 = 5.6, PASSO = 1.35, ALTD = 0.38, a0 = -Math.PI / 2 - ABRE, a1 = -Math.PI / 2 + ABRE, madeira = mat(0x8a6a48, { roughness: 0.7 });
+    [[pz0 + 0.81, 0], [pz0 + 0.19, Math.PI]].forEach(([z, r]) => { const pl = new T.Mesh(G3.placa, telao.mat); pl.scale.set(tw, th, 1); pl.position.set(cx, 0.75 + th / 2, z); pl.rotation.y = r; g.add(pl); });
+    // arquibancada em semicírculo (6 degraus, só a borda de cada degrau em bronze fosco)
+    const ABRE = 62 * Math.PI / 180, R0 = 5.6, PASSO = 1.35, ALTD = 0.38, a0 = -Math.PI / 2 - ABRE, a1 = -Math.PI / 2 + ABRE;
     const degraus = [];
     for (let k = 0; k < 6; k++) {
       const ri = R0 + k * PASSO, re = ri + PASSO, topo = 0.05 + (k + 1) * ALTD, f = new T.Shape();
       f.absarc(0, 0, re, a0, a1, false); f.absarc(0, 0, ri, a1, a0, true);
       const geo = new T.ExtrudeGeometry(f, { depth: topo, bevelEnabled: false, curveSegments: 28 }).rotateX(-Math.PI / 2);
       const me = new T.Mesh(geo, madeira); me.position.set(cx, 0, zs); me.castShadow = me.receiveShadow = true; g.add(me); W.extras.push(geo);
-      const led = new T.Mesh(new T.RingGeometry(ri, ri + 0.07, 56, 1, a0, a1 - a0).rotateX(-Math.PI / 2), bronze); led.position.set(cx, topo + 0.006, zs); g.add(led); W.extras.push(led.geometry);
+      const borda = new T.Mesh(new T.RingGeometry(ri, ri + 0.09, 56, 1, a0, a1 - a0).rotateX(-Math.PI / 2), bronzeF); borda.position.set(cx, topo + 0.006, zs); g.add(borda); W.extras.push(borda.geometry);
       degraus.push({ ri, re, topo });
-      // lugares (corredor no meio)
       const rs = ri + PASSO * 0.55, n = Math.floor(rs * (a1 - a0) / 1.1);
       for (let q = 0; q < n; q++) {
         const a = a0 + (q + 0.5) / n * (a1 - a0); if (Math.abs(a + Math.PI / 2) < 0.07) continue;
@@ -7286,31 +7284,51 @@ function edificioRF(forma, K, g, W, cx, cz, LW, LD, obst) {
       }
     }
     W.alturaHub = { cx, zs, R0, PASSO, ABRE, degraus };
-    // palco: onde quem apresenta anda
     W.palcoHub = [[-2.6, 1.0], [0, 1.4], [2.6, 1.0]].map(([dx, dz]) => ponto(cx + dx, zs + dz, rotDe(0, 1), 'apresentar', { dur: 30, y: 0.55 }));
-    // anéis de luz pendurados sobre a plateia
-    const luzAnel = luzMat(0xffb060, 0.6); [2.4, 3.6, 4.8].forEach((r, k) => K.add(G3.toroFino, luzAnel, cx, HH - 1.0 - k * 0.4, zs + 10.5, r, 6, r, 0, 0, 0, false));   // luminárias sobre a plateia (fora da frente do telão)   // anéis finos (luminárias)
-    // coworking nas laterais do fundo (mesas de 4 lugares) e o café
-    [[x0 + 3, z0 + 4.5], [x1 - 3, z0 + 4.5], [x0 + 3, z0 + 10], [x1 - 3, z0 + 10]].forEach(([mx, mz]) => {
-      K.add(G3.cil, mat(0xf4f6fa), mx, 0.05, mz, 0.75, 0.75, 0.75); K.add(G3.cil, bronze, mx, 0.8, mz, 0.77, 0.03, 0.77, false); obst.push([mx - 0.6, mx + 0.6, mz - 0.6, mz + 0.6]);
-      [0, Math.PI / 2, Math.PI, -Math.PI / 2].forEach((a, i) => { const px = mx + Math.cos(a) * 1.25, pz = mz + Math.sin(a) * 1.25; K.add(G3.cil, mat(0x2b3038), px, 0.05, pz, 0.16, 0.36, 0.16); hub.push(ponto(px, pz, rotDe(mx - px, mz - pz), i % 2 ? 'digitar' : 'cafe', { dur: 70 })); });
+    // ---- área aberta de convivência ----
+    // quiosques: bebidas e comidas (balcão, toldo, cardápio, banquetas), com fila de gente em pé
+    const quiosque = (qx, qz, nome, sub, icone, cor) => {
+      K.add(G3.caixa, madeira, qx, 0.05, qz, 4.2, 2.6, 2.2); K.add(G3.caixa, branco, qx, 0.05, qz + 1.25, 4.4, 1.05, 0.4);
+      K.add(G3.caixa, mat(cor, { roughness: 0.7 }), qx, 2.65, qz + 0.6, 4.8, 0.12, 3.4, 0.12, 0, 0);
+      [[-2.2, 2.25], [2.2, 2.25]].forEach(([dx, dz]) => K.add(G3.cil, coluna, qx + dx, 0.05, qz + dz, 0.05, 2.6, 0.05));
+      placaRF(g, texturaPlacaRF(nome, sub, icone, 768, 256), qx, 3.35, qz + 1.12, 3.6, 1.2, 0, true);
+      obst.push([qx - 2.3, qx + 2.3, qz - 1.2, qz + 1.5]);
+      for (let k = 0; k < 4; k++) { const x = qx - 1.5 + k * 1.0; K.add(G3.cil, coluna, x, 0.05, qz + 2.0, 0.16, 0.7, 0.16); hub.push(ponto(x, qz + 2.2, rotDe(0, -1), k % 2 ? 'emPeCafe' : 'olhar', { dur: 40 })); }
+    };
+    quiosque(cx + 6.5, pz1 + 2.4, 'CAFÉ & BEBIDAS', 'CAFÉ · SUCOS · ÁGUA', 'xicara', 0xd9681a);
+    quiosque(cx + 13.4, pz1 + 2.4, 'COMIDAS', 'LANCHES · SALADAS · DOCES', 'carrinho', 0x2f5ea8);
+    // mesas altas (bistrô) no meio da praça: rodas de três em pé
+    [[cx - 5, pz1 + 6.1], [cx - 0.5, pz1 + 6.8], [cx + 4, pz1 + 6.3], [cx + 8.5, pz1 + 7.0], [cx + 13, pz1 + 6.6]].forEach(([mx, mz], i) => {
+      K.add(G3.cil, coluna, mx, 0.05, mz, 0.06, 1.05, 0.06); K.add(G3.cil, branco, mx, 1.08, mz, 0.42, 0.05, 0.42); obst.push([mx - 0.35, mx + 0.35, mz - 0.35, mz + 0.35]);
+      for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2 + i, px = mx + Math.cos(a) * 0.75, pz = mz + Math.sin(a) * 0.75; hub.push(ponto(px, pz, rotDe(mx - px, mz - pz), k === 2 ? 'conversar' : 'emPeCafe', { dur: 50 })); }
     });
-    // entrada: globo com anéis na fonte, lounge, rodas de conversa e o painel dos serviços
-    const xg = x0 + 4, zg = z1 - 4.2;
-    fonteRF(K, xg, zg, 2.6); esculturaGlobo(g, W, xg, 0.6, zg, 1.05); obst.push([xg - 2.8, xg + 2.8, zg - 2.8, zg + 2.8]);
-    for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2 + 0.5, px = xg + Math.cos(a) * 3.6, pz = zg + Math.sin(a) * 3.6; if (Math.hypot(px - cx, pz - zs) < 14.5) continue; hub.push(ponto(px, pz, rotDe(xg - px, zg - pz), k % 2 ? 'conversar' : 'foto', { dur: 36 })); }
-    [[x1 - 5, z1 - 2.6]].forEach(([lx, lz]) => {
-      K.add(G3.cil, mat(0x2b3038), lx, 0.05, lz, 0.5, 0.45, 0.5); obst.push([lx - 0.55, lx + 0.55, lz - 0.55, lz + 0.55]);
-      [-1, 1].forEach((sd) => { K.add(G3.caixa, mat(0xd9681a, { roughness: 0.8 }), lx + sd * 1.3, 0.05, lz, 0.9, 0.34, 0.9); K.add(G3.caixa, mat(0xd9681a, { roughness: 0.8 }), lx + sd * 1.72, 0.05, lz, 0.16, 0.85, 0.9); hub.push(ponto(lx + sd * 1.3, lz, rotDe(-sd, 0), 'sentar', { dur: 60 })); });
+    // globo com anéis na fonte (frente, à esquerda)
+    const xg = cx - 12.6, zg = pz1 + 4.3;
+    fonteRF(K, xg, zg, 2.4); esculturaGlobo(g, W, xg, 0.6, zg, 1.0); obst.push([xg - 2.6, xg + 2.6, zg - 2.6, zg + 2.6]);
+    for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2 + 0.6, px = xg + Math.cos(a) * 3.3, pz = zg + Math.sin(a) * 3.3; hub.push(ponto(px, pz, rotDe(xg - px, zg - pz), k % 2 ? 'conversar' : 'foto', { dur: 30 })); }
+    // cabines de conversa (lateral esquerda): estrutura aberta com teto, dois bancos frente a frente e uma mesinha
+    [fundo + 3.4, fundo + 8.6, fundo + 13.8].forEach((zc, i) => {
+      const xc = cx - 16.4;
+      [[-1.2, -1.6], [1.2, -1.6], [-1.2, 1.6], [1.2, 1.6]].forEach(([dx, dz]) => { K.add(G3.caixa, coluna, xc + dx, 0.05, zc + dz, 0.1, 2.5, 0.1); obst.push([xc + dx - 0.12, xc + dx + 0.12, zc + dz - 0.12, zc + dz + 0.12]); });
+      K.add(G3.caixa, i % 2 ? bronzeF : mat(0x2b3038, { roughness: 0.4, metalness: 0.5 }), xc, 2.55, zc, 2.7, 0.14, 3.5);
+      [-1, 1].forEach((sd) => { K.add(G3.caixa, mat(i % 2 ? 0x2f5ea8 : 0xd9681a, { roughness: 0.8 }), xc, 0.05, zc + sd * 1.05, 1.9, 0.42, 0.6); hub.push(ponto(xc - 0.45, zc + sd * 1.05, rotDe(0, -sd), 'sentar', { dur: 60 })); hub.push(ponto(xc + 0.45, zc + sd * 1.05, rotDe(0, -sd), i % 2 ? 'sentar' : 'digitar', { dur: 60 })); });
+      K.add(G3.cil, branco, xc, 0.05, zc, 0.35, 0.6, 0.35); obst.push([xc - 0.3, xc + 0.3, zc - 0.3, zc + 0.3]);
     });
-    [[cx - 3.5, z1 - 2.2], [cx + 3.5, z1 - 2.6]].forEach(([rx, rz]) => { for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2 + 0.4, px = rx + Math.cos(a) * 0.65, pz = rz + Math.sin(a) * 0.65; hub.push(ponto(px, pz, rotDe(rx - px, rz - pz), k === 3 ? 'tablet' : 'conversar', { dur: 48 })); } });
-    const xL = x1 - 1.8, zL = zm + 4;
-    K.add(G3.caixa, mat(0x101318, { roughness: 0.3, metalness: 0.6 }), xL, 0.05, zL, 0.4, 5.6, 3.4); obst.push([xL - 0.4, xL + 0.4, zL - 1.8, zL + 1.8]);
-    const lista = new T.CanvasTexture(telaDe(384, 640, (q) => { q.fillStyle = '#0d1015'; q.fillRect(0, 0, 384, 640); [['pessoas', 'Coworking Corporativo'], ['predios', 'Networking entre Empresas'], ['estrela', 'Apresentações das Empresas'], ['grafico', 'Salas de Reunião'], ['chapeu', 'Biblioteca de Materiais'], ['xicara', 'Café e Convivência']].forEach(([ic, t], i) => { const y = 60 + i * 100; desenharIcone(q, ic, 56, y, 52, '#ff9a52'); q.fillStyle = '#fff'; q.font = '600 25px Arial'; q.textBaseline = 'middle'; const p = t.split(' '); q.fillText(p[0], 100, y - 14); q.fillText(p.slice(1).join(' '), 100, y + 16); }); }));
-    lista.encoding = T.sRGBEncoding; W.extras.push(lista);
-    placaRF(g, new T.MeshBasicMaterial({ map: lista, toneMapped: false }), xL - 0.22, 3.0, zL, 3.0, 5.0, -Math.PI / 2, false);
-    balizas(K, [[cx - 6.4, z1 + 0.8], [cx + 6.4, z1 + 0.8], [cx - 6.4, z1 - 1], [cx + 6.4, z1 - 1]]);
-    arvoreRF(K, x0 + 1.8, z0 + 14, 1.0, true); arvoreRF(K, x1 - 1.8, z0 + 14.5, 1.0);
+    // coworking ao ar livre (lateral direita): mesas de 4 com guarda-sol
+    [fundo + 4.5, fundo + 11].forEach((mz) => {
+      const mx = cx + 16.4;
+      K.add(G3.cil, branco, mx, 0.05, mz, 0.75, 0.74, 0.75); K.add(G3.cil, coluna, mx, 0.79, mz, 0.03, 1.5, 0.03, false); K.add(G3.cone, mat(0xf2f3f5, { roughness: 0.8 }), mx, 2.25, mz, 1.4, 0.4, 1.4);
+      obst.push([mx - 0.6, mx + 0.6, mz - 0.6, mz + 0.6]);
+      [0, Math.PI / 2, Math.PI, -Math.PI / 2].forEach((a, i) => { const px = mx + Math.cos(a) * 1.25, pz = mz + Math.sin(a) * 1.25; K.add(G3.cil, coluna, px, 0.05, pz, 0.16, 0.36, 0.16); hub.push(ponto(px, pz, rotDe(mx - px, mz - pz), i % 2 ? 'digitar' : 'cafe', { dur: 70 })); });
+    });
+    // lounge com sofás na frente, à esquerda da entrada, e bancos com floreiras na beira da praça
+    [[cx - 7.5, pz1 + 3.0]].forEach(([lx, lz]) => {
+      K.add(G3.cil, mat(0x2b3038), lx, 0.05, lz, 0.55, 0.4, 0.55); obst.push([lx - 0.6, lx + 0.6, lz - 0.6, lz + 0.6]);
+      [-1, 1].forEach((sd) => { K.add(G3.caixa, mat(0xd9681a, { roughness: 0.8 }), lx + sd * 1.4, 0.05, lz, 0.9, 0.34, 1.8); K.add(G3.caixa, mat(0xd9681a, { roughness: 0.8 }), lx + sd * 1.82, 0.05, lz, 0.16, 0.8, 1.8); [-0.45, 0.45].forEach((o) => hub.push(ponto(lx + sd * 1.4, lz + o, rotDe(-sd, 0), 'sentar', { dur: 60 }))); });
+    });
+    [[cx - 2.5, frente - 0.8], [cx + 10.5, frente - 0.8]].forEach(([bx, bz]) => { K.add(G3.caixa, madeira, bx, 0.05, bz, 3.2, 0.45, 0.6); obst.push([bx - 1.7, bx + 1.7, bz - 0.2, bz + 0.35]); [-1, 0, 1].forEach((o) => hub.push(ponto(bx + o, bz, rotDe(0, -1), 'sentar', { dur: 45 }))); });
+    arvoreRF(K, cx - 17.3, frente - 2, 1.0, true); arvoreRF(K, cx + 17.3, frente - 2, 1.0); arvoreRF(K, cx + 17.3, fundo + 15.2, 0.9, true);
+    totem('HUB', 'pessoas', cx - 9.5, frente - 1.4);
   } else if (forma === 'instituto') {
     // prédio largo de vidro com o interior aceso, grafite nas laterais, placa grande e o arco de bronze
     const w = LW - 5, d = 11, h = 11, z = fundo + 2 + d / 2;
