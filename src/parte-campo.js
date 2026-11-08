@@ -73,7 +73,7 @@ function geometrias() {
   G3.cone = new T.ConeGeometry(1, 1, 24).translate(0, 0.5, 0);
   G3.roda = new T.CylinderGeometry(1, 1, 1, 14).rotateX(Math.PI / 2);   // eixo no z
   G3.bola = new T.IcosahedronGeometry(1, 2);
-  G3.copa = new T.IcosahedronGeometry(1, 2);
+  G3.copa = copaIrregular();   // copa com tufos (acabamento de cinema)
   G3.losango = new T.OctahedronGeometry(1, 0);
   const tri = new T.Shape(); tri.moveTo(-0.5, 0); tri.lineTo(0.5, 0); tri.lineTo(0, 1); tri.closePath();
   G3.prismaZ = new T.ExtrudeGeometry(tri, { depth: 1, bevelEnabled: false }).translate(0, 0, -0.5);   // cumeeira no z
@@ -637,7 +637,7 @@ function materiaisDaVida() {
   const T = THREE, sorte = sorteio('vida');
   const V = {};
   // Grama: verde de maquete com pontinhos claros e escuros
-  const grama = texturaRepetida(telaDe(256, 256, (g, w, h) => { g.fillStyle = '#7aab62'; g.fillRect(0, 0, w, h); pontilhar(g, w, h, 3200, ['#6d9f57', '#88b872', '#62924f', '#93c27c'], 2.2, sorte); }));
+  const grama = texturaRepetida(telaDe(256, 256, (g, w, h) => { g.fillStyle = '#5f7f45'; g.fillRect(0, 0, w, h); pontilhar(g, w, h, 3200, ['#55743d', '#6b8a4f', '#4c6a36', '#748f55'], 2.2, sorte); }));
   grama.repeat.set(5, 5);
   V.grama = pisoNoturno(new T.MeshStandardMaterial({ map: grama, roughness: 0.95 }));
   // Concreto da calçada, com juntas
@@ -747,7 +747,7 @@ function novoLote() {
     montar(pai, lista) {
       grupos.forEach(({ geo, material, ms, sombra }) => {
         const im = new THREE.InstancedMesh(geo, material, ms.length);
-        ms.forEach((m, i) => im.setMatrixAt(i, m)); im.instanceMatrix.needsUpdate = true;
+        ms.forEach((m, i) => im.setMatrixAt(i, m)); im.instanceMatrix.needsUpdate = true; variarCorDasCopas(im);
         im.castShadow = sombra; im.receiveShadow = true; im.frustumCulled = false;
         pai.add(im); lista.push(im);
       });
@@ -2701,11 +2701,12 @@ function montarPlano() {
     branco: mat(0xf4f6f9, { roughness: 0.45 }), pedraBege: mat(0xd9d3c7, { roughness: 0.75 }), metal: mat(0xc9d0da, { roughness: 0.35, metalness: 0.7 }),
     navy: mat(COR3D.navy, { roughness: 0.45, metalness: 0.35 }), laranja: luzMat(COR3D.laranja, 1.2), ciano: luzMat(0x38d6f5, 1.0), laranjaFraco: luzMat(COR3D.laranja, 0.6), cianoFraco: luzMat(0x38d6f5, 0.5),
     agua: new T.MeshStandardMaterial({ color: 0x4f8fd6, roughness: 0.08, metalness: 0.35, envMap: CAMPO.ambiente, envMapIntensity: 1, emissive: 0x1d4f8a, emissiveIntensity: 0.25 }),
-    sebe: mat(0x2f6e45, { roughness: 0.9 }), tronco: mat(0x7a5a3c, { roughness: 1 }), copa: mat(0x4f9a5e, { roughness: 0.85 }), copa2: mat(0x3f8a52, { roughness: 0.85 }),
+    sebe: mat(0x3a5e30, { roughness: 0.9 }), tronco: mat(0x5e4630, { roughness: 1 }), copa: mat(0x4a7a38, { roughness: 0.85 }), copa2: mat(0x37602c, { roughness: 0.85 }),
     madeira: mat(0x9a6a42, { roughness: 0.8 }), estofado: mat(0xf1e6d6, { roughness: 0.9 }), lampadaQuente: luzMat(0xffd9a0, 1.4),
     vidroGuarda: new T.MeshStandardMaterial({ color: 0xcfe4f7, transparent: true, opacity: 0.3, roughness: 0.05, metalness: 0.4, depthWrite: false }),
     cabecaPoste: new T.MeshStandardMaterial({ color: 0xffe9c4, emissive: 0xffd28a, emissiveIntensity: 0.2, toneMapped: false })
   };
+  [M.copa, M.copa2, M.sebe].forEach((m) => { m.userData.variarCor = true; });   // cada árvore com o seu tom de verde
   const caixaV = (m, x0, x1, z0, z1, y0, h, sombra) => K.add(G3.caixa, m, (x0 + x1) / 2, y0 || 0, (z0 + z1) / 2, x1 - x0, h, z1 - z0, 0, 0, 0, sombra);
   const obst = (x0, x1, z0, z1) => P.obst.push([Math.min(x0, x1), Math.max(x0, x1), Math.min(z0, z1), Math.max(z0, z1)]);
   const obstCirculo = (cx, cz, r) => { obst(cx - r * 0.92, cx + r * 0.92, cz - r * 0.38, cz + r * 0.38); obst(cx - r * 0.38, cx + r * 0.38, cz - r * 0.92, cz + r * 0.92); obst(cx - r * 0.7, cx + r * 0.7, cz - r * 0.7, cz + r * 0.7); };
@@ -4622,7 +4623,7 @@ function aplicarPisosRealistas() {
   // Tons de concreto e pedra de verdade (o branco puro "estoura" na luz e dá cara de maquete).
   // A cor de dia guardada para o escurecer da noite também muda.
   const tom = (m, hex) => { if (!m) return; m.color.setHex(hex); (CAMPO.pisosNoite || []).forEach((e) => { if (e[0] === m) e[1] = hex; }); };
-  tom(M.calcada, 0xc9c6bf); tom(M.quadra, 0xd3d1cb); tom(M.pedra, 0xc4c2bc); tom(M.pedraClara, 0xdcd9d2);
+  tom(M.calcada, 0xb4b0a7); tom(M.quadra, 0xbdb9b0); tom(M.pedra, 0xaeaaa2); tom(M.pedraClara, 0xc8c4bb);
   pisoRealista(M.calcada, { escala: 1.6, linha: 0.3, variacao: 0.1 });
   pisoRealista(M.quadra, { escala: 0.9, linha: 0.18, variacao: 0.08, manchas: 0.06 });
   pisoRealista(M.pedra, { escala: 0.8, linha: 0.26, variacao: 0.12 });
@@ -4959,12 +4960,14 @@ function montarEspaco() {
   const I = ILHA, cx = (I.x0 + I.x1) / 2, cz = (I.z0 + I.z1) / 2, forma = formaDaIlha();
   // ---- Laje da ilha: gramado em cima, borda de metal escuro ----
   const geoLaje = new T.ExtrudeGeometry(forma, { depth: I.esp, bevelEnabled: false, curveSegments: 12 }).rotateX(Math.PI / 2);   // topo em y = 0, desce até -esp
-  const topo = pisoNoturno(new T.MeshStandardMaterial({ color: 0x5aa05f, roughness: 0.95 }));
-  const lado = new T.MeshStandardMaterial({ color: 0x262d39, roughness: 0.4, metalness: 0.55, envMap: CAMPO.ambiente, envMapIntensity: 0.8 });
-  const laje = new T.Mesh(geoLaje, [topo, lado]); laje.position.y = -0.03; laje.receiveShadow = true; g.add(laje);
+  const topo = pisoNoturno(new T.MeshStandardMaterial({ color: 0x475f33, roughness: 0.95 }));
+  pisoRealista(topo, { escala: 1, manchas: 0.42 });   // gramado com manchas (acabamento de cinema)
+  const lado = new T.MeshStandardMaterial({ color: 0x262d39, roughness: 0.4, metalness: 0.55, envMap: CAMPO.ambiente, envMapIntensity: 0.8 });   // usado nas pontes
+  const penhasco = materialDeRocha({ topo: 0, altura: 100 });   // a lateral da ilha é terra e rocha, não metal
+  const laje = new T.Mesh(geoLaje, [topo, penhasco]); laje.position.y = -0.03; laje.receiveShadow = true; g.add(laje);
   // contornos acesos (alto e baixo da borda)
   const contorno = (y, cor, esp, forca) => { const tubo = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(contornoParaDentro(260, -0.02, y), true), 520, esp, 6, true), luzMat(cor, forca)); g.add(tubo); };
-  contorno(-0.3, COR3D.laranja, 0.16, 1.8); contorno(-I.esp + 0.35, COR3D.laranja, 0.12, 1.6); contorno(-I.esp - 0.05, 0x38d6f5, 0.08, 1.4);
+  contorno(-0.3, COR3D.laranja, 0.07, 1.3);   /* um filete fino de luz na beira (o resto da borda é rocha) */
   // ---- O nome gravado na borda, dos quatro lados (fora das pontes e das cachoeiras) ----
   const texNome = texturaCanvas(4096, 256, (q, w, h) => {
     q.fillStyle = '#121822'; q.fillRect(0, 0, w, h);
@@ -4985,31 +4988,21 @@ function montarEspaco() {
     const pl = new T.Mesh(G3.placa, mNome); pl.scale.set(placaW, placaH, 1); pl.position.set(x, -I.esp / 2 - 0.1, z); pl.rotation.y = rot; g.add(pl);
   });
   // ---- Rocha por baixo (ilha flutuante), com cores de terra que escurecem para baixo ----
-  const geoR = new T.CylinderGeometry(1, 1, 1, 40, 14, false);
-  { const pos = geoR.attributes.position, v = new T.Vector3(), cores = [], s0 = sorteio('rocha-rf');
-    const ruido = (a, b) => Math.sin(a * 3.1 + b * 1.7) * 0.5 + Math.sin(a * 7.3 - b * 2.9) * 0.25 + Math.sin(a * 13 + b * 5) * 0.12;
-    for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i); const ang = Math.atan2(v.z, v.x), h = 0.5 - v.y, plano = Math.hypot(v.x, v.z) > 0.01;   // h: 0 em cima, 1 embaixo
-      const r = raioDaRocha(ang, h) / 128 * (h > 0.02 ? 1 + ruido(ang, h * 4) * 0.1 * (0.4 + h) : 1);
-      if (plano) { v.x = Math.cos(ang) * r; v.z = Math.sin(ang) * r; }
-      if (h > 0.02 && h < 0.99) v.y += (s0() - 0.5) * 0.03;
-      pos.setXYZ(i, v.x, v.y, v.z);
-      const c = new T.Color().lerpColors(new T.Color(0x9a7d5c), new T.Color(0x3a3140), Math.min(1, h * 1.25)); cores.push(c.r, c.g, c.b);
-    }
-    geoR.setAttribute('color', new T.Float32BufferAttribute(cores, 3)); geoR.computeVertexNormals(); }
-  const matRocha = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true });
-  const rocha = new T.Mesh(geoR, matRocha); rocha.scale.set(128, 95, 128); rocha.position.set(cx, -I.esp - 95 / 2 + 0.6, cz); g.add(rocha);
+  const geoR = geometriaDeRocha();   // alta resolução, com saliências, sulcos e camadas (acabamento de cinema)
+  const matRocha = materialDeRocha({ topo: 47.5, altura: 95 });
+  const rocha = new T.Mesh(geoR, matRocha); rocha.scale.set(128, 95, 128); rocha.position.set(cx, -I.esp - 95 / 2 + 0.6, cz); rocha.receiveShadow = true; g.add(rocha);
+  estalactites(g, cx, cz, materialDeRocha({ topo: -I.esp, altura: 95, relevo: 0.6 }), -I.esp);
   // cristais acesos encravados na rocha (ciano e lilás)
   { const s1 = sorteio('cristais-rf'), m4 = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), sc = new T.Vector3(), p = new T.Vector3(), geoC = new T.OctahedronGeometry(1, 0);
-    const im = new T.InstancedMesh(geoC, luzMat(0x38d6f5, 1.7), 170), im2 = new T.InstancedMesh(geoC, luzMat(0xb478ff, 1.6), 60);
-    const colocar = (mesh, k) => { const h = 0.05 + s1() * 0.85, a = s1() * Math.PI * 2, raio = raioDaRocha(a, h); p.set(cx + Math.cos(a) * raio, -I.esp - h * 95, cz + Math.sin(a) * raio); e.set(s1() - 0.5, a, (s1() - 0.5) * 1.4); q.setFromEuler(e); const t = 0.8 + s1() * 2.6; sc.set(t * 0.5, t * 1.7, t * 0.5); mesh.setMatrixAt(k, m4.compose(p, q, sc)); };
-    for (let k = 0; k < 170; k++) colocar(im, k); for (let k = 0; k < 60; k++) colocar(im2, k); g.add(im, im2); }
+    const im = new T.InstancedMesh(geoC, luzMat(0x38d6f5, 1.25), 34), im2 = new T.InstancedMesh(geoC, luzMat(0xb478ff, 1.1), 10);
+    const colocar = (mesh, k) => { const h = 0.05 + s1() * 0.85, a = s1() * Math.PI * 2, raio = raioDaRocha(a, h); p.set(cx + Math.cos(a) * raio, -I.esp - h * 95, cz + Math.sin(a) * raio); e.set(s1() - 0.5, a, (s1() - 0.5) * 1.4); q.setFromEuler(e); const t = 0.5 + s1() * 1.3; sc.set(t * 0.45, t * 1.6, t * 0.45); mesh.setMatrixAt(k, m4.compose(p, q, sc)); };
+    for (let k = 0; k < 34; k++) colocar(im, k); for (let k = 0; k < 10; k++) colocar(im2, k); g.add(im, im2); }
   // trepadeiras penduradas da borda
-  { const s2 = sorteio('vinhas-rf'), pts = contornoParaDentro(420, 0.6, -I.esp + 0.2), im = new T.InstancedMesh(G3.cone, mat(0x2c6040, { roughness: 0.9 }), pts.length), m4 = new T.Matrix4(), q = new T.Quaternion().setFromEuler(new T.Euler(Math.PI, 0, 0));
-    pts.forEach((pp, k) => { const h = 2 + s2() * 8; im.setMatrixAt(k, m4.compose(pp, q, new T.Vector3(0.22 + s2() * 0.3, h * 0.7, 0.22 + s2() * 0.3))); }); g.add(im); }
+  { const s2 = sorteio('vinhas-rf'), pts = contornoParaDentro(420, 0.6, -I.esp + 0.2).filter((_, k) => sorteio('vinha' + k)() < 0.35), im = new T.InstancedMesh(G3.cone, mat(0x283d22, { roughness: 0.95 }), pts.length), m4 = new T.Matrix4(), q = new T.Quaternion().setFromEuler(new T.Euler(Math.PI, 0, 0));
+    pts.forEach((pp, k) => { const h = 1.5 + Math.pow(s2(), 2.2) * 16; im.setMatrixAt(k, m4.compose(pp, q, new T.Vector3(0.12 + s2() * 0.22, h * 0.7, 0.12 + s2() * 0.22))); }); g.add(im); }
   // ---- Anéis de luz em volta da ilha (por baixo da borda) ----
-  const anel = new T.Mesh(new T.TorusGeometry(176, 0.8, 10, 200), luzMat(COR3D.laranja, 1.5)); anel.rotation.x = Math.PI / 2; anel.position.set(cx, -I.esp - 14, cz); g.add(anel);
-  const anel2 = new T.Mesh(new T.TorusGeometry(184, 0.35, 8, 200), luzMat(0x38d6f5, 1.5)); anel2.rotation.x = Math.PI / 2; anel2.position.set(cx, -I.esp - 18, cz); g.add(anel2);
+  const anel = new T.Mesh(new T.TorusGeometry(176, 0.32, 10, 260), luzMat(COR3D.laranja, 1.25)); anel.rotation.x = Math.PI / 2; anel.position.set(cx, -I.esp - 14, cz); g.add(anel);
+  const anel2 = new T.Mesh(new T.TorusGeometry(184, 0.16, 8, 260), luzMat(0x38d6f5, 1.2)); anel2.rotation.x = Math.PI / 2; anel2.position.set(cx, -I.esp - 18, cz); g.add(anel2);
   { const K = novoLote(), mm = mat(0x3a414c, { roughness: 0.4, metalness: 0.7 });   // braços que seguram o anel
     for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + Math.PI / 8, r0 = raioDaRocha(a, 0.15), x = cx + Math.cos(a) * (r0 + 176) / 2, z = cz + Math.sin(a) * (r0 + 176) / 2; K.add(G3.caixaC, mm, x, -I.esp - 14, z, 176 - r0 + 2, 0.7, 0.9, 0, -a, 0, false); }
     K.montar(g, []); }
@@ -5087,12 +5080,12 @@ function montarEspaco() {
       else { const cr = new T.Mesh(new T.OctahedronGeometry(1, 0), luzMat(k % 4 ? 0x38d6f5 : 0xb478ff, 1.7)); cr.scale.set(1.2, 3.4, 1.2); cr.position.y = 3; gg.add(cr); }
       ilhotas.push({ gg, y0: gg.position.y, f: s4() * 6 });
     }
-    const n = 480, im = new T.InstancedMesh(new T.DodecahedronGeometry(1, 0), new T.MeshStandardMaterial({ color: 0x5a5560, roughness: 1, flatShading: true }), n), m4 = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler();
+    const n = 480, im = new T.InstancedMesh(geometriaDePedra(), materialDeRocha({ topo: 0, altura: 30, relevo: 0.5 }), n), m4 = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler();
     for (let k = 0; k < n; k++) { const a = s4() * Math.PI * 2, rr = 265 + s4() * 80, sc = 0.6 + s4() ** 3 * 6; e.set(s4() * 3, s4() * 3, s4() * 3); q.setFromEuler(e); im.setMatrixAt(k, m4.compose(new T.Vector3(Math.cos(a) * rr, -45 + (s4() - 0.5) * 30, Math.sin(a) * rr), q, new T.Vector3(sc, sc * (0.6 + s4() * 0.6), sc))); }
     const cinturao = new T.Group(); cinturao.position.z = cz; cinturao.add(im); g.add(cinturao); CAMPO.cinturao = cinturao;
   }
   // ---- Luz de baixo (azulada) para a rocha e o fundo das peças não ficarem pretos ----
-  const luzBaixo = new T.DirectionalLight(0x8fa4ff, 1.5); luzBaixo.position.set(-40, -120, 60); CAMPO.cena.add(luzBaixo);
+  const luzBaixo = new T.DirectionalLight(0xa9bddb, 0.85); luzBaixo.position.set(-40, -120, 60); CAMPO.cena.add(luzBaixo);
   // ---- Céu do espaço: acompanha a câmera e fica sempre ao fundo ----
   const ceu = new T.Group(); CAMPO.cena.add(ceu); CAMPO.ceuEspaco = ceu;
   const fundo = (m) => { m.depthWrite = false; m.fog = false; return m; };
@@ -5100,17 +5093,19 @@ function montarEspaco() {
     for (let k = 0; k < n; k++) {
       let u = s5() * 2 - 1; const a = s5() * Math.PI * 2; if (k % 3 === 0) u *= 0.12;   // um terço das estrelas na faixa da via láctea
       const sq = Math.sqrt(1 - u * u), v = new T.Vector3(Math.cos(a) * sq, u, Math.sin(a) * sq).applyAxisAngle(new T.Vector3(1, 0, 0), 0.5).multiplyScalar(560);
+      if (v.y < -0.2 * 560) v.y = -v.y;   /* abaixo do horizonte fica o planeta: a estrela vai para o céu */
       pos.set([v.x, v.y, v.z], k * 3);
       c.setHSL(0.55 + s5() * 0.12, 0.45, 0.72 + s5() * 0.28); if (s5() < 0.1) c.setHSL(0.08, 0.8, 0.82); cor.set([c.r, c.g, c.b], k * 3);
     }
     const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.BufferAttribute(pos, 3)); geo.setAttribute('color', new T.BufferAttribute(cor, 3));
     const est = new T.Points(geo, fundo(new T.PointsMaterial({ size: 1.7, sizeAttenuation: false, vertexColors: true, transparent: true, opacity: 0.95 }))); est.renderOrder = -10; ceu.add(est);
-    const p2 = new Float32Array(320 * 3); for (let k = 0; k < 320; k++) { const u = s5() * 2 - 1, a = s5() * Math.PI * 2, sq = Math.sqrt(1 - u * u); p2.set([Math.cos(a) * sq * 555, u * 555, Math.sin(a) * sq * 555], k * 3); }
+    const p2 = new Float32Array(320 * 3); for (let k = 0; k < 320; k++) { const u = s5() * 1.2 - 0.2, a = s5() * Math.PI * 2, sq = Math.sqrt(1 - u * u); p2.set([Math.cos(a) * sq * 555, u * 555, Math.sin(a) * sq * 555], k * 3); }
     const geo2 = new T.BufferGeometry(); geo2.setAttribute('position', new T.BufferAttribute(p2, 3));
     const grandes = new T.Points(geo2, fundo(new T.PointsMaterial({ size: 3.4, sizeAttenuation: false, color: 0xffffff, transparent: true, opacity: 0.9 }))); grandes.renderOrder = -10; ceu.add(grandes); CAMPO.estrelasGrandes = grandes; }
   // nebulosas coloridas
   [[0x6a3cff, -300, 220, -380, 560, 0.3], [0xff5fa8, 380, 160, -320, 460, 0.22], [0x2fb8ff, 60, -160, 500, 640, 0.2], [0xff9a3d, -420, -60, 280, 440, 0.16], [0x7a5cff, 200, 360, 300, 520, 0.22], [0x38d6f5, -150, -300, -200, 600, 0.18]].forEach(([cor, x, y, z, s, op]) => {
-    const sp = new T.Sprite(fundo(new T.SpriteMaterial({ map: brilhoTex, color: cor, transparent: true, opacity: op, blending: T.AdditiveBlending }))); sp.scale.set(s, s * 0.6, 1); sp.position.set(x, y, z).setLength(540); sp.renderOrder = -9; ceu.add(sp); });
+    if (y < 0) return;   /* embaixo agora é o planeta */
+    const sp = new T.Sprite(fundo(new T.SpriteMaterial({ map: brilhoTex, color: cor, transparent: true, opacity: op * 0.35, blending: T.AdditiveBlending }))); sp.scale.set(s, s * 0.6, 1); sp.position.set(x, y, z).setLength(540); sp.renderOrder = -9; ceu.add(sp); });
   // planeta gigante com anel
   const texGas = texturaCanvas(512, 256, (q, w, h) => { for (let y = 0; y < h; y++) { const t = y / h, b = Math.sin(t * 40) * 0.5 + Math.sin(t * 13 + 1) * 0.5; q.fillStyle = `hsl(${26 + b * 10}, ${55 + b * 15}%, ${46 + b * 14}%)`; q.fillRect(0, y, w, 1); } q.fillStyle = 'rgba(170,60,30,0.6)'; q.beginPath(); q.ellipse(w * 0.62, h * 0.62, 40, 16, 0, 0, Math.PI * 2); q.fill(); });
   const gigante = new T.Group(); gigante.position.set(-330, 160, -380).setLength(470); ceu.add(gigante);
@@ -5125,6 +5120,9 @@ function montarEspaco() {
   const pa = new T.Mesh(new T.SphereGeometry(55, 64, 32), new T.MeshStandardMaterial({ map: texAzul, roughness: 0.7, fog: false, emissive: 0x0a2244, emissiveIntensity: 0.5 })); azul.add(pa); CAMPO.planetaAzul = pa;
   const atm = new T.Sprite(fundo(new T.SpriteMaterial({ map: brilhoTex, color: 0x5fb8ff, transparent: true, opacity: 0.6, blending: T.AdditiveBlending }))); atm.scale.set(175, 175, 1); azul.add(atm);
   const lua = new T.Mesh(new T.SphereGeometry(13, 32, 16), new T.MeshStandardMaterial({ color: 0xbab6ae, roughness: 1, fog: false, emissive: 0x222222 })); lua.position.set(300, 140, 400).setLength(500); ceu.add(lua);
+  azul.visible = false;   /* o planeta azul agora é o grande, lá embaixo (shader do céu) */
+  montarCeuDeCinema(ceu);
+  nuvensDaIlha(g, cx, cz);
   // estação espacial em anel (gira devagar)
   const estacao = new T.Group(); estacao.position.set(240, 260, -330).setLength(500); ceu.add(estacao);
   { const mm = new T.MeshStandardMaterial({ color: 0xd9dde2, roughness: 0.4, metalness: 0.6, fog: false }); estacao.add(new T.Mesh(new T.TorusGeometry(24, 2.0, 10, 64), mm));
@@ -5181,6 +5179,7 @@ function hologramaDaTorre(g, x, z) {
 function passoEspaco(t) {
   const A = CAMPO.espacoAnim; if (!A) return;
   if (CAMPO.ceuEspaco && CAMPO.camera) CAMPO.ceuEspaco.position.copy(CAMPO.camera.position);
+  passoCeuDeCinema(t); passoNuvensDaIlha(t);
   if (CAMPO.luzes && CAMPO.luzes.chao && CAMPO.luzes.chao.visible) CAMPO.luzes.chao.visible = false;   /* no espaço não há chão embaixo da ilha */
   A.chamas.forEach((c, k) => { const s = 1 + Math.sin(t * 9 + k) * 0.06 + Math.sin(t * 23 + k * 2) * 0.04; c.chama.scale.y = c.alto * s; c.miolo.scale.y = c.alto * 0.45 * (2 - s); c.chama.material.opacity = 0.45 + Math.sin(t * 13 + k) * 0.08; });
   A.cachoeiras.forEach((tx, k) => { tx.offset.y = (t * (0.5 + k * 0.05)) % 1; });
@@ -5209,7 +5208,8 @@ function passoEspaco(t) {
 }
 // Ruas mais vivas: filetes de LED nas bordas de todas as ruas (ciano) e nas avenidas de entrada (laranja)
 function filetesDasRuas(g) {
-  const K = novoLote(), c1 = luzMat(0x38d6f5, 0.9), c2 = luzMat(COR3D.laranja, 1.1);
+  const K = novoLote(), c1 = luzMat(0x38d6f5, 0.9).clone(), c2 = luzMat(COR3D.laranja, 1.1).clone();
+  CAMPO.matsFiletes = [[c1, 0.9], [c2, 1.1]];   // de dia quase apagados; acendem à noite (acabamento de cinema)
   PLANO.ruas.forEach(([x0, x1, z0, z1]) => {
     const w = x1 - x0, d = z1 - z0, entrada = Math.max(Math.abs(x0), Math.abs(x1)) > 104 || Math.max(Math.abs(z0), Math.abs(z1)) > 106, m = entrada ? c2 : c1;
     if (w > d) [z0 + 0.12, z1 - 0.12].forEach((z) => K.add(G3.caixa, m, (x0 + x1) / 2, 0.012, z, w, 0.004, 0.07, 0, 0, 0, false));
@@ -5315,11 +5315,7 @@ function montarCena() {
   /* Piso branco liso. A cor muda com a hora: branco de manhã, vai escurecendo à tarde, cinza no fim do dia e grafite à noite. */
   // Reflexo do céu no piso (um mapa de ambiente desenhado: azul em cima, claro no horizonte)
   let ambiente = null;
-  try {
-    const ceuC = telaDe(512, 256, (g) => { const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#7fa8de'); gr.addColorStop(0.48, '#e9f1fb'); gr.addColorStop(0.52, '#c9d3df'); gr.addColorStop(1, '#8e99a8'); g.fillStyle = gr; g.fillRect(0, 0, 512, 256); });
-    const eq = new T.CanvasTexture(ceuC); eq.mapping = T.EquirectangularReflectionMapping; eq.encoding = T.sRGBEncoding;
-    const pm = new T.PMREMGenerator(renderer); ambiente = pm.fromEquirectangular(eq).texture; pm.dispose(); eq.dispose();
-  } catch (x) { ambiente = null; }
+  try { ambiente = ambienteDoEspaco(renderer); } catch (x) { ambiente = null; }   /* céu escuro em cima, o planeta claro embaixo */
   CAMPO.ambiente = ambiente;
   const chao = new T.Mesh(new T.PlaneGeometry(2400, 2400), new T.MeshStandardMaterial({ color: 0xf3f6fa, roughness: 0.5, metalness: 0.02, envMap: ambiente, envMapIntensity: 0.3 }));
   chao.rotation.x = -Math.PI / 2; chao.receiveShadow = true; cena.add(chao);
@@ -5915,7 +5911,7 @@ function quadro(agora) {
   (CAMPO.nuvens || []).forEach((s) => { const u = s.userData; u.a += u.v * (dt || 0.016); s.position.set(Math.cos(u.a) * u.r, u.y, Math.sin(u.a) * u.r); });
   CAMPO.poeira.rotation.y = t * 0.01;
   passoEfeitos(dt); passoApresentacao(dt, t); passoCeu(dt);
-  CAMPO.renderer.render(CAMPO.cena, CAMPO.camera);
+  renderizarCinema();   // desenho com o acabamento de cinema (ou direto, se o aparelho não suportar)
   posicionarRotulos(ativa);
 }
 const _p = { v: null };
@@ -5989,8 +5985,8 @@ function passoEfeitos(dt) {
    e 5h30 às 7h) e noite. À noite as janelas acendem e os postes ligam. O botão de hora no
    rodapé do campo troca na mão (dia, entardecer, noite) e volta para o automático. */
 const PERIODOS = {
-  dia: { nome: 'Dia', ceu: ['#5d8fd8', '#a8c8ee', '#f4e6d4'], nevoa: 0xe6e4df, chao: 0xb3bea9, circuito: 0, linha: 0x7fa3d6, linhaOp: 0.35, hemi: [0xf4f6ff, 0xb8b39a, 0.8], sol: [0xffe3bf, 2.35, 70, 62, 48], contra: 0.3, exposicao: 0.94, janelas: 0.35, postes: 0, poeira: 0.12, radar: 0.05 },
-  entardecer: { nome: 'Entardecer', ceu: ['#2e3f78', '#a05a78', '#f2a46a'], nevoa: 0xe0b49a, chao: 0x8f8f86, circuito: 0.35, linha: 0xc78a8a, linhaOp: 0.3, hemi: [0xffc9a0, 0x2a2f52, 0.85], sol: [0xff9a50, 1.8, 95, 22, 10], contra: 0.35, exposicao: 1.05, janelas: 1.0, postes: 0.6, poeira: 0.35, radar: 0.09 },
+  dia: { nome: 'Dia', ceu: ['#5d8fd8', '#a8c8ee', '#f4e6d4'], nevoa: 0xe6e4df, chao: 0xb3bea9, circuito: 0, linha: 0x7fa3d6, linhaOp: 0.35, hemi: [0xdfe8ff, 0x8a9bb5, 0.55], sol: [0xfff3e2, 3.1, 70, 62, 48], contra: 0.22, exposicao: 0.9, janelas: 0.35, postes: 0, poeira: 0.12, radar: 0.05 },
+  entardecer: { nome: 'Entardecer', ceu: ['#2e3f78', '#a05a78', '#f2a46a'], nevoa: 0xe0b49a, chao: 0x8f8f86, circuito: 0.35, linha: 0xc78a8a, linhaOp: 0.3, hemi: [0xffc9a0, 0x2a2f52, 0.6], sol: [0xff9a50, 2.5, 95, 22, 10], contra: 0.3, exposicao: 1.0, janelas: 1.0, postes: 0.6, poeira: 0.35, radar: 0.09 },
   noite: { nome: 'Noite', ceu: ['#1a3460', '#101f38', '#151c2a'], nevoa: 0x161d2b, chao: 0x2c323e, circuito: 0.6, linha: 0x2a5590, linhaOp: 0.55, hemi: [0xcfe0ff, 0x0b1729, 0.9], sol: [0xdfe6ff, 1.35, 45, 80, 35], contra: 0.45, exposicao: 1.08, janelas: 1.5, postes: 1, poeira: 0.55, radar: 0.12 }
 };
 const ORDEM_PERIODOS = ['', 'dia', 'entardecer', 'noite'];   // '' = automático, pelo relógio
@@ -6310,5 +6306,590 @@ function pararCampo() {
   if (CAMPO.ap) pararApresentacao();
   if (!CAMPO.rodando) return;
   CAMPO.rodando = false; cancelAnimationFrame(CAMPO.raf);
+}
+/* =====================================================================
+   ACABAMENTO DE CINEMA (painel principal 3D)
+   Só muda o visual. Nada do que o painel mostra, calcula ou guarda muda aqui.
+   - Pós-processamento próprio (sem biblioteca nova): brilho das luzes (bloom), cor de cinema,
+     vinheta, granulação de filme e uma leve aberração da lente nas bordas.
+   - Céu do espaço num shader só: via láctea, nebulosas, o sol e o planeta lá embaixo
+     (continentes, oceano com o reflexo do sol, nuvens, a faixa azul da atmosfera na borda e as
+     luzes das cidades no lado da noite).
+   - Rocha da ilha em alta resolução: camadas de sedimento, sulcos de erosão, relevo fino,
+     estalactites e musgo nas saliências.
+   - Nuvens de verdade em volta e por baixo da ilha.
+   - Copas de árvore irregulares, com variação de cor (nada de "pirulito").
+   Se o aparelho não tiver WebGL2 (ou não puder desenhar em cor de alta precisão), o painel desenha
+   direto na tela, como antes, só sem o pós-processamento.
+===================================================================== */
+
+// Ruído em GLSL (valor 3D + soma de oitavas), usado pelo céu, pela rocha e pelo planeta
+const GLSL_RUIDO = `
+float rfH3(vec3 p) { p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419)); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float rfR3(vec3 x) {
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(rfH3(i), rfH3(i + vec3(1.0, 0.0, 0.0)), f.x), mix(rfH3(i + vec3(0.0, 1.0, 0.0)), rfH3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+             mix(mix(rfH3(i + vec3(0.0, 0.0, 1.0)), rfH3(i + vec3(1.0, 0.0, 1.0)), f.x), mix(rfH3(i + vec3(0.0, 1.0, 1.0)), rfH3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
+float rfFbm(vec3 p, int oitavas) {
+  float soma = 0.0, amp = 0.5, total = 0.0;
+  for (int i = 0; i < 9; i++) { if (i >= oitavas) break; soma += amp * rfR3(p); total += amp; p = p * 2.03 + vec3(1.7, 9.2, 4.3); amp *= 0.5; }
+  return soma / total;
+}
+`;
+
+// O mesmo ruído em JavaScript (para dar forma à rocha, às copas e às nuvens)
+function ruido3(x, y, z) {
+  const h = (a, b, c) => { let px = (a * 0.3183099 + 0.71) % 1, py = (b * 0.3183099 + 0.113) % 1, pz = (c * 0.3183099 + 0.419) % 1; if (px < 0) px += 1; if (py < 0) py += 1; if (pz < 0) pz += 1; px *= 17; py *= 17; pz *= 17; const v = px * py * pz * (px + py + pz); return v - Math.floor(v); };
+  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+  let fx = x - ix, fy = y - iy, fz = z - iz; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy); fz = fz * fz * (3 - 2 * fz);
+  const m = (a, b, t) => a + (b - a) * t;
+  return m(m(m(h(ix, iy, iz), h(ix + 1, iy, iz), fx), m(h(ix, iy + 1, iz), h(ix + 1, iy + 1, iz), fx), fy),
+           m(m(h(ix, iy, iz + 1), h(ix + 1, iy, iz + 1), fx), m(h(ix, iy + 1, iz + 1), h(ix + 1, iy + 1, iz + 1), fx), fy), fz);
+}
+function fbm3(x, y, z, oitavas) {
+  let soma = 0, amp = 0.5, total = 0;
+  for (let i = 0; i < oitavas; i++) { soma += amp * ruido3(x, y, z); total += amp; x = x * 2.03 + 1.7; y = y * 2.03 + 9.2; z = z * 2.03 + 4.3; amp *= 0.5; }
+  return soma / total;
+}
+
+/* ---------- 1. Pós-processamento ----------
+   A cena é desenhada numa imagem de alta precisão (com antisserrilhado). Dela sai o brilho das
+   luzes (só o que passa do branco: LEDs, telões, sol, propulsores), espalhado em 6 tamanhos.
+   Depois junta tudo na tela com a correção de cor. */
+const CINEMA = { ligado: null, largura: 0, altura: 0, niveis: [] };
+const CINEMA_AJUSTE = {
+  limiar: 0.92,        // a partir de quanto a luz começa a brilhar em volta
+  joelho: 0.35,        // transição suave do brilho
+  forcaBrilho: 0.42,   // quanto do brilho volta para a imagem
+  vinheta: 0.32,       // escurecimento das bordas
+  grao: 0.022,         // granulação de filme
+  aberracao: 0.0022,   // separação de cor nas bordas (lente)
+  sombraContato: 0.9,  // força da sombra de contato (oclusão de ambiente): cantos, pés de prédio, embaixo de carro
+  verSombraContato: false,  // true mostra só a sombra de contato, em preto e branco (para conferir)
+  nevoa: 0.22          // névoa de distância: quanto o fundo clareia (dá escala de cidade grande)
+};
+const VERT_TELA = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+function prepararCinema() {
+  const T = THREE, r = CAMPO.renderer;
+  CINEMA.ligado = false;
+  try {
+    if (!r.capabilities.isWebGL2) return;
+    if (!r.extensions.has('EXT_color_buffer_float') && !r.extensions.has('EXT_color_buffer_half_float')) return;
+    const base = { type: T.HalfFloatType, format: T.RGBAFormat, minFilter: T.LinearFilter, magFilter: T.LinearFilter, stencilBuffer: false };
+    CINEMA.cena = new T.WebGLRenderTarget(4, 4, Object.assign({ samples: 4, depthBuffer: true }, base));
+    CINEMA.cena.depthTexture = new T.DepthTexture(4, 4, T.UnsignedIntType);
+    const baseAO = { type: T.UnsignedByteType, format: T.RGBAFormat, minFilter: T.LinearFilter, magFilter: T.LinearFilter, depthBuffer: false, stencilBuffer: false };
+    CINEMA.ao = new T.WebGLRenderTarget(4, 4, baseAO); CINEMA.aoLimpo = new T.WebGLRenderTarget(4, 4, baseAO);
+    for (let i = 0; i < 6; i++) CINEMA.niveis.push(new T.WebGLRenderTarget(4, 4, Object.assign({ depthBuffer: false }, base)));
+    CINEMA.quad = new T.Mesh(new T.PlaneGeometry(2, 2), null); CINEMA.quad.frustumCulled = false;
+    CINEMA.cenaQuad = new T.Scene(); CINEMA.cenaQuad.add(CINEMA.quad);
+    CINEMA.camQuad = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const sh = (frag, uniforms, extra) => new T.ShaderMaterial(Object.assign({ vertexShader: VERT_TELA, fragmentShader: frag, uniforms, depthTest: false, depthWrite: false, toneMapped: false }, extra || {}));
+    // Separa o que é luz forte (com transição suave) e já reduz pela metade
+    CINEMA.matLimiar = sh(`uniform sampler2D tFonte; uniform vec2 uPasso; uniform float uLimiar, uJoelho; varying vec2 vUv;
+      void main() {
+        vec3 c = texture2D(tFonte, vUv + uPasso * vec2(-0.5, -0.5)).rgb + texture2D(tFonte, vUv + uPasso * vec2(0.5, -0.5)).rgb
+               + texture2D(tFonte, vUv + uPasso * vec2(-0.5, 0.5)).rgb + texture2D(tFonte, vUv + uPasso * vec2(0.5, 0.5)).rgb;
+        c = min(c * 0.25, vec3(30.0));
+        float b = max(c.r, max(c.g, c.b));
+        float s = clamp(b - uLimiar + uJoelho, 0.0, 2.0 * uJoelho); s = s * s / (4.0 * uJoelho + 1e-4);
+        gl_FragColor = vec4(c * max(s, b - uLimiar) / max(b, 1e-4), 1.0);
+      }`, { tFonte: { value: null }, uPasso: { value: new T.Vector2() }, uLimiar: { value: CINEMA_AJUSTE.limiar }, uJoelho: { value: CINEMA_AJUSTE.joelho } });
+    // Descer (metade do tamanho) e subir (espalhando) — filtro "dual" de 5 e 8 amostras
+    CINEMA.matDesce = sh(`uniform sampler2D tFonte; uniform vec2 uPasso; varying vec2 vUv;
+      void main() { vec3 s = texture2D(tFonte, vUv).rgb * 4.0;
+        s += texture2D(tFonte, vUv - uPasso).rgb + texture2D(tFonte, vUv + uPasso).rgb + texture2D(tFonte, vUv + vec2(uPasso.x, -uPasso.y)).rgb + texture2D(tFonte, vUv - vec2(uPasso.x, -uPasso.y)).rgb;
+        gl_FragColor = vec4(s / 8.0, 1.0); }`, { tFonte: { value: null }, uPasso: { value: new T.Vector2() } });
+    CINEMA.matSobe = sh(`uniform sampler2D tFonte; uniform vec2 uPasso; uniform float uPeso; varying vec2 vUv;
+      void main() { vec2 h = uPasso; vec3 s = texture2D(tFonte, vUv + vec2(-h.x * 2.0, 0.0)).rgb + texture2D(tFonte, vUv + vec2(h.x * 2.0, 0.0)).rgb
+          + texture2D(tFonte, vUv + vec2(0.0, h.y * 2.0)).rgb + texture2D(tFonte, vUv + vec2(0.0, -h.y * 2.0)).rgb
+          + (texture2D(tFonte, vUv + vec2(-h.x, h.y)).rgb + texture2D(tFonte, vUv + vec2(h.x, h.y)).rgb + texture2D(tFonte, vUv + vec2(h.x, -h.y)).rgb + texture2D(tFonte, vUv + vec2(-h.x, -h.y)).rgb) * 2.0;
+        gl_FragColor = vec4(s / 12.0 * uPeso, 1.0); }`, { tFonte: { value: null }, uPasso: { value: new T.Vector2() }, uPeso: { value: 1 } },
+      { transparent: true, blending: T.AdditiveBlending });
+    // Junta tudo na tela: brilho, lente, cor de cinema, vinheta, grão e a conversão para a tela (sRGB)
+    CINEMA.matFinal = sh(`uniform sampler2D tCena, tBrilho, tAO, tProf; uniform float uForcaAO, uVerAO, uLonge, uNevoaIni, uNevoaDens, uNevoaMax; uniform vec3 uCorNevoa; uniform vec2 uRes; uniform float uForca, uVinheta, uGrao, uAberracao, uTempo; varying vec2 vUv;
+      float rfGrao(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      vec3 rfOmbro(vec3 c) { vec3 a = max(c - 0.82, 0.0); return min(c, 0.82) + 0.18 * (1.0 - exp(-a / 0.18)); }
+      vec3 rfSrgb(vec3 c) { c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+      void main() {
+        vec2 d = vUv - 0.5; float r2 = dot(d, d);
+        vec2 desvio = d * r2 * uAberracao * 4.0;
+        vec3 c = vec3(texture2D(tCena, vUv - desvio).r, texture2D(tCena, vUv).g, texture2D(tCena, vUv + desvio).b);
+        vec3 b = texture2D(tBrilho, vUv).rgb;
+        float ao = texture2D(tAO, vUv).r;
+        c *= mix(1.0, ao, uForcaAO);
+        float pz = texture2D(tProf, vUv).x;
+        if (pz < 0.99999) { float dist = exp2(pz * log2(uLonge + 1.0)) - 1.0; c = mix(c, uCorNevoa, (1.0 - exp(-max(dist - uNevoaIni, 0.0) * uNevoaDens)) * uNevoaMax); }
+        c += b * uForca;
+        if (uVerAO > 0.5) c = vec3(ao * 0.8);
+        c = rfOmbro(c);
+        vec3 s = rfSrgb(c);
+        float lum = dot(s, vec3(0.2126, 0.7152, 0.0722));
+        // sombras levemente azul-petróleo, luzes levemente quentes (o "teal and orange" de cinema, bem contido)
+        s += vec3(-0.012, 0.004, 0.018) * (1.0 - smoothstep(0.0, 0.45, lum)) + vec3(0.018, 0.008, -0.014) * smoothstep(0.55, 1.0, lum);
+        s = mix(s, s * s * (3.0 - 2.0 * s), 0.16);
+        s = mix(vec3(dot(s, vec3(0.2126, 0.7152, 0.0722))), s, 1.07);
+        float v = smoothstep(0.92, 0.28, length(d * vec2(1.0, 0.82)));
+        s *= mix(1.0 - uVinheta, 1.0, v);
+        s += (rfGrao(vUv * uRes + fract(uTempo) * 61.0) - 0.5) * uGrao;
+        gl_FragColor = vec4(clamp(s, 0.0, 1.0), 1.0);
+      }`, { tCena: { value: null }, tBrilho: { value: null }, tAO: { value: null }, uForcaAO: { value: 0 }, uVerAO: { value: 0 }, tProf: { value: null }, uLonge: { value: 1000 }, uNevoaIni: { value: 100 }, uNevoaDens: { value: 0.003 }, uNevoaMax: { value: 0 }, uCorNevoa: { value: new T.Color() }, uRes: { value: new T.Vector2() }, uForca: { value: CINEMA_AJUSTE.forcaBrilho }, uVinheta: { value: CINEMA_AJUSTE.vinheta }, uGrao: { value: CINEMA_AJUSTE.grao }, uAberracao: { value: CINEMA_AJUSTE.aberracao }, uTempo: { value: 0 } });
+    /* Sombra de contato (oclusão de ambiente, no estilo "Alchemy"): para cada ponto, olha 12 vizinhos na
+       tela; se a geometria em volta "fecha" o ponto (canto, pé de parede), ele recebe menos luz do céu.
+       A profundidade vem do buffer logarítmico: distância = (longe + 1) ^ profundidade - 1. */
+    const GLSL_POS = `uniform sampler2D tProf; uniform float uLonge, uP0, uP1;
+      float rfDist(vec2 uv) { return exp2(texture2D(tProf, uv).x * log2(uLonge + 1.0)) - 1.0; }
+      vec3 rfPos(vec2 uv) { float w = rfDist(uv); vec2 ndc = uv * 2.0 - 1.0; return vec3(ndc.x / uP0 * w, ndc.y / uP1 * w, -w); }`;
+    CINEMA.matAO = sh(`${GLSL_POS} uniform vec2 uPasso; uniform float uRaio, uForcaAO; varying vec2 vUv;
+      void main() {
+        if (texture2D(tProf, vUv).x >= 0.99999) { gl_FragColor = vec4(1.0); return; }
+        vec3 p = rfPos(vUv);
+        vec3 pr = rfPos(vUv + vec2(uPasso.x, 0.0)), pl = rfPos(vUv - vec2(uPasso.x, 0.0)), pu = rfPos(vUv + vec2(0.0, uPasso.y)), pd = rfPos(vUv - vec2(0.0, uPasso.y));
+        vec3 dx = abs(pr.z - p.z) < abs(p.z - pl.z) ? pr - p : p - pl;
+        vec3 dy = abs(pu.z - p.z) < abs(p.z - pd.z) ? pu - p : p - pd;
+        vec3 n = normalize(cross(dx, dy));
+        float raioTela = uRaio * uP1 * 0.5 / max(-p.z, 0.01);
+        float giro = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.2831853;
+        float soma = 0.0;
+        for (int i = 0; i < 12; i++) {
+          float fi = float(i), r = sqrt((fi + 0.5) / 12.0), a = giro + fi * 2.3999632;
+          vec2 uv = vUv + vec2(cos(a), sin(a)) * r * raioTela * vec2(uP0 / uP1, 1.0);
+          vec3 v = rfPos(uv) - p;
+          float d2 = dot(v, v);
+          soma += max(0.0, dot(v, n) - 0.0002 * -p.z) / (d2 + 0.02 * uRaio * uRaio) * smoothstep(uRaio * 2.2, uRaio * 0.8, sqrt(d2));
+        }
+        float ao = clamp(1.0 - soma * uRaio * 4.0 * uForcaAO / 12.0, 0.0, 1.0);
+        gl_FragColor = vec4(vec3(ao * ao), 1.0);
+      }`, { tProf: { value: null }, uLonge: { value: 1000 }, uP0: { value: 1 }, uP1: { value: 1 }, uPasso: { value: new T.Vector2() }, uRaio: { value: 1 }, uForcaAO: { value: 1 } });
+    // Alisa a sombra de contato sem passar por cima das bordas dos objetos (respeita a profundidade)
+    CINEMA.matAOLimpa = sh(`${GLSL_POS} uniform sampler2D tAO; uniform vec2 uPasso; varying vec2 vUv;
+      void main() {
+        float w0 = rfDist(vUv), soma = 0.0, peso = 0.0;
+        for (int x = -2; x <= 2; x++) for (int y = -2; y <= 2; y++) {
+          vec2 uv = vUv + vec2(float(x), float(y)) * uPasso;
+          float w = 1.0 / (1.0 + abs(rfDist(uv) - w0) / max(w0 * 0.02, 0.05));
+          soma += texture2D(tAO, uv).r * w; peso += w;
+        }
+        gl_FragColor = vec4(vec3(soma / peso), 1.0);
+      }`, { tProf: { value: null }, tAO: { value: null }, uLonge: { value: 1000 }, uP0: { value: 1 }, uP1: { value: 1 }, uPasso: { value: new T.Vector2() } });
+    CINEMA.ligado = true;
+  } catch (x) { console.warn('Pós-processamento indisponível, desenhando direto:', x); CINEMA.ligado = false; }
+}
+// Desenha um quadro de tela cheia com o material m na imagem "destino" (null = a tela)
+function passeDeTela(m, destino, limpar) {
+  const r = CAMPO.renderer; CINEMA.quad.material = m;
+  const auto = r.autoClear; r.autoClear = limpar !== false;
+  r.setRenderTarget(destino); r.render(CINEMA.cenaQuad, CINEMA.camQuad);
+  r.autoClear = auto;
+}
+function renderizarCinema() {
+  const r = CAMPO.renderer;
+  if (CINEMA.ligado === null) prepararCinema();
+  if (!CINEMA.ligado) { r.render(CAMPO.cena, CAMPO.camera); return; }
+  const tam = CINEMA.tmp || (CINEMA.tmp = new THREE.Vector2()); r.getDrawingBufferSize(tam);
+  const w = Math.max(4, tam.x), h = Math.max(4, tam.y);
+  if (w !== CINEMA.largura || h !== CINEMA.altura) {
+    CINEMA.largura = w; CINEMA.altura = h; CINEMA.cena.setSize(w, h);
+    CINEMA.ao.setSize(Math.max(2, Math.round(w / 2)), Math.max(2, Math.round(h / 2))); CINEMA.aoLimpo.setSize(Math.max(2, Math.round(w / 2)), Math.max(2, Math.round(h / 2)));
+    CINEMA.niveis.forEach((n, i) => n.setSize(Math.max(2, Math.round(w / Math.pow(2, i + 1))), Math.max(2, Math.round(h / Math.pow(2, i + 1)))));
+  }
+  try {
+    r.setRenderTarget(CINEMA.cena); r.render(CAMPO.cena, CAMPO.camera);
+    const N = CINEMA.niveis;
+    CINEMA.matLimiar.uniforms.tFonte.value = CINEMA.cena.texture; CINEMA.matLimiar.uniforms.uPasso.value.set(1 / w, 1 / h);
+    passeDeTela(CINEMA.matLimiar, N[0]);
+    for (let i = 1; i < N.length; i++) { CINEMA.matDesce.uniforms.tFonte.value = N[i - 1].texture; CINEMA.matDesce.uniforms.uPasso.value.set(1 / N[i - 1].width, 1 / N[i - 1].height); passeDeTela(CINEMA.matDesce, N[i]); }
+    for (let i = N.length - 2; i >= 0; i--) { CINEMA.matSobe.uniforms.tFonte.value = N[i + 1].texture; CINEMA.matSobe.uniforms.uPasso.value.set(0.5 / N[i + 1].width, 0.5 / N[i + 1].height); CINEMA.matSobe.uniforms.uPeso.value = 1; passeDeTela(CINEMA.matSobe, N[i], false); }
+    // sombra de contato: o raio acompanha a distância da câmera (de longe, cantos maiores)
+    const cam = CAMPO.camera, pe = cam.projectionMatrix.elements, raioAO = Math.max(0.3, Math.min(2.6, CAM.raio * 0.012));
+    [CINEMA.matAO, CINEMA.matAOLimpa].forEach((m) => { const u = m.uniforms; u.tProf.value = CINEMA.cena.depthTexture; u.uLonge.value = cam.far; u.uP0.value = pe[0]; u.uP1.value = pe[5]; u.uPasso.value.set(2 / w, 2 / h); });
+    CINEMA.matAO.uniforms.uRaio.value = raioAO; CINEMA.matAO.uniforms.uForcaAO.value = 1;
+    passeDeTela(CINEMA.matAO, CINEMA.ao);
+    CINEMA.matAOLimpa.uniforms.tAO.value = CINEMA.ao.texture; passeDeTela(CINEMA.matAOLimpa, CINEMA.aoLimpo);
+    const F = CINEMA.matFinal.uniforms;
+    F.tAO.value = CINEMA.aoLimpo.texture; F.uForcaAO.value = CINEMA_AJUSTE.sombraContato; F.uVerAO.value = CINEMA_AJUSTE.verSombraContato ? 1 : 0;
+    // névoa de distância: começa um pouco antes do alvo da câmera e chega no máximo bem depois; de noite fica azul-escura
+    const luzC = CAMPO.luzDoCeu, noiteC = luzC ? luzC.postes : 0;
+    F.tProf.value = CINEMA.cena.depthTexture; F.uLonge.value = cam.far; F.uNevoaIni.value = CAM.raio * 0.55; F.uNevoaDens.value = 1 / (CAM.raio * 2.2 + 40);
+    F.uNevoaMax.value = CINEMA_AJUSTE.nevoa; F.uCorNevoa.value.setRGB(0.42, 0.52, 0.7).multiplyScalar(1 - noiteC * 0.9);
+    F.tCena.value = CINEMA.cena.texture; F.tBrilho.value = N[0].texture; F.uRes.value.set(w, h); F.uTempo.value = movimentoReduzido() ? 0 : CAMPO.t;
+    F.uForca.value = CINEMA_AJUSTE.forcaBrilho / N.length * 2.2;
+    passeDeTela(CINEMA.matFinal, null);
+  } catch (x) {
+    console.warn('Pós-processamento falhou, voltando ao desenho direto:', x);
+    CINEMA.ligado = false; r.setRenderTarget(null); r.render(CAMPO.cena, CAMPO.camera);
+  }
+}
+
+/* ---------- 2. Céu do espaço e o planeta lá embaixo ----------
+   Uma esfera que acompanha a câmera. Para cada direção do olhar, o shader vê se ela bate no planeta
+   (uma esfera grande abaixo da ilha: o horizonte dele fica uns 27° abaixo do olhar reto) ou se vai
+   para o céu. O que é pesado (via láctea, nebulosas, continentes e nuvens do planeta) é desenhado
+   UMA vez só, no início, em imagens guardadas na placa de vídeo; a cada quadro só se consulta. */
+const GLSL_RUIDO2 = `
+float rfH2(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+float rfR2p(vec2 p, float per) {
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  vec2 a = mod(i, per), b = mod(i + 1.0, per);
+  return mix(mix(rfH2(a), rfH2(vec2(b.x, a.y)), f.x), mix(rfH2(vec2(a.x, b.y)), rfH2(b), f.x), f.y);
+}
+float rfFbm2p(vec2 uv, float per, int oitavas) {
+  float soma = 0.0, amp = 0.5, total = 0.0;
+  for (int i = 0; i < 10; i++) { if (i >= oitavas) break; soma += amp * rfR2p(uv * per + float(i) * 17.0, per); total += amp; per *= 2.0; amp *= 0.5; }
+  return soma / total;
+}
+`;
+// Imagem do fundo do céu (projeção "mapa-múndi"): via láctea com poeira e nebulosas
+const CEU_ASSAR_FUNDO = `varying vec2 vUv;
+${GLSL_RUIDO}
+void main() {
+  float lon = (vUv.x - 0.5) * 6.2831853, lat = (vUv.y - 0.5) * 3.1415927;
+  vec3 d = vec3(cos(lat) * cos(lon), sin(lat), cos(lat) * sin(lon));
+  vec3 cor = vec3(0.0012, 0.0018, 0.0042);
+  vec3 nb = normalize(vec3(0.32, 0.86, -0.4));
+  float l = dot(d, nb);
+  float faixa = exp(-l * l / 0.022) + 0.35 * exp(-l * l / 0.12);
+  float nuv = rfFbm(d * 3.2 + 7.0, 7);
+  float poeira = smoothstep(0.42, 0.72, rfFbm(d * 7.0 + 3.0, 6)) * exp(-l * l / 0.006);
+  float centro = pow(max(dot(d, normalize(vec3(-0.75, 0.2, -0.62))), 0.0), 6.0);
+  cor += faixa * (0.010 + 0.034 * nuv * nuv) * mix(vec3(0.62, 0.7, 1.0), vec3(1.0, 0.82, 0.62), centro) * (1.0 - 0.85 * poeira);
+  cor += centro * faixa * 0.03 * vec3(1.0, 0.78, 0.55) * (1.0 - poeira);
+  float n1 = rfFbm(d * 2.1 + 11.0, 6), n2 = rfFbm(d * 3.7 - 5.0, 6);
+  cor += vec3(0.035, 0.010, 0.040) * pow(smoothstep(0.52, 0.86, n1), 2.0);
+  cor += vec3(0.006, 0.020, 0.036) * pow(smoothstep(0.55, 0.9, n2), 2.0);
+  // poeira de estrelas bem fina, que não dá para ver uma por uma
+  cor += faixa * 0.02 * pow(rfFbm(d * 60.0, 3), 4.0);
+  gl_FragColor = vec4(cor, 1.0);
+}`;
+// Superfície do planeta (se repete sem emenda): cor do chão e do mar; no alfa, onde é terra
+const CEU_ASSAR_PLANETA = `varying vec2 vUv;
+${GLSL_RUIDO2}
+void main() {
+  vec2 uv = vUv;
+  float alt = rfFbm2p(uv, 6.0, 10) + 0.35 * (rfFbm2p(uv + 0.37, 2.0, 3) - 0.5);
+  float terra = smoothstep(0.515, 0.53, alt);
+  float raso = smoothstep(0.43, 0.515, alt);
+  vec3 oceano = mix(vec3(0.004, 0.014, 0.040), vec3(0.010, 0.055, 0.085), raso);
+  float clima = rfFbm2p(uv + 0.11, 4.0, 6);
+  vec3 solo = mix(vec3(0.030, 0.058, 0.022), vec3(0.150, 0.112, 0.062), smoothstep(0.38, 0.66, clima));
+  solo = mix(solo, vec3(0.085, 0.075, 0.06), smoothstep(0.6, 0.72, alt));
+  solo = mix(solo, vec3(0.55, 0.57, 0.6), smoothstep(0.7, 0.76, alt));
+  solo *= 0.7 + 0.6 * rfFbm2p(uv + 0.23, 48.0, 5);
+  gl_FragColor = vec4(mix(oceano, solo, terra), terra);
+}`;
+// Nuvens do planeta (se repetem sem emenda): no vermelho a cobertura
+const CEU_ASSAR_NUVENS = `varying vec2 vUv;
+${GLSL_RUIDO2}
+void main() {
+  float nv = rfFbm2p(vUv, 5.0, 9);
+  float fiapos = rfFbm2p(vUv + 0.5, 24.0, 4);
+  float nuvem = smoothstep(0.5, 0.76, nv + (fiapos - 0.5) * 0.18);
+  gl_FragColor = vec4(nuvem, fiapos, 0.0, 1.0);
+}`;
+const CEU_FRAG = `
+uniform sampler2D tFundo, tPlaneta, tNuvens; uniform vec2 uDeriva;
+uniform vec3 uSol, uSolPlaneta; uniform float uForcaSol, uNoite;
+varying vec3 vDir;
+${GLSL_RUIDO2}
+float rfH3(vec3 p) { p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419)); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+const float RP = 0.94;    // raio do planeta (a distância até o centro é 1): horizonte ~20° abaixo do olhar reto
+const float RA = 0.9525;  // topo da atmosfera
+vec3 rfEstrelas(vec3 d, float escala, float limite, float brilho) {
+  vec3 p = d * escala, i = floor(p), f = fract(p);
+  float h = rfH3(i);
+  vec3 alvo = vec3(rfH3(i + 1.7), rfH3(i + 3.1), rfH3(i + 5.3)) * 0.8 + 0.1;
+  float px = max(length(fwidth(p)), 1e-4);
+  float pt = smoothstep(px * 1.5, 0.0, length(f - alvo)) * step(limite, h);
+  return mix(vec3(0.75, 0.85, 1.0), vec3(1.0, 0.86, 0.7), rfH3(i + 9.1)) * pt * brilho * (0.35 + 0.65 * pow(rfH3(i + 7.7), 3.0));
+}
+void main() {
+  vec3 d = normalize(vDir);
+  vec3 C = vec3(0.0, -1.0, 0.0);
+  float b = -d.y, m2 = 1.0 - b * b;
+  vec3 cor; float noPlaneta = 0.0;
+  vec3 sp = normalize(uSolPlaneta);
+  if (b > 0.0 && m2 < RP * RP) {
+    noPlaneta = 1.0;
+    float t = b - sqrt(RP * RP - m2);
+    vec3 n = normalize(d * t - C);
+    vec2 uv = n.xz * 1.45 + 0.5;
+    vec4 pl = texture2D(tPlaneta, uv + uDeriva * 0.35);
+    vec4 plFino = texture2D(tPlaneta, uv * 7.0 + 0.31 + uDeriva * 2.45);   // a mesma imagem bem menor: detalhe de perto
+    pl.rgb *= 0.72 + 0.56 * plFino.a * pl.a + (1.0 - pl.a) * 0.28;
+    vec2 nn = texture2D(tNuvens, uv * 0.9 + uDeriva).rg;
+    nn.r *= 0.75 + 0.5 * texture2D(tNuvens, uv * 5.3 + uDeriva * 5.0 + 0.17).g;
+    // detalhe fino de perto (some de longe, sem chuvisco)
+    vec2 pd = uv * 5200.0; float px = length(fwidth(pd));
+    float det = (rfR2p(pd, 1e6) * 0.6 + rfR2p(pd * 3.1, 1e6) * 0.4 - 0.5) * (1.0 - smoothstep(0.3, 1.2, px));
+    vec3 sup = pl.rgb * (1.0 + det * 0.5 * (0.3 + pl.a));
+    float terra = pl.a, nuvem = nn.r * (0.78 + 0.22 * nn.g);
+    float lam = dot(n, sp), dif = max(lam, 0.0);
+    vec3 luz = mix(vec3(1.0, 0.42, 0.18), vec3(1.0, 0.97, 0.93), smoothstep(0.0, 0.3, lam)) * uForcaSol;
+    cor = sup * dif * luz * 2.4;
+    vec3 rf = reflect(d, n);
+    float mar = pow(max(dot(rf, sp), 0.0), 90.0) * 2.2 + pow(max(dot(rf, sp), 0.0), 12.0) * 0.12;
+    cor += luz * mar * (1.0 - terra) * (1.0 - nuvem) * smoothstep(-0.05, 0.1, lam);
+    cor = mix(cor, vec3(0.92, 0.94, 0.97) * (dif * 2.0 * luz + 0.003), nuvem * 0.95);
+    // luzes das cidades no lado escuro
+    float cid = terra * (1.0 - nuvem) * pow(smoothstep(0.55, 0.85, rfR2p(uv * 900.0, 1e6) * 0.6 + rfR2p(uv * 140.0, 1e6) * 0.4), 3.0);
+    cor += vec3(1.0, 0.62, 0.28) * cid * 0.25 * smoothstep(0.05, -0.15, lam);
+    // atmosfera: cobre a superfície perto do horizonte (azul do lado do sol, laranja no limite da noite)
+    float cosv = max(dot(n, -d), 0.0), nevoa = pow(1.0 - cosv, 2.4);
+    vec3 corAtm = mix(vec3(0.10, 0.28, 0.75), vec3(0.95, 0.45, 0.2), pow(1.0 - smoothstep(-0.1, 0.4, lam), 2.0) * smoothstep(-0.35, 0.0, lam));
+    cor = mix(cor, corAtm * (smoothstep(-0.25, 0.35, lam) * 0.55 * uForcaSol + 0.003), clamp(nevoa * 0.92 + 0.05, 0.0, 1.0));
+  } else {
+    vec2 eq = vec2(atan(d.z, d.x) / 6.2831853 + 0.5, asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5);
+    cor = texture2D(tFundo, eq).rgb;
+    cor += rfEstrelas(d, 150.0, 0.975, 0.8) + rfEstrelas(d, 340.0, 0.965, 0.38);
+    if (b > 0.0) {   // o fio azul da atmosfera, rente ao planeta
+      float hAt = (sqrt(m2) - RP) / (RA - RP);
+      if (hAt < 1.0) {
+        vec3 pc = normalize(d * b - C); float ls = dot(pc, sp);
+        float luzA = smoothstep(-0.35, 0.3, ls);
+        float por = pow(1.0 - smoothstep(-0.12, 0.35, ls), 2.0) * smoothstep(-0.45, -0.05, ls);
+        float dens = exp(-hAt * 4.2) * (1.0 - smoothstep(0.85, 1.0, hAt));
+        vec3 corA = mix(vec3(0.16, 0.42, 1.0), vec3(1.0, 0.5, 0.22), por);
+        cor = cor * (1.0 - dens * 0.9) + corA * dens * (luzA * 1.4 * uForcaSol + 0.01);
+      }
+    }
+  }
+  // o sol: disco forte (passa do branco e ganha brilho no pós) e o halo em volta
+  float cs = max(dot(d, normalize(uSol)), 0.0);
+  float disco = smoothstep(0.99995, 0.99999, cs) * (1.0 - noPlaneta);
+  float halo = pow(cs, 1400.0) * 1.6 + pow(cs, 120.0) * 0.12 + pow(cs, 14.0) * 0.025;
+  cor += vec3(1.0, 0.93, 0.82) * (disco * 90.0 + halo * (1.0 - noPlaneta * 0.6)) * uForcaSol * (1.0 - uNoite);
+  gl_FragColor = vec4(cor, 1.0);
+}`;
+// Desenha uma vez o shader "frag" numa imagem de w x h guardada na placa de vídeo
+function assarTextura(frag, w, h, mipmaps) {
+  const T = THREE, r = CAMPO.renderer;
+  const rt = new T.WebGLRenderTarget(w, h, { type: r.capabilities.isWebGL2 ? T.HalfFloatType : T.UnsignedByteType, depthBuffer: false, stencilBuffer: false, minFilter: mipmaps ? T.LinearMipmapLinearFilter : T.LinearFilter, magFilter: T.LinearFilter, generateMipmaps: !!mipmaps, wrapS: T.RepeatWrapping, wrapT: T.RepeatWrapping });
+  rt.texture.anisotropy = Math.min(8, r.capabilities.getMaxAnisotropy());
+  const m = new T.ShaderMaterial({ vertexShader: VERT_TELA, fragmentShader: frag, depthTest: false, depthWrite: false, toneMapped: false });
+  const q = new T.Mesh(new T.PlaneGeometry(2, 2), m); q.frustumCulled = false; const cena = new T.Scene(); cena.add(q);
+  const antes = r.getRenderTarget(); r.setRenderTarget(rt); r.render(cena, new T.OrthographicCamera(-1, 1, 1, -1, 0, 1)); r.setRenderTarget(antes);
+  m.dispose(); q.geometry.dispose();
+  return rt.texture;
+}
+function montarCeuDeCinema(ceu) {
+  const T = THREE, pequeno = telaPequena();
+  const m = new T.ShaderMaterial({
+    vertexShader: 'varying vec3 vDir; void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: CEU_FRAG,
+    uniforms: {
+      tFundo: { value: assarTextura(CEU_ASSAR_FUNDO, pequeno ? 1024 : 2048, pequeno ? 512 : 1024, false) },
+      tPlaneta: { value: assarTextura(CEU_ASSAR_PLANETA, pequeno ? 1024 : 2048, pequeno ? 1024 : 2048, true) },
+      tNuvens: { value: assarTextura(CEU_ASSAR_NUVENS, 1024, 1024, true) },
+      uDeriva: { value: new T.Vector2() }, uSol: { value: new T.Vector3(0.6, 0.5, 0.4) }, uSolPlaneta: { value: new T.Vector3(0.6, 0.5, 0.4) }, uForcaSol: { value: 1 }, uNoite: { value: 0 }
+    },
+    side: T.BackSide, depthWrite: false, depthTest: false, toneMapped: false, fog: false
+  });
+  m.extensions = { derivatives: true };
+  const esfera = new T.Mesh(new T.SphereGeometry(600, 64, 32), m); esfera.renderOrder = -20; esfera.frustumCulled = false;
+  ceu.add(esfera); CAMPO.ceuCinema = m;
+}
+// Liga o céu à hora do painel: o sol muda de lugar, à noite o planeta fica no escuro e as cidades acendem
+function passoCeuDeCinema(t) {
+  const m = CAMPO.ceuCinema, p = CAMPO.luzDoCeu; if (!m || !p) return;
+  const U = m.uniforms, noite = p.postes || 0;
+  U.uSol.value.set(p.sol[2], p.sol[3], p.sol[4]).normalize();
+  // à noite a "luz do sol" da cena é a lua: o planeta fica de costas para o sol
+  U.uSolPlaneta.value.copy(U.uSol.value).lerp(CINEMA.tmpNoite || (CINEMA.tmpNoite = new THREE.Vector3(0.25, -0.9, -0.35).normalize()), Math.min(1, noite * 1.1)).normalize();
+  U.uForcaSol.value = 1 - noite * 0.55; U.uNoite.value = noite;
+  (CAMPO.matsFiletes || []).forEach(([mf, base]) => { mf.emissiveIntensity = base * (0.12 + 0.88 * noite); });
+  U.uDeriva.value.set(t * 0.00016, t * 0.00005);   // o planeta e as nuvens andam devagar lá embaixo
+}
+
+/* ---------- 3. Mapa de ambiente do espaço (o que vidro, água e metal refletem) ----------
+   Em cima, o céu quase preto; no horizonte, o fio azul da atmosfera; embaixo, o planeta claro. */
+function ambienteDoEspaco(renderer) {
+  const T = THREE;
+  const c = telaDe(1024, 512, (g, w, h) => {
+    const hz = h * 0.585;
+    let gr = g.createLinearGradient(0, 0, 0, hz); gr.addColorStop(0, '#020308'); gr.addColorStop(0.7, '#070c18'); gr.addColorStop(0.94, '#1b3766'); gr.addColorStop(1, '#6fa6e8');
+    g.fillStyle = gr; g.fillRect(0, 0, w, hz);
+    gr = g.createLinearGradient(0, hz, 0, h); gr.addColorStop(0, '#b8d4f2'); gr.addColorStop(0.08, '#5d8cc4'); gr.addColorStop(0.5, '#2f5d91'); gr.addColorStop(1, '#244a77');
+    g.fillStyle = gr; g.fillRect(0, hz, w, h - hz);
+    // nuvens do planeta
+    const s = sorteio('ambiente-rf');
+    for (let k = 0; k < 260; k++) { const y = hz + 6 + s() * (h - hz), r = 6 + s() * 34 * (y - hz) / (h - hz); g.fillStyle = `rgba(235,242,250,${0.18 + s() * 0.35})`; g.beginPath(); g.ellipse(s() * w, y, r * 2.2, r * 0.6, 0, 0, Math.PI * 2); g.fill(); }
+    // o sol (ponto forte no céu)
+    const sg = g.createRadialGradient(w * 0.62, h * 0.3, 0, w * 0.62, h * 0.3, 60); sg.addColorStop(0, 'rgba(255,250,235,1)'); sg.addColorStop(1, 'rgba(255,250,235,0)'); g.fillStyle = sg; g.fillRect(0, 0, w, h);
+  });
+  const eq = new T.CanvasTexture(c); eq.mapping = T.EquirectangularReflectionMapping; eq.encoding = T.sRGBEncoding;
+  const pm = new T.PMREMGenerator(renderer); const tex = pm.fromEquirectangular(eq).texture; pm.dispose(); eq.dispose();
+  return tex;
+}
+
+/* ---------- 4. Rocha da ilha ----------
+   Material: as cores vêm de camadas de sedimento (arenito em cima, rocha cinza no meio, basalto
+   escuro embaixo), com variação fina, musgo nas saliências de cima e um relevo que não depende de
+   textura (calculado no shader). */
+function materialDeRocha(op) {
+  const T = THREE, o = Object.assign({ topo: 47, altura: 95, relevo: 1 }, op || {});
+  const m = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0, envMap: CAMPO.ambiente, envMapIntensity: 0.55 });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uTopo = { value: o.topo }; sh.uniforms.uAltura = { value: o.altura }; sh.uniforms.uRelevo = { value: o.relevo };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vRf;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+  vec4 rfP = vec4(position, 1.0);
+  #ifdef USE_INSTANCING
+  rfP = instanceMatrix * rfP;
+  vRf = rfP.xyz;
+  #else
+  vRf = position * vec3(length(modelMatrix[0].xyz), length(modelMatrix[1].xyz), length(modelMatrix[2].xyz));
+  #endif`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vRf; uniform float uTopo, uAltura, uRelevo;
+float rfCamadaG, rfFinoG, rfProfG, rfPerto, rfPertoC;   // calculados na cor e reaproveitados no relevo
+${GLSL_RUIDO}
+float rfCamadas(vec3 p) { return sin(p.y * 0.85 + rfFbm(vec3(p.x * 0.012, p.y * 0.05, p.z * 0.012), 3) * 10.0) * 0.5 + 0.5; }
+vec3 rfPerturbar(vec3 pos, vec3 n, vec2 dH, float fd) {
+  vec3 sx = dFdx(pos), sy = dFdy(pos), r1 = cross(sy, n), r2 = cross(n, sx);
+  float det = dot(sx, r1) * fd; vec3 g = sign(det) * (dH.x * r1 + dH.y * r2);
+  return normalize(abs(det) * n - g);
+}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+  {
+    float prof = clamp((uTopo - vRf.y) / uAltura, 0.0, 1.0);
+    // de longe o detalhe fino some aos poucos (senão vira chuvisco): px = tamanho do pixel na rocha
+    float px = length(fwidth(vRf));
+    rfPerto = 1.0 - smoothstep(0.8, 3.0, px);
+    rfPertoC = 1.0 - smoothstep(1.5, 4.5, px);
+    float camada = mix(0.5, rfCamadas(vRf), rfPertoC);
+    float fino = mix(0.5, rfFbm(vRf * 0.45, 4), rfPerto);
+    float grande = rfFbm(vRf * 0.04, 2);
+    rfCamadaG = camada; rfFinoG = fino; rfProfG = prof;
+    vec3 arenito = vec3(0.47, 0.37, 0.27), cinza = vec3(0.33, 0.31, 0.29), basalto = vec3(0.15, 0.14, 0.15);
+    vec3 cor = mix(arenito, cinza, smoothstep(0.08, 0.45, prof + (grande - 0.5) * 0.3));
+    cor = mix(cor, basalto, smoothstep(0.45, 0.95, prof + (grande - 0.5) * 0.3));
+    cor *= 0.78 + 0.32 * camada + (fino - 0.5) * 0.55;
+    cor = mix(cor, cor * vec3(0.85, 0.72, 0.6), smoothstep(0.55, 0.75, rfFbm(vRf * 0.09 + 3.0, 2)) * 0.6);   // manchas de ferrugem
+    diffuseColor.rgb = cor;
+  }`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+  {
+    float hb = (rfFinoG * 1.1 + rfR3(vRf * 2.2) * 0.2) * rfPerto + rfCamadaG * 0.35 * rfPertoC;
+    normal = rfPerturbar(-vViewPosition, normal, vec2(dFdx(hb), dFdy(hb)) * 1.6 * uRelevo, faceDirection);
+    vec3 nMundo = inverseTransformDirection(normal, viewMatrix);
+    float musgo = smoothstep(0.35, 0.8, nMundo.y) * (1.0 - smoothstep(0.0, 0.5, rfProfG)) * smoothstep(0.35, 0.65, rfFbm(vRf * 0.3 + 11.0, 2));
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.24, 0.09) * (0.8 + 0.4 * rfFinoG), musgo);
+  }`);
+  };
+  m.customProgramCacheKey = () => 'rochaRF';
+  return m;
+}
+// Forma da rocha: em cima segue o desenho da ilha; descendo, fica redonda, cheia de saliências e sulcos
+function geometriaDeRocha() {
+  const T = THREE, geo = new T.CylinderGeometry(1, 1, 1, 220, 90, false);
+  const pos = geo.attributes.position, v = new T.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const ang = Math.atan2(v.z, v.x), h = 0.5 - v.y, plano = Math.hypot(v.x, v.z) > 0.01, dx = Math.cos(ang), dz = Math.sin(ang);
+    if (plano) {
+      let r = raioDaRocha(ang, h) / 128;
+      if (h > 0.015) {
+        const lumps = fbm3(dx * 2.4 + 5, h * 3.2, dz * 2.4 + 5, 5) - 0.5;          // saliências grandes
+        const sulcos = fbm3(dx * 11 + 2, h * 1.1, dz * 11 + 2, 3) - 0.5;          // sulcos de erosão (compridos, de cima para baixo)
+        const degraus = Math.sin(h * 46 + lumps * 8) * 0.012;                      // degraus das camadas
+        r *= 1 + (lumps * 0.34 + sulcos * 0.2) * (0.22 + h * 0.9) + degraus * (1 - h);
+        r = Math.max(r, 0.02);
+      }
+      v.x = dx * r; v.z = dz * r;
+      if (h > 0.015 && h < 0.995) v.y += (fbm3(dx * 4 + 1, h * 6, dz * 4 + 1, 3) - 0.5) * 0.05;
+    }
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+// Estalactites penduradas na parte de baixo da rocha
+function estalactites(g, cx, cz, matRocha, topoY) {
+  const T = THREE, s = sorteio('estalactites-rf'), n = 70;
+  const geo = new T.ConeGeometry(1, 1, 10, 6).rotateX(Math.PI).translate(0, -0.5, 0);   // ponta para baixo, base no y = 0
+  { const p = geo.attributes.position, v = new T.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const k = 0.82 + 0.36 * ruido3(v.x * 3, v.y * 4, v.z * 3); p.setXYZ(i, v.x * k, v.y, v.z * k); } geo.computeVertexNormals(); }
+  const im = new T.InstancedMesh(geo, matRocha, n), m4 = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), p = new T.Vector3(), sc = new T.Vector3();
+  for (let k = 0; k < n; k++) {
+    const h = 0.35 + s() * 0.55, a = s() * Math.PI * 2, r = raioDaRocha(a, h) * 0.86;
+    p.set(cx + Math.cos(a) * r, topoY - h * 95 + 2, cz + Math.sin(a) * r);
+    e.set((s() - 0.5) * 0.25, s() * 6, (s() - 0.5) * 0.25); q.setFromEuler(e);
+    const L = 6 + s() * 26 * (1.2 - h), lg = 1.4 + s() * 3.2;
+    im.setMatrixAt(k, m4.compose(p, q, sc.set(lg, L, lg)));
+  }
+  im.castShadow = false; im.receiveShadow = true; g.add(im);
+}
+
+/* ---------- 5. Nuvens de verdade ----------
+   Textura desenhada com ruído (borda irregular, miolo mais denso, embaixo um pouco mais escura,
+   como nuvem iluminada de cima). Ficam em volta e por baixo da ilha, nunca em cima das empresas. */
+function texturaDeNuvem(semente) {
+  const T = THREE, N = 256, c = document.createElement('canvas'); c.width = c.height = N;
+  const g = c.getContext('2d'), img = g.createImageData(N, N), s = sorteio('nuvem-' + semente), ox = s() * 50, oz = s() * 50;
+  // algumas "bolhas" que formam o desenho geral da nuvem
+  const bolhas = []; for (let k = 0; k < 7; k++) bolhas.push([0.25 + s() * 0.5, 0.38 + s() * 0.3, 0.14 + s() * 0.16]);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const u = x / N, v = y / N;
+    let forma = 0; bolhas.forEach(([bx, by, br]) => { const d = Math.hypot((u - bx) / 1.3, v - by) / br; forma = Math.max(forma, 1 - d); });
+    const r = fbm3(u * 6 + ox, v * 6 + oz, semente * 3.1, 5);
+    let a = Math.max(0, Math.min(1, (forma * 1.25 + (r - 0.5) * 1.3 - 0.05) * 1.6));
+    a *= Math.max(0, Math.min(1, (1 - Math.hypot(u - 0.5, (v - 0.5) * 1.15) * 2) * 3));
+    const luz = 0.7 + 0.3 * Math.max(0, Math.min(1, 1.2 - v * 1.3)) + (r - 0.5) * 0.25;
+    const k = (y * N + x) * 4, cor = Math.max(0, Math.min(255, luz * 255));
+    img.data[k] = cor; img.data[k + 1] = cor; img.data[k + 2] = Math.min(255, cor * 1.03); img.data[k + 3] = a * 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; return t;
+}
+function nuvensDaIlha(g, cx, cz) {
+  const T = THREE, s = sorteio('nuvens-ilha-rf'), texs = [1, 2, 3, 4].map(texturaDeNuvem), lista = [];
+  const pequeno = telaPequena();
+  const nova = (x, y, z, larg, op, k) => {
+    const sp = new T.Sprite(new T.SpriteMaterial({ map: texs[k % texs.length], color: 0xffffff, transparent: true, opacity: op, depthWrite: false, fog: false }));
+    sp.scale.set(larg, larg * (0.42 + s() * 0.2), 1); sp.position.set(x, y, z); g.add(sp);
+    lista.push({ sp, base: op, x0: x, z0: z, f: s() * 6, v: 0.15 + s() * 0.25 });
+  };
+  // anel de nuvens logo abaixo da borda
+  for (let k = 0; k < (pequeno ? 26 : 48); k++) { const a = s() * Math.PI * 2, r = 158 + s() * 75; nova(cx + Math.cos(a) * r, -18 - s() * 55, cz + Math.sin(a) * r, 70 + s() * 80, 0.55 + s() * 0.35, k); }
+  // camada mais funda, grande, por baixo da rocha
+  for (let k = 0; k < (pequeno ? 8 : 14); k++) { const a = s() * Math.PI * 2, r = 90 + s() * 160; nova(cx + Math.cos(a) * r, -105 - s() * 60, cz + Math.sin(a) * r, 130 + s() * 120, 0.35 + s() * 0.3, k + 1); }
+  CAMPO.nuvensIlha = lista;
+}
+function passoNuvensDaIlha(t) {
+  const L = CAMPO.nuvensIlha, p = CAMPO.luzDoCeu; if (!L) return;
+  (CAMPO.nuvens || []).forEach((n) => { n.visible = false; });   /* as nuvens antigas, altas em cima da cidade, saem: agora as nuvens ficam em volta e embaixo da ilha */
+  const noite = p ? p.postes : 0, tarde = p && p.sol ? Math.max(0, 1 - p.sol[3] / 40) * (1 - noite) : 0;
+  const cor = CINEMA.corNuvem || (CINEMA.corNuvem = new THREE.Color());
+  cor.setRGB(1, 1, 1).lerp(CINEMA.corTarde || (CINEMA.corTarde = new THREE.Color(1.0, 0.68, 0.5)), tarde * 0.8).lerp(CINEMA.corNoiteN || (CINEMA.corNoiteN = new THREE.Color(0.16, 0.2, 0.3)), noite * 0.85);
+  L.forEach((n) => { n.sp.material.color.copy(cor); n.sp.material.opacity = n.base * (1 - noite * 0.35); n.sp.position.x = n.x0 + Math.sin(t * 0.02 * n.v + n.f) * 6; n.sp.position.z = n.z0 + Math.cos(t * 0.017 * n.v + n.f) * 6; });
+}
+
+/* ---------- 6. Árvores ----------
+   Copa irregular (vários "tufos" e não uma bola lisa) e cor que varia de árvore para árvore. */
+function copaIrregular() {
+  const T = THREE, geo = new T.IcosahedronGeometry(1, 3), p = geo.attributes.position, v = new T.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    const k = 1 + (fbm3(v.x * 1.6 + 3, v.y * 1.6 + 3, v.z * 1.6 + 3, 3) - 0.5) * 0.7 + (ruido3(v.x * 5, v.y * 5, v.z * 5) - 0.5) * 0.14;
+    v.multiplyScalar(k); if (v.y < -0.35) v.y = -0.35 + (v.y + 0.35) * 0.45;   // embaixo mais reto, como copa de verdade
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+// Variação de cor por árvore (e por arbusto) nos lotes de peças repetidas
+function variarCorDasCopas(im) {
+  if (!im.material || !im.material.userData || !im.material.userData.variarCor || !im.count) return;
+  const s = sorteio('copas-' + im.count), c = new THREE.Color();
+  for (let i = 0; i < im.count; i++) { const k = 0.78 + s() * 0.4; c.setRGB(k * (0.92 + s() * 0.16), k, k * (0.85 + s() * 0.2)); im.setColorAt(i, c); }
+  if (im.instanceColor) im.instanceColor.needsUpdate = true;
+}
+
+/* ---------- 7. Pedaços de rocha (asteroides) com cara de pedra ---------- */
+function geometriaDePedra() {
+  const T = THREE, geo = new T.IcosahedronGeometry(1, 2), p = geo.attributes.position, v = new T.Vector3();
+  for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const k = 0.72 + fbm3(v.x * 1.8 + 7, v.y * 1.8 + 7, v.z * 1.8 + 7, 4) * 0.62; p.setXYZ(i, v.x * k, v.y * k * 0.85, v.z * k); }
+  geo.computeVertexNormals();
+  return geo;
 }
 </script>
