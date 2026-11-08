@@ -6845,14 +6845,22 @@ function loteSatelite(k) {
   const anel = k < SATELITE.porAnel ? 0 : 1, n = SATELITE.porAnel, m = anel ? k - n : k, passo = Math.PI * 2 / n;
   const lado = m % 2 ? 1 : -1, a = Math.PI / 2 + lado * (passo / 2 + (2 + Math.floor(m / 2)) * passo) + anel * passo / 2;   // as primeiras nas laterais (a frente fica livre para a vista)   // ângulos fora dos eixos (lá ficam as pontes de entrada)
   const R = anel ? SATELITE.raio2 : SATELITE.raio, cx = Math.cos(a) * R, cz = 6 + Math.sin(a) * R, b = SATELITE.ilha * 0.66;
-  return { i: 9, j: 9, satelite: true, ang: a, b: { x0: cx - b, x1: cx + b, z0: cz - b, z1: cz + b, cx, cz }, dir: [0, -1], cx, cz, giro: Math.atan2(-cx, -(cz - 6)) };
+  return { i: 9, j: 9, satelite: true, ang: a, b: { x0: cx - b, x1: cx + b, z0: cz - b, z1: cz + b, cx, cz }, dir: [0, -1], cx, cz, porX: Math.abs(Math.cos(a)) >= Math.abs(Math.sin(a)), giro: Math.abs(Math.cos(a)) >= Math.abs(Math.sin(a)) ? Math.atan2(-Math.sign(cx), 0) : Math.atan2(0, -Math.sign(cz - 6)) };   // portão virado para a ponte
 }
 const limiteDosSatelites = (n) => Math.ceil((n > SATELITE.porAnel ? SATELITE.raio2 : SATELITE.raio) + SATELITE.ilha + 6);
 // Ponte: da beira da ilha até a beira da plataforma central
 function ponteDoSatelite(L) {
-  const ux = -Math.cos(L.ang), uz = -Math.sin(L.ang), x0 = L.cx + ux * (SATELITE.ilha - 1), z0 = L.cz + uz * (SATELITE.ilha - 1);
-  let d = 0; while (d < 200 && !dentroDaIlha(x0 + ux * d, z0 + uz * d, 2)) d += 0.5;
-  return { x0, z0, x1: x0 + ux * (d + 2), z1: z0 + uz * (d + 2), ux, uz, comp: d + 2 };
+  /* A ponte sai reta da ilha e chega em ângulo reto na borda da plataforma (nada de ponte torta cortando
+     a calçada). Ela corre no eixo x (ilhas dos lados) ou no eixo z (ilhas da frente e do fundo). */
+  const I = ILHA, R = SATELITE.ilha - 0.6, folga = I.raio + 6;
+  if (L.porX) {
+    const sx = Math.sign(L.cx) || 1, z = Math.max(I.z0 + folga, Math.min(I.z1 - folga, L.cz)), dz = Math.min(R - 1, Math.abs(z - L.cz));
+    const x0 = L.cx - sx * Math.sqrt(R * R - dz * dz), x1 = sx > 0 ? I.x1 : I.x0;
+    return { x0, z0: z, x1, z1: z, ux: -sx, uz: 0, comp: Math.abs(x0 - x1) };
+  }
+  const sz = Math.sign(L.cz - 6) || 1, x = Math.max(I.x0 + folga, Math.min(I.x1 - folga, L.cx)), dx = Math.min(R - 1, Math.abs(x - L.cx));
+  const z0 = L.cz - sz * Math.sqrt(R * R - dx * dx), z1 = sz > 0 ? I.z1 : I.z0;
+  return { x0: x, z0, x1: x, z1, ux: 0, uz: -sz, comp: Math.abs(z0 - z1) };
 }
 // Libera no mapa só o que é chão: plataforma central, ilhas e pontes (o resto é vazio)
 function marcarVazioNoNav(lotes, pontes) {
@@ -6985,10 +6993,11 @@ function ilhaSatelite(W, L, ponte, il, daIlha) {
   K.montar(g, W.extras);
   // ponte
   const gp = new T.Group(); W.grupo.add(gp); if (il) daIlha(il.id, gp);
-  const ang = Math.atan2(-ponte.uz, ponte.ux), mx = (ponte.x0 + ponte.x1) / 2, mz = (ponte.z0 + ponte.z1) / 2, Lp = ponte.comp + 2, Kp = novoLote();
+  const ang = Math.atan2(-ponte.uz, ponte.ux), mx = (ponte.x0 + ponte.x1) / 2, mz = (ponte.z0 + ponte.z1) / 2, Lp = ponte.comp + 1.2, Kp = novoLote();   // encosta só 0,6 m em cada ponta
   const P = (m, oy, oz, sy, sz, sombra) => { const ox = 0, c2 = Math.cos(ang), s2 = Math.sin(ang); Kp.add(G3.caixa, m, mx + ox * c2 + oz * s2, oy, mz - ox * s2 + oz * c2, Lp, sy, sz, 0, ang, 0, sombra); };
-  P(MS.chapa, -1.4, 0, 1.4, 5.6); P(MP.asfalto, 0.0, 0, 0.04, 2.6, false); P(V_pedra(), 0.0, 1.85, 0.05, 1.3, false); P(V_pedra(), 0.0, -1.85, 0.05, 1.3, false);
-  [-2.65, 2.65].forEach((o) => { P(MP.vidroGuarda, 0.05, o, 1.0, 0.06, false); P(o > 0 ? MM.ledL : MM.ledA, 1.05, o, 0.06, 0.1, false); P(MM.ledA, -0.75, o * 1.05, 0.08, 0.08, false); });
+  P(MS.chapa, -1.6, 0, 1.6, 6.0); P(V_pedra(), -0.04, 0, 0.08, 5.6, false); P(MM.ledL, 0.045, 0, 0.005, 0.12, false);   // deck de pedra com o filete laranja no meio
+  [-2.75, 2.75].forEach((o) => { P(MP.vidroGuarda, 0.04, o, 1.0, 0.06, false); P(mat(0xc9d0da, { metalness: 0.7, roughness: 0.3 }), 1.04, o, 0.05, 0.12, false); P(MM.ledA, -0.85, o * 1.06, 0.08, 0.08, false); });
+  { const n = Math.max(2, Math.floor(ponte.comp / 9)); for (let k = 1; k < n; k++) { const t = k / n, x = ponte.x0 + (ponte.x1 - ponte.x0) * t, z = ponte.z0 + (ponte.z1 - ponte.z0) * t; [-2.5, 2.5].forEach((o) => { const px = x + o * Math.abs(ponte.uz), pz = z + o * Math.abs(ponte.ux); Kp.add(G3.cil, MP.navy, px, 0, pz, 0.05, 2.6, 0.05); Kp.add(G3.bola, MP.lampadaQuente, px, 2.6, pz, 0.16, 0.16, 0.16, 0, 0, 0, false); }); } }
   Kp.montar(gp, W.extras);
   if (il) porticoBoasVindas(gp, W, il, ponte);   // "Bem-vindo" com a logo da empresa na chegada à cidade central
   obst.forEach(([a0, a1, c0, c1]) => navBloquear(new T.Matrix4(), a0, a1, c0, c1));
@@ -7334,16 +7343,27 @@ function texturaBoasVindas(il) {
   return t;
 }
 function porticoBoasVindas(g, W, il, ponte) {
-  const T = THREE, x = ponte.x1 + ponte.ux * 3.5, z = ponte.z1 + ponte.uz * 3.5, gp = new T.Group(); gp.position.set(x, 0, z); gp.rotation.y = Math.atan2(-ponte.ux, -ponte.uz); g.add(gp);
+  /* O pórtico fica em cima da própria ponte, 6 m antes da borda da plataforma (fora da avenida): as
+     colunas apoiam nas laterais do deck e quem chega da ilha passa por baixo. Na chegada, uma faixa de
+     pedestre atravessa a avenida da beira até a calçada do quarteirão. */
+  const T = THREE, x = ponte.x1 - ponte.ux * 6, z = ponte.z1 - ponte.uz * 6, gp = new T.Group(); gp.position.set(x, 0, z); gp.rotation.y = Math.atan2(-ponte.ux, -ponte.uz); g.add(gp);
   const graf = mat(0x14171d, { roughness: 0.3, metalness: 0.65 }), laranja = luzMat(COR3D.laranja, 1.8), azul = luzMat(0x38b6ff, 1.6);
-  [-1, 1].forEach((s) => { caixa(gp, 0.9, 7.6, 0.9, graf, s * 4.75, 0, 0); caixa(gp, 0.12, 7.6, 0.95, laranja, s * 4.75 - s * 0.47, 0, 0).castShadow = false; caixa(gp, 1.4, 0.3, 1.4, graf, s * 4.75, 0, 0); });
-  caixa(gp, 10.4, 2.6, 0.5, graf, 0, 5.0, 0); caixa(gp, 10.5, 0.1, 0.6, laranja, 0, 7.6, 0).castShadow = false; caixa(gp, 10.5, 0.08, 0.6, azul, 0, 4.92, 0).castShadow = false;
+  [-1, 1].forEach((s) => { caixa(gp, 0.5, 5.6, 0.7, graf, s * 3.05, 0.04, 0); caixa(gp, 0.08, 5.6, 0.72, laranja, s * 2.79, 0.04, 0).castShadow = false; });
+  caixa(gp, 6.6, 1.9, 0.45, graf, 0, 4.0, 0); caixa(gp, 6.7, 0.08, 0.55, laranja, 0, 5.9, 0).castShadow = false; caixa(gp, 6.7, 0.06, 0.55, azul, 0, 3.95, 0).castShadow = false;
   const tex = texturaBoasVindas(il); W.extras.push(tex);
   const m = new T.MeshBasicMaterial({ map: tex, toneMapped: false }); W.extras.push(m);
-  const frente = new T.Mesh(G3.placa, m); frente.scale.set(8.2, 2.05, 1); frente.position.set(0, 6.3, 0.27); gp.add(frente);
+  const frente = new T.Mesh(G3.placa, m); frente.scale.set(5.4, 1.35, 1); frente.position.set(0, 4.95, 0.235); gp.add(frente);
   const costas = texturaPlacaRF(String((il.dados && il.dados.nome) || 'Empresa').toUpperCase(), 'SIGA PELA PONTE ATÉ A EMPRESA', 'predios', 1536, 384);
-  const tr = new T.Mesh(G3.placa, costas); tr.scale.set(8.2, 2.05, 1); tr.position.set(0, 6.3, -0.27); tr.rotation.y = Math.PI; gp.add(tr);
-  const I = new T.Matrix4(); [-1, 1].forEach((s) => { const px = x + Math.cos(gp.rotation.y) * s * 4.75, pz = z - Math.sin(gp.rotation.y) * s * 4.75; navBloquear(I, px - 0.6, px + 0.6, pz - 0.6, pz + 0.6); });
+  const tr = new T.Mesh(G3.placa, costas); tr.scale.set(5.4, 1.35, 1); tr.position.set(0, 4.95, -0.235); tr.rotation.y = Math.PI; gp.add(tr);
+  // faixa de pedestre na avenida da beira, bem na frente da ponte
+  const P = PLANO, R = P.RUA / 2, I = new T.Matrix4(), branco = P.mats.faixa;
+  let r0, r1, c0, c1;
+  if (ponte.ux) { const xa = ponte.ux < 0 ? P.XR[5] : P.XR[0]; r0 = xa - R; r1 = xa + R; c0 = ponte.z1 - 1.2; c1 = ponte.z1 + 1.2; }
+  else { const za = ponte.uz < 0 ? P.ZR[5] : P.ZR[0]; c0 = za - R; c1 = za + R; r0 = ponte.x1 - 1.2; r1 = ponte.x1 + 1.2; }
+  const K = novoLote();
+  for (let k = -2; k <= 2; k++) { const o = k * 0.95; if (ponte.ux) K.add(G3.caixa, branco, (r0 + r1) / 2, 0.013, ponte.z1 + o, P.RUA - 0.4, 0.004, 0.5, 0, 0, 0, false); else K.add(G3.caixa, branco, ponte.x1 + o, 0.013, (c0 + c1) / 2, 0.5, 0.004, P.RUA - 0.4, 0, 0, 0, false); }
+  K.montar(g, W.extras);
+  navLiberar(I, r0, r1, c0, c1);   // dá para atravessar só ali
   return gp;
 }
 // Mini-cidade de cada ilha: residencial alto com piscina no teto, prédios de serviço com ícone, anel viário, ipês e palmeiras
