@@ -4566,12 +4566,8 @@ function montarPlano() {
       caixaV(V.grama, x - 2.6, x + 2.6, z - 2.6, z + 2.6, P.ALT, 0.02, false); K.add(G3.bola, M.copa2, x, P.ALT + 0.5, z, 0.9, 0.9, 0.9);
       obst(x - 3, x + 3, z - 3, z + 3);
     });
-    // Monumento: lâminas de pedra subindo em espiral até a esfera laranja (planejar é dar um passo de cada vez)
-    caixaV(M.pedraBege, cx - 1.6, cx + 1.6, cz - 1.6, cz + 1.6, P.ALT, 0.4); obst(cx - 1.7, cx + 1.7, cz - 1.7, cz + 1.7);
-    K.add(G3.cil, M.grafite, cx, P.ALT + 0.4, cz, 0.12, 5.4, 0.12);
-    for (let n = 0; n < 9; n++) { const a = n * 0.5, x = cx + Math.cos(a) * 0.75, z = cz - Math.sin(a) * 0.75; K.add(G3.caixaC, M.branco, x, P.ALT + 0.8 + n * 0.56, z, 1.7, 0.16, 0.5, 0, a, 0); }
-    K.add(G3.bola, M.laranja, cx, P.ALT + 6.0, cz, 0.42, 0.42, 0.42);
-    [0, 1, 2, 3].forEach((q) => { const an = q * Math.PI / 2 + Math.PI / 4, px = cx + Math.cos(an) * 2.6, pz = cz + Math.sin(an) * 2.6; pt(k, px, pz, cx - px, cz - pz, 'olhar', 10); });
+    /* (o monumento em espiral saiu: no centro da praça fica o Relógio da Cidade, montado em montarRelogio) */
+    [[-3.2, 4.2], [0, 4.6], [3.2, 4.2], [-3.2, -4.2], [3.2, -4.2]].forEach(([dx, dz], q) => { const px = cx + dx, pz = cz + dz; pt(k, px, pz, cx - px, cz - pz, q % 2 ? 'foto' : 'olhar', 10); });   // quem para para ver a hora (e tira foto)
     placa('PRAÇA DA ESTRATÉGIA', '', -29.4, -46.5, -Math.PI / 2, 3.0);
   }
   // ---------- Praça da Inovação (fundo, à direita): escultura de nó metálico, colunas de luz e robôs ----------
@@ -6008,31 +6004,60 @@ function faseDoDia() {
   if (per === 'entardecer') return { chave: 'fim', nome: 'FIM DE TARDE · RETORNO' };
   return h >= 12 && h < 18 ? { chave: 'tarde', nome: 'TARDE · EXECUÇÃO' } : { chave: 'manha', nome: 'MANHÃ · OPERAÇÃO' };
 }
+/* ---------- Relógio da Cidade ----------
+   No centro da Praça da Estratégia: painel de LED com números (sem ponteiros) com duas faces, uma para
+   cada lado da praça, apoiado em duas colunas com anéis de bronze. Mostra a hora da cidade (a mesma do
+   painel), os segundos, o dia e a fase do dia. Os números usam o desenho de "7 segmentos" de relógio
+   de LED, com os segmentos apagados bem fracos ao fundo. */
 function montarRelogio() {
-  const T = THREE, g = CAMPO.planoGrupo, X = 0, Z = 24.4, ALT = PLANO.ALT;
-  const graf = mat(0x161a21, { roughness: 0.35, metalness: 0.55 });
-  caixa(g, 1.3, 0.4, 1.3, mat(0xd9d3c7, { roughness: 0.7 }), X, ALT, Z);
-  caixa(g, 0.32, 4.1, 0.32, graf, X, ALT + 0.4, Z); caixa(g, 0.04, 3.7, 0.34, luzMat(COR3D.laranja, 1.2), X + 0.15, ALT + 0.6, Z).castShadow = false;
-  const cabeca = new T.Group(); cabeca.position.set(X, ALT + 5.3, Z); cabeca.scale.setScalar(0.85); g.add(cabeca);
-  const disco = new T.Mesh(new T.CylinderGeometry(1.15, 1.15, 0.3, 48).rotateX(Math.PI / 2), graf); disco.castShadow = true; cabeca.add(disco);
-  const aro = new T.Mesh(new T.TorusGeometry(1.17, 0.05, 8, 64), luzMat(COR3D.laranja, 1.4)); cabeca.add(aro);
-  const tela = document.createElement('canvas'); tela.width = tela.height = 320; const tex = new T.CanvasTexture(tela); tex.encoding = T.sRGBEncoding;
+  const T = THREE, g = CAMPO.planoGrupo, X = -41.5, Z = -35.5, ALT = PLANO.ALT;
+  const graf = mat(0x161a21, { roughness: 0.35, metalness: 0.55 }), bronzeF = new T.MeshStandardMaterial({ color: 0xa8743c, roughness: 0.32, metalness: 0.85, envMap: CAMPO.ambiente, envMapIntensity: 0.9 });
+  const PW = 11, PH = 4.4, Y0 = 4.0;   // painel: largura, altura e altura do chão até a base dele
+  caixa(g, 3.2, 0.4, 3.2, mat(0xd9d3c7, { roughness: 0.7 }), X, ALT, Z);   // base de pedra no centro
+  [-1, 1].forEach((sd) => {   // colunas com anéis de bronze e um vaso na base
+    const x = X + sd * (PW / 2 - 0.4);
+    caixa(g, 0.9, 0.5, 0.9, mat(0xd9d3c7, { roughness: 0.7 }), x, ALT, Z);
+    caixa(g, 0.55, Y0 + PH + 0.2, 0.55, graf, x, ALT + 0.5, Z);
+    for (let k = 0; k < 4; k++) { const r = new T.Mesh(new T.TorusGeometry(0.48, 0.06, 8, 32), bronzeF); r.rotation.x = Math.PI / 2; r.position.set(x, ALT + 1.2 + k * 0.9, Z); g.add(r); }
+    const topo = new T.Mesh(G3.bola, bronzeF); topo.scale.setScalar(0.42); topo.position.set(x, ALT + Y0 + PH + 1.1, Z); g.add(topo);
+    PLANO.obst.push([x - 0.55, x + 0.55, Z - 0.55, Z + 0.55]);
+  });
+  // moldura do painel (grafite com borda de bronze fosco) e a faixa de cima com o nome
+  caixa(g, PW + 0.5, PH + 0.5, 0.7, graf, X, ALT + Y0 - 0.25, Z);
+  [[0, PH + 0.25], [0, -0.25]].forEach(([, dy]) => { const b = new T.Mesh(G3.caixa, bronzeF); b.scale.set(PW + 0.6, 0.08, 0.75); b.position.set(X, ALT + Y0 + dy, Z); g.add(b); });
+  caixa(g, PW * 0.5, 0.7, 0.5, graf, X, ALT + Y0 + PH + 0.25, Z);
+  const nome = texturaPlacaRF('RELÓGIO DA CIDADE', 'REAL FORTE', null, 1024, 128);
+  [0, Math.PI].forEach((r) => { const pl = new T.Mesh(G3.placa, nome); pl.scale.set(PW * 0.5 - 0.1, 0.62, 1); pl.position.set(X, ALT + Y0 + PH + 0.6, Z + (r ? -0.26 : 0.26)); pl.rotation.y = r; g.add(pl); });
+  // as duas faces de LED (a mesma imagem)
+  const tela = document.createElement('canvas'); tela.width = 1100; tela.height = 440; const tex = new T.CanvasTexture(tela); tex.encoding = T.sRGBEncoding; tex.anisotropy = 8;
   const mf = new T.MeshBasicMaterial({ map: tex, toneMapped: false });
-  [0, Math.PI].forEach((r) => { const f = new T.Mesh(new T.CircleGeometry(1.08, 48), mf); f.rotation.y = r; f.position.z = r ? -0.155 : 0.155; cabeca.add(f); });
-  PLANO.obst.push([X - 0.75, X + 0.75, Z - 0.75, Z + 0.75]);
+  [0, Math.PI].forEach((r) => { const f = new T.Mesh(G3.placa, mf); f.scale.set(PW, PH, 1); f.position.set(X, ALT + Y0 + PH / 2, Z + (r ? -0.36 : 0.36)); f.rotation.y = r; g.add(f); });
+  PLANO.obst.push([X - 1.7, X + 1.7, Z - 1.7, Z + 1.7]);
   PLANO.relogio = { tela, tex, prox: 0 };
 }
+// Um dígito de 7 segmentos (a, b, c, d, e, f, g) na posição x, y, com largura w e altura h
+const SEGMENTOS = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
+function digitoLED(q, n, x, y, w, h, cor, apagado) {
+  const e = w * 0.17, m = e * 0.55, seg = { a: [x + m, y, w - 2 * m, e], d: [x + m, y + h - e, w - 2 * m, e], g: [x + m, y + h / 2 - e / 2, w - 2 * m, e],
+    f: [x, y + m, e, h / 2 - m], b: [x + w - e, y + m, e, h / 2 - m], e: [x, y + h / 2, e, h / 2 - m], c: [x + w - e, y + h / 2, e, h / 2 - m] };
+  const ligados = SEGMENTOS[n] || '';
+  Object.keys(seg).forEach((k) => { const [sx, sy, sw, sh] = seg[k]; q.fillStyle = ligados.includes(k) ? cor : apagado; q.beginPath(); q.roundRect ? q.roundRect(sx, sy, sw, sh, e * 0.4) : q.rect(sx, sy, sw, sh); q.fill(); });
+}
 function passoRelogio() {
-  const R = PLANO.relogio, agora = performance.now(); if (!R || agora < R.prox) return; R.prox = agora + 1000;
-  const g = R.tela.getContext('2d'), S = 320, c = S / 2, d = horaDaCidade(), fase = faseDoDia();
-  g.fillStyle = '#0b1a33'; g.beginPath(); g.arc(c, c, c, 0, Math.PI * 2); g.fill();
-  for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; g.strokeStyle = k % 3 ? 'rgba(255,255,255,.5)' : '#ffb27a'; g.lineWidth = k % 3 ? 3 : 6; g.beginPath(); g.moveTo(c + Math.sin(a) * 128, c - Math.cos(a) * 128); g.lineTo(c + Math.sin(a) * 146, c - Math.cos(a) * 146); g.stroke(); }
-  const ponteiro = (ang, comp, larg, cor) => { g.strokeStyle = cor; g.lineWidth = larg; g.lineCap = 'round'; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.sin(ang) * comp, c - Math.cos(ang) * comp); g.stroke(); };
-  const h = d.getHours() % 12 + d.getMinutes() / 60, mi = d.getMinutes() + d.getSeconds() / 60;
-  ponteiro(h / 12 * Math.PI * 2, 70, 9, '#ffffff'); ponteiro(mi / 60 * Math.PI * 2, 108, 6, '#ffffff'); ponteiro(d.getSeconds() / 60 * Math.PI * 2, 118, 2, '#ff8a3d');
-  g.fillStyle = '#ff8a3d'; g.beginPath(); g.arc(c, c, 8, 0, Math.PI * 2); g.fill();
-  g.textAlign = 'center'; g.fillStyle = '#ffffff'; g.font = '700 30px monospace'; g.fillText(String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), c, c + 64);
-  g.fillStyle = fase.chave === 'noite' ? '#38d6f5' : '#ffb27a'; g.font = '600 15px Arial, sans-serif'; g.fillText(fase.nome, c, c + 92);
+  const R = PLANO.relogio, agora = performance.now(); if (!R || agora < R.prox) return; R.prox = agora + 500;
+  const q = R.tela.getContext('2d'), W = R.tela.width, H = R.tela.height, d = horaDaCidade(), fase = faseDoDia();
+  q.fillStyle = '#07090d'; q.fillRect(0, 0, W, H);
+  q.fillStyle = 'rgba(255,255,255,.025)'; for (let x = 0; x < W; x += 6) q.fillRect(x, 0, 1, H); for (let y = 0; y < H; y += 6) q.fillRect(0, y, W, 1);   // a grade dos pontos de LED
+  const cor = '#ff9a3c', apagado = 'rgba(255,154,60,.07)', hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0'), ss = String(d.getSeconds()).padStart(2, '0');
+  const dw = 150, dh = 270, y = 50; let x = 70;
+  [hh[0], hh[1]].forEach((c) => { digitoLED(q, +c, x, y, dw, dh, cor, apagado); x += dw + 26; });
+  q.fillStyle = d.getMilliseconds() < 500 || agora % 1000 < 500 ? cor : apagado; [y + dh * 0.3, y + dh * 0.68].forEach((cy) => { q.beginPath(); q.arc(x + 18, cy, 14, 0, 7); q.fill(); }); x += 62;
+  [mm[0], mm[1]].forEach((c) => { digitoLED(q, +c, x, y, dw, dh, cor, apagado); x += dw + 26; });
+  x += 20; [ss[0], ss[1]].forEach((c) => { digitoLED(q, +c, x, y + dh - 150, 80, 150, '#ffffff', 'rgba(255,255,255,.06)'); x += 96; });
+  const DIAS = ['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO'];
+  q.fillStyle = '#ffffff'; q.font = '700 46px Arial, sans-serif'; q.textAlign = 'left'; q.textBaseline = 'middle';
+  q.fillText(DIAS[d.getDay()] + ' · ' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'), 70, y + dh + 62);
+  q.textAlign = 'right'; q.fillStyle = fase.chave === 'noite' ? '#7fd0ff' : '#ff9a3c'; q.fillText(fase.nome.toUpperCase(), W - 60, y + dh + 62);
   R.tex.needsUpdate = true;
 }
 
