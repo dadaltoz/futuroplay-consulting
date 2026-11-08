@@ -7407,9 +7407,14 @@ function edificioRF(forma, K, g, W, cx, cz, LW, LD, obst) {
         const me = new T.Mesh(G3.caixa, vidroSala); me.scale.set(Math.max(0.05, a1 - a0), 2.8, Math.max(0.05, c1 - c0)); me.position.set((a0 + a1) / 2, 0.04, (c0 + c1) / 2); g.add(me); obst.push([Math.min(a0, a1) - 0.1, Math.max(a0, a1) + 0.1, Math.min(c0, c1) - 0.1, Math.max(c0, c1) + 0.1]);
       });
       K.add(G3.caixa, coluna, sx, 2.84, sz, sw, 0.08, sd, 0, 0, 0, false);
-      K.add(G3.caixa, madeira, sx, 0.04, sz, 3.2, 0.74, 1.1); obst.push([sx - 1.7, sx + 1.7, sz - 0.6, sz + 0.6]);
-      K.add(G3.caixa, mat(0x101318), sx, 1.0, sz - sd / 2 + 0.15, 2.2, 1.25, 0.06, 0, 0, 0, false);
-      [-1.1, 0, 1.1].forEach((dx) => [-1, 1].forEach((sd2) => { const px = sx + dx, pz = sz + sd2 * 0.95; K.add(G3.cil, coluna, px, 0.04, pz, 0.18, 0.42, 0.18); net.push(ponto(px, pz, rotDe(0, -sd2), dx === 0 && sd2 < 0 ? 'tablet' : 'sentar', { dur: 270, sala: k })); }));
+      // mesa baixa de centro e 6 lugares (3 de cada lado), todos sentados em poltronas baixas
+      K.add(G3.caixa, madeira, sx, 0.04, sz, 3.0, 0.4, 1.0); K.add(G3.caixa, bronzeF, sx, 0.44, sz, 3.02, 0.03, 1.02, 0, 0, 0, false); obst.push([sx - 1.6, sx + 1.6, sz - 0.55, sz + 0.55]);
+      [-1.0, 0, 1.0].forEach((dx) => [-1, 1].forEach((sd2) => { const px = sx + dx, pz = sz + sd2 * 0.95; K.add(G3.caixa, estofado, px, 0.04, pz + sd2 * 0.05, 0.7, 0.36, 0.6); K.add(G3.caixa, estofado, px, 0.04, pz + sd2 * 0.38, 0.7, 0.75, 0.14); net.push(ponto(px, pz, rotDe(0, -sd2), 'sentar', { dur: 270, sala: k })); }));
+      // TV na parede do fundo: a mesma imagem do telão do Hub (o mesmo slide, na mesma hora)
+      const zTV = sz - sd / 2 + 0.12;
+      K.add(G3.caixa, mat(0x101318, { roughness: 0.3, metalness: 0.6 }), sx, 0.75, zTV, 1.9, 1.15, 0.08, 0, 0, 0, false);
+      K.add(G3.caixa, coluna, sx, 0.04, zTV + 0.05, 0.12, 0.72, 0.12, 0, 0, 0, false);
+      if (CAMPO.telaoHub) { const tv = new T.Mesh(G3.placa, CAMPO.telaoHub.mat); tv.scale.set(1.76, 0.99, 1); tv.position.set(sx, 0.75 + 1.15 / 2, zTV + 0.05); g.add(tv); }
       placaRF(g, texturaPlacaRF('SALA ' + (k + 1), 'REUNIÃO', null, 512, 192), sx, 3.3, sz + sd / 2 + 0.05, 1.6, 0.6, 0, false);
     }
     // portas das salas: abertura de 1,2 m na frente de cada uma
