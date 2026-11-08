@@ -3,7 +3,7 @@
 Painel em um arquivo HTML só, publicado como Artifact no claude.ai. Quem constrói é o Lucas Smarssaro Dadalto. A Real Forte é a consultoria do pai dele. O painel serve aos consultores: empresas, setores, check-up, "o que eu vi", gargalos e oportunidades, biblioteca de soluções, RF Intelligence, RF Sinais e a cidade 3D (cada empresa fica numa ilha-satélite ligada por ponte à plataforma central, que é a cidade da Real Forte, flutuando no espaço).
 
 - **Artifact publicado (sempre atualizar este, nunca criar outro):** https://claude.ai/artifact/6fryTDCEREKpMdKnRKihm8
-- Última versão publicada: **v68** (link da ferramenta direto no cartão da biblioteca).
+- Última versão publicada: **v69** (link da ferramenta direto no cartão da biblioteca).
 - Os DADOS do painel (empresas, anotações, gargalos, arquivos, fotos, áudios) ficam guardados NO artifact (capabilities `db` e `assets`). Publicar num artifact novo = painel vazio. Sempre publicar no mesmo link, passando a URL acima.
 - Capabilities em uso: `sample` (IA), `assets`, `db`, `downloads`, `user`. Na republicação, não passar `capabilities` (assim elas continuam).
 
@@ -25,6 +25,7 @@ Precisa de `python3` e `node`. Imprime `build ok` quando está tudo certo. O arq
 | `parte-campo.js` (fim do arquivo) | **Acabamento de cinema**: pós-processamento próprio (`CINEMA`, `renderizarCinema`, ajustes em `CINEMA_AJUSTE`: brilho, vinheta, grão, sombra de contato, névoa), céu e planeta assados uma vez (`montarCeuDeCinema`), rocha da ilha (`geometriaDeRocha`, `materialDeRocha`), nuvens (`nuvensDaIlha`), corpo novo das pessoas (`partesDoCorpo`), veículos com lataria arredondada (`fundir(..., true)`, `caixaArredondada`), revestimento de prédio por shader (`revestir`: chapa, concreto, reboco, telhado), fachada de vidro com caixilho (`texturaFachadaVidro`), máquinas no teto (`maquinasNoTeto`) |
 | `parte-campo.js` (fim do arquivo) | **Orbital Consulting City**: megaestrutura no lugar da rocha (`megaestrutura`, `CASCO`, `faixaDoCasco`: casco com janelas, hangares, faixas de luz, reator em degraus, módulos, propulsores, luzes de navegação), painel `texturaDoPainelRF`, planeta de lado (`CENTRO_PLANETA`), estações secundárias de cenário (`estacaoSecundaria`), rotas de energia, naves, satélites e galáxia (`universoExtra`, `passoUniverso`), esfera holográfica da praça (`globoDaPraca`), botão **Órbita** |
 | `parte-campo.js` (fim do arquivo) | **Ilhas-satélite e metrópole**: `SATELITE`, `loteSatelite` (lugar de cada empresa no anel), `ponteDoSatelite`, `marcarVazioNoNav` (o mapa de pisar cobre plataforma, ilhas e pontes), `ilhaSatelite` (casco, bairro residencial, ponte), `cidadeRealForte` / `quarteiraoFuturista` / `predioFuturista` (os quarteirões centrais) |
+| `parte-campo.js` (fim do arquivo) | **Marcos e torre**: `MARCOS_DOS_LOTES` (qual quarteirão recebe qual edifício-marco; `null` = praça), `edificioMarco`, `pracaDoQuarteirao`, `torreMonumental` (lâminas, RF aceso, coroa e mastro da torre) |
 | `parte-galaxia.js` | galáxia de soluções da biblioteca |
 | `parte-app.js` | o app: estado `S`/`UI`, armazenamento, rotas (`#biblioteca`, `#sv-<setor>`, `#sg-<setor>`…), telas, check-up, IA, PowerPoint, PDF, RF Sinais, biblioteca, anotações com foto/áudio/arquivo, cliques |
 
