@@ -1,0 +1,20 @@
+{
+  "atualizadoEm": "2026-11-02T03:20:07.687Z",
+  "empresaId": "exemplo",
+  "movimentos": [
+    {
+      "em": "2026-11-02T03:20:07.687Z",
+      "texto": "Passou de Proposta pronta para Resolvido"
+    },
+    {
+      "em": "2026-10-29T21:45:20Z",
+      "texto": "Encontrado pela IA nas anotações"
+    }
+  ],
+  "observacao": "A vendedora mais antiga mantém um caderno com os códigos dos produtos mais pedidos. Ela faz isso porque a busca na planilha é lenta.",
+  "origemIA": true,
+  "proposta": "Montar uma lista curta dos produtos mais pedidos, com código e nome, em uma aba própria da planilha ou em uma página simples de consulta. Assim o conhecimento do caderno fica disponível para toda a equipe.",
+  "setorId": "ex-comercial",
+  "situacao": "Resolvido",
+  "titulo": "Códigos de produtos anotados em caderno"
+}

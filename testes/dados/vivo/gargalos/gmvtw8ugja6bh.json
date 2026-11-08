@@ -1,0 +1,16 @@
+{
+  "atualizadoEm": "2026-10-29T18:45:42Z",
+  "empresaId": "exemplo",
+  "movimentos": [
+    {
+      "em": "2026-10-29T18:45:42Z",
+      "texto": "Encontrado pela IA nas anotações"
+    }
+  ],
+  "observacao": "Quando falta volume na entrega, a logística só descobre pela reclamação do cliente. As folhas de conferência ficam numa pasta e ninguém junta depois para checar.",
+  "origemIA": true,
+  "proposta": "Criar uma planilha simples onde o conferente registra, ao fim de cada carga, o previsto e o conferido, com destaque automático para diferenças. Assim a falta é vista antes da entrega e não depois da reclamação.",
+  "setorId": "ex-logistica",
+  "situacao": "Proposta pronta",
+  "titulo": "Falta de volume só aparece na reclamação do cliente"
+}

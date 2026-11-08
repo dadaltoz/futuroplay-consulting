@@ -1,0 +1,81 @@
+{
+  "antes": "",
+  "apresentacao": {
+    "comparacao": [
+      {
+        "depois": "O pedido é colado na planilha, sem redigitar.",
+        "hoje": "O pedido do WhatsApp é digitado de novo na planilha."
+      },
+      {
+        "depois": "Os códigos estão numa lista simples que todos pesquisam.",
+        "hoje": "Os códigos estão num caderno de uma vendedora."
+      },
+      {
+        "depois": "Um segundo olhar compara item por item antes de faturar.",
+        "hoje": "Ninguém confere antes de mandar para o faturamento."
+      }
+    ],
+    "deixa_de_fazer": [
+      "Redigitar o pedido do WhatsApp",
+      "Depender do caderno de uma pessoa só",
+      "Mandar para faturar sem conferir",
+      "Descobrir o erro só com o cliente"
+    ],
+    "dores": [
+      "O pedido vai da planilha direto para o faturamento.",
+      "Todo pedido do WhatsApp é digitado de novo.",
+      "Os códigos dos produtos ficam num caderno de uma só pessoa."
+    ],
+    "frase_dor": "O erro no pedido só aparece quando o cliente já recebeu.",
+    "frase_melhoria": "Uma conferência rápida pega o item trocado antes de o pedido ser faturado.",
+    "ganha": [
+      "Menos itens trocados chegando ao cliente",
+      "Busca de códigos mais fácil para todos",
+      "Mais segurança ao liberar o pedido",
+      "Conhecimento da equipe ao alcance de todos"
+    ],
+    "passos": [
+      {
+        "texto": "O pedido do WhatsApp é colado na planilha, em vez de digitado de novo.",
+        "titulo": "Colar, não digitar"
+      },
+      {
+        "texto": "O caderno de códigos vira uma lista simples, onde todos pesquisam.",
+        "titulo": "Lista de códigos"
+      },
+      {
+        "texto": "Alguém compara cada item com a mensagem original e só então libera para faturar.",
+        "titulo": "Segundo olhar"
+      }
+    ],
+    "pedido": "Podemos começar? Queremos a aprovação do comercial.",
+    "precisamos": [
+      "Acesso ao caderno de códigos da vendedora mais antiga",
+      "Uma pessoa do comercial para fazer a conferência",
+      "Ajuda da equipe para montar a lista de códigos"
+    ],
+    "titulo": "Conferência antes de faturar"
+  },
+  "atualizadoEm": "2026-10-30T13:10:00Z",
+  "depois": "",
+  "empresaId": "exemplo",
+  "familiaId": "f05",
+  "feedback": "",
+  "horasAntes": "",
+  "horasDepois": "",
+  "movimentos": [
+    {
+      "em": "2026-10-30T13:10:00Z",
+      "texto": "Passou de Proposta pronta para Apresentado"
+    },
+    {
+      "em": "2026-10-29T21:46:43Z",
+      "texto": "Proposta escrita. Passou para Proposta pronta"
+    }
+  ],
+  "observacao": "O pedido vai direto da planilha para o faturamento. Quando tem item trocado, o erro só aparece quando o cliente recebe.",
+  "proposta": "Proponho incluir uma conferência rápida antes do faturamento: o comercial exporta o pedido da planilha e compara, item por item, com a mensagem original do WhatsApp, e só libera para faturar depois de um segundo olhar. Para reduzir o erro na origem, vale transformar o caderno de códigos da vendedora mais antiga em uma lista simples e pesquisável, que todos usem, e colar o pedido do WhatsApp na planilha em vez de redigitar. Assim o item trocado é pego antes de chegar ao cliente.",
+  "setorId": "ex-comercial",
+  "situacao": "Apresentado",
+  "titulo": "Pedido sem conferência antes do faturamento"
+}

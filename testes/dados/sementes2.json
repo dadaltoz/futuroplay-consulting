@@ -1,0 +1,53 @@
+{
+  "diario/ex-d3": {
+    "empresaId": "exemplo",
+    "setorId": "ex-financeiro",
+    "data": "2026-10-23",
+    "texto": "A coordenação financeira concilia o extrato do banco com o contas a receber todo dia, linha por linha, copiando de uma planilha para outra. Já lançou pagamento no cliente errado. Disse também que monta um relatório de inadimplência todo mês e que ninguém comenta."
+  },
+  "gargalos/ex-g1": {
+    "empresaId": "exemplo",
+    "setorId": "ex-comercial",
+    "titulo": "Pedido do WhatsApp digitado de novo na planilha",
+    "observacao": "Todo pedido que chega pelo WhatsApp é digitado de novo na planilha. A vendedora mais antiga usa um caderno com os códigos dos produtos mais pedidos porque a busca na planilha é lenta. Ninguém confere o pedido antes de mandar para o faturamento.",
+    "proposta": "Uma página onde a vendedora cola a mensagem do pedido e recebe as linhas prontas no formato da planilha do faturamento, já com o código de cada produto.",
+    "familiaId": "f01",
+    "situacao": "Proposta pronta"
+  },
+  "gargalos/ex-g2": {
+    "empresaId": "exemplo",
+    "setorId": "ex-comercial",
+    "titulo": "Pedido sem conferência antes do faturamento",
+    "observacao": "O pedido vai direto da planilha para o faturamento. Quando tem item trocado, o erro só aparece quando o cliente recebe.",
+    "proposta": "",
+    "familiaId": "f05",
+    "situacao": "Aberto"
+  },
+  "gargalos/ex-g3": {
+    "empresaId": "exemplo",
+    "setorId": "ex-logistica",
+    "titulo": "Conferência da carga no papel",
+    "observacao": "O conferente marca a carga numa folha impressa e tira foto para o grupo. As folhas ficam numa pasta e ninguém junta depois. Quando falta volume, a logística só descobre pela reclamação do cliente.",
+    "proposta": "Checklist no celular que gera o resumo da conferência de cada carga e mostra o que faltou antes do caminhão sair.",
+    "familiaId": "f05",
+    "situacao": "Apresentado"
+  },
+  "gargalos/ex-g4": {
+    "empresaId": "exemplo",
+    "setorId": "ex-financeiro",
+    "titulo": "Conciliação do extrato linha por linha",
+    "observacao": "A conciliação do extrato com o contas a receber é feita todo dia copiando de uma planilha para outra. Já houve pagamento lançado no cliente errado.",
+    "proposta": "Planilha que recebe o extrato exportado do banco e o contas a receber, cruza os dois e separa só o que não bateu para a coordenação olhar.",
+    "familiaId": "f01",
+    "situacao": "Proposta pronta"
+  },
+  "gargalos/ex-g5": {
+    "empresaId": "exemplo",
+    "setorId": "ex-financeiro",
+    "titulo": "Relatório de inadimplência que ninguém lê",
+    "observacao": "A coordenação monta um relatório de inadimplência todo mês e disse que ninguém comenta.",
+    "proposta": "Confirmar com a diretoria e parar de fazer. Se alguém sentir falta, um resumo simples tirado da planilha cobre.",
+    "familiaId": "",
+    "situacao": "Aberto"
+  }
+}

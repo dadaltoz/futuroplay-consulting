@@ -1,0 +1,346 @@
+<script>
+/* PDF-INICIO ==========================================================
+   Montagem do PDF do diagnóstico. Recebe o construtor do jsPDF e os
+   dados já prontos em texto, e devolve o documento.
+   ==================================================================== */
+
+/* As fontes padrão do PDF só aceitam os acentos do português (Latin-1).
+   Esta função troca o resto (aspas curvas, travessão, setas) por equivalentes. */
+function limparTextoPDF(valor) {
+  return String(valor == null ? '' : valor)
+    .replace(/[“”„]/g, '"').replace(/[‘’‚]/g, "'")
+    .replace(/[–—]/g, '-').replace(/…/g, '...')
+    .replace(/→/g, '->').replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/≈/g, '~')
+    .replace(/•/g, '-').replace(/ /g, ' ')
+    .replace(/[^\x00-\xFF]/g, '');
+}
+
+function montarPDF(JsPDF, R) {
+  const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+  const LARGURA = 210, ALTURA = 297, MARGEM = 18, UTIL = LARGURA - 2 * MARGEM;
+  const LIMITE_BAIXO = ALTURA - MARGEM - 6;
+  const COR = {
+    navy: [15, 35, 66], laranja: [217, 104, 26], tinta: [14, 26, 44], cinza: [90, 101, 119],
+    claro: [169, 183, 206], linha: [225, 229, 235], fundo: [247, 248, 250], branco: [255, 255, 255]
+  };
+  const T = limparTextoPDF;
+  let y = 0;
+  const texto = (c) => doc.setTextColor(c[0], c[1], c[2]);
+  const preencher = (c) => doc.setFillColor(c[0], c[1], c[2]);
+  const tracar = (c) => doc.setDrawColor(c[0], c[1], c[2]);
+  const fonte = (familia, estilo, tamanho) => { doc.setFont(familia, estilo); doc.setFontSize(tamanho); };
+  const alturaLinha = (tamanho) => tamanho * 0.3528 * 1.45;
+  function novaPagina() { doc.addPage(); y = MARGEM + 10; }
+  function garantir(altura) { if (y + altura > LIMITE_BAIXO) novaPagina(); }
+  function paragrafo(conteudo, opcoes) {
+    const o = Object.assign({ tamanho: 10, estilo: 'normal', familia: 'helvetica', cor: COR.tinta, x: MARGEM, largura: UTIL }, opcoes || {});
+    const alt = alturaLinha(o.tamanho);
+    T(conteudo).split(/\n+/).forEach((bloco, i, todos) => {
+      doc.setFontSize(o.tamanho); doc.setFont(o.familia, o.estilo);
+      doc.splitTextToSize(bloco, o.largura).forEach((l) => { garantir(alt); fonte(o.familia, o.estilo, o.tamanho); texto(o.cor); doc.text(l, o.x, y); y += alt; });
+      if (i < todos.length - 1) y += alt * 0.4;
+    });
+  }
+  function titulo(etiqueta, nome, subtitulo) {
+    garantir(30);
+    y += 5;
+    fonte('helvetica', 'bold', 7.5); texto(COR.laranja); doc.text(T(etiqueta).toUpperCase(), MARGEM, y, { charSpace: 0.7 });
+    y += 7;
+    fonte('times', 'bold', 17); texto(COR.navy); doc.text(T(nome), MARGEM, y);
+    if (subtitulo) { y += 5.5; fonte('helvetica', 'normal', 9.5); texto(COR.cinza); doc.text(T(subtitulo), MARGEM, y); }
+    y += 3.5;
+    tracar(COR.linha); doc.setLineWidth(0.3); doc.line(MARGEM, y, LARGURA - MARGEM, y);
+    y += 7;
+  }
+  // Torre desenhada com retângulos, no mesmo desenho do topo do sistema
+  function torre(x, yTopo, tam, cor) {
+    preencher(cor);
+    const u = tam / 24;
+    [[5, 2.5, 2.6, 2.3], [10.4, 2.5, 3.2, 2.3], [16.4, 2.5, 2.6, 2.3], [5, 4.8, 14, 2.7], [6.7, 7.5, 10.6, 2.1], [8.2, 10.8, 7.6, 5.6], [7, 17.4, 10, 1.6], [4.6, 19.9, 14.8, 1.6]]
+      .forEach(([a, b, c, d]) => doc.rect(x + a * u, yTopo + b * u, c * u, d * u, 'F'));
+  }
+  const estiloTabela = {
+    theme: 'plain',
+    margin: { left: MARGEM, right: MARGEM, top: MARGEM + 10, bottom: MARGEM + 6 },
+    styles: { font: 'helvetica', fontSize: 9, textColor: COR.tinta, cellPadding: { top: 2.4, bottom: 2.4, left: 3, right: 3 }, lineColor: COR.linha, lineWidth: { bottom: 0.2 }, overflow: 'linebreak' },
+    headStyles: { fillColor: COR.navy, textColor: COR.branco, fontStyle: 'bold', fontSize: 8.2, lineWidth: 0 }
+  };
+
+  /* ---------- Capa ---------- */
+  preencher(COR.navy); doc.rect(0, 0, LARGURA, 64, 'F');
+  preencher(COR.laranja); doc.rect(0, 64, LARGURA, 1.4, 'F');
+  torre(MARGEM, 13, 11, COR.laranja);
+  fonte('helvetica', 'bold', 9.5); texto(COR.branco); doc.text('REAL FORTE', MARGEM + 15, 18.5, { charSpace: 1.6 });
+  fonte('helvetica', 'normal', 8); texto(COR.claro); doc.text(T('Consultoria Empresarial desde 1982'), MARGEM + 15, 23);
+  fonte('helvetica', 'normal', 8.5); texto(COR.claro); doc.text([T(R.dataTexto), T(R.etapaTexto)], LARGURA - MARGEM, 18.5, { align: 'right' });
+  fonte('times', 'bold', 27); texto(COR.branco); doc.text('Diagnóstico Operacional', MARGEM, 44);
+  fonte('helvetica', 'bold', 13); texto(COR.laranja); doc.text(T(R.empresa.nome), MARGEM, 54);
+  y = 77;
+
+  const colunas = [['Segmento', R.empresa.segmento], ['Cidade', R.empresa.cidade], ['Contato', R.empresa.contato], ['Consultor', R.consultor]];
+  const larguraColuna = UTIL / 4;
+  let maior = 0;
+  colunas.forEach(([rotulo, valor], i) => {
+    const x = MARGEM + i * larguraColuna;
+    fonte('helvetica', 'bold', 7); texto(COR.cinza); doc.text(T(rotulo).toUpperCase(), x, y, { charSpace: 0.5 });
+    fonte('helvetica', 'normal', 9.5); texto(COR.tinta);
+    const linhas = doc.splitTextToSize(T(valor || '-'), larguraColuna - 5);
+    doc.text(linhas, x, y + 5);
+    maior = Math.max(maior, 5 + linhas.length * alturaLinha(9.5));
+  });
+  y += maior + 7;
+
+  // Três números
+  const caixas = [['Setores visitados', R.numeros.setores], ['Gargalos encontrados', R.numeros.gargalos], ['Propostas prontas', R.numeros.propostas]];
+  const vao = 5, larguraCaixa = (UTIL - 2 * vao) / 3, alturaCaixa = 22;
+  caixas.forEach(([rotulo, valor], i) => {
+    const x = MARGEM + i * (larguraCaixa + vao);
+    preencher(COR.fundo); doc.rect(x, y, larguraCaixa, alturaCaixa, 'F');
+    preencher(i === 2 ? COR.laranja : COR.navy); doc.rect(x, y, 1.2, alturaCaixa, 'F');
+    fonte('helvetica', 'bold', 7); texto(COR.cinza); doc.text(T(rotulo).toUpperCase(), x + 5, y + 7, { charSpace: 0.4 });
+    fonte('times', 'bold', 20); texto(COR.navy); doc.text(String(valor), x + 5, y + 17);
+  });
+  y += alturaCaixa + 4;
+
+  // Visão geral por setor
+  if (R.setores.length) {
+    titulo('Visão geral', 'Gargalos por setor');
+    doc.autoTable(Object.assign({}, estiloTabela, {
+      startY: y,
+      head: [['Setor', 'Responsável', 'Gargalos', 'Com proposta', 'Principal gargalo']],
+      body: R.setores.map((s) => [T(s.nome), T(s.responsavel || '-'), String(s.gargalos.length), String(s.gargalos.filter((g) => g.proposta).length), T((s.gargalos[0] || {}).titulo || '-')]),
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 30 }, 2: { halign: 'right', cellWidth: 19 }, 3: { halign: 'right', cellWidth: 24 } }
+    }));
+    y = doc.lastAutoTable.finalY + 6;
+  }
+
+  /* ---------- Um bloco por setor ---------- */
+  R.setores.forEach((s) => {
+    novaPagina();
+    titulo('Setor', s.nome, s.responsavel ? 'Responsável: ' + s.responsavel : '');
+    if (s.notas.length) {
+      fonte('helvetica', 'bold', 7.5); texto(COR.cinza); doc.text('O QUE EU OBSERVEI', MARGEM, y, { charSpace: 0.6 }); y += 5.5;
+      s.notas.forEach((n) => {
+        garantir(12);
+        fonte('helvetica', 'bold', 8.5); texto(COR.navy); doc.text(T(n.data), MARGEM, y); y += alturaLinha(8.5);
+        paragrafo(n.texto, { tamanho: 9.6, cor: COR.tinta });
+        y += 3;
+      });
+      y += 2;
+    }
+    if (s.gargalos.length) {
+      garantir(14);
+      fonte('helvetica', 'bold', 7.5); texto(COR.cinza); doc.text('GARGALOS E PROPOSTAS', MARGEM, y, { charSpace: 0.6 }); y += 4;
+      s.gargalos.forEach((g, i) => {
+        garantir(30);
+        doc.autoTable(Object.assign({}, estiloTabela, {
+          startY: y,
+          head: [[{ content: T((i + 1) + '. ' + g.titulo), colSpan: 2, styles: { fontSize: 9.5 } }]],
+          body: [['Situação', g.situacao], ['O que eu observei', g.observacao || '-'], ['O que vou propor', g.proposta || 'Ainda sem proposta']].map(([a, b]) => [T(a), T(b)]),
+          columnStyles: { 0: { cellWidth: 38, fontStyle: 'bold', textColor: COR.cinza, fontSize: 8.2 } },
+          rowPageBreak: 'avoid'
+        }));
+        y = doc.lastAutoTable.finalY + 5;
+      });
+    } else {
+      paragrafo('Nenhum gargalo registrado neste setor.', { estilo: 'italic', cor: COR.cinza });
+    }
+  });
+
+  /* ---------- Assinaturas ---------- */
+  garantir(42);
+  y += 10;
+  fonte('helvetica', 'bold', 9); texto(COR.navy); doc.text('Revisão e aprovação', MARGEM, y);
+  y += 18;
+  tracar(COR.cinza); doc.setLineWidth(0.3);
+  const meia = (UTIL - 12) / 2;
+  doc.line(MARGEM, y, MARGEM + meia, y);
+  doc.line(MARGEM + meia + 12, y, LARGURA - MARGEM, y);
+  fonte('helvetica', 'normal', 8.5); texto(COR.cinza);
+  doc.text(T('Consultor: ' + (R.consultor || '')), MARGEM, y + 5);
+  doc.text('Sócio da Real Forte', MARGEM + meia + 12, y + 5);
+
+  /* ---------- Cabeçalho e rodapé ---------- */
+  const total = doc.getNumberOfPages();
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i);
+    tracar(COR.linha); doc.setLineWidth(0.2); doc.line(MARGEM, ALTURA - 13, LARGURA - MARGEM, ALTURA - 13);
+    fonte('helvetica', 'normal', 7.5); texto(COR.cinza);
+    doc.text(T(R.frente), MARGEM, ALTURA - 8.5);
+    doc.text('Página ' + i + ' de ' + total, LARGURA - MARGEM, ALTURA - 8.5, { align: 'right' });
+    if (i > 1) {
+      torre(MARGEM, 8.2, 5, COR.laranja);
+      fonte('helvetica', 'bold', 7.5); texto(COR.navy); doc.text('REAL FORTE', MARGEM + 7, 12, { charSpace: 1.1 });
+      fonte('helvetica', 'normal', 7.5); texto(COR.cinza); doc.text(T('Diagnóstico Operacional · ' + R.empresa.nome), LARGURA - MARGEM, 12, { align: 'right' });
+      tracar(COR.linha); doc.setLineWidth(0.2); doc.line(MARGEM, 15, LARGURA - MARGEM, 15);
+    }
+  }
+  return doc;
+}
+
+/* PDF-FIM */
+
+/* PPT-INICIO ==========================================================
+   PowerPoint da proposta de um gargalo, no formato de demo:
+   capa, a situação hoje, como vai funcionar, o que muda, hoje e com a
+   melhoria, próximo passo. A = dados prontos (ver dadosApresentacao).
+   ==================================================================== */
+function montarPPT(PptxGenJS, A) {
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';   // 13,33 × 7,5 polegadas
+  pptx.author = A.consultor || 'Real Forte Consultoria';
+  pptx.company = 'Real Forte Consultoria';
+  pptx.title = A.c.titulo;
+  const COR = {
+    navy: '0F2342', laranja: 'D9681A', laranjaClaro: 'F3A66A', tinta: '0E1A2C', cinza: '5A6577', claro: 'A9B7CE',
+    linha: 'E1E5EB', fundo: 'F7F8FA', branco: 'FFFFFF', verde: '1C7F52', verdeClaro: 'E3F2EA', vermelho: 'B9362C', vermelhoClaro: 'FBE9E6'
+  };
+  const TITULO = 'Georgia', TEXTO = 'Arial';
+  const W = 13.333, H = 7.5, M = 0.75;
+  const F = pptx.ShapeType;
+  let numero = 0;
+  const forma = (s, tipo, x, y, w, h, cor, extra) => s.addShape(tipo, Object.assign({ x, y, w, h, fill: { color: cor }, line: { color: cor, width: 0.5 } }, extra || {}));
+
+  // O PowerPoint não diminui a letra sozinho ao abrir o arquivo. Então a conta é feita aqui:
+  // a letra desce até o texto caber na caixa; se nem no tamanho mínimo couber, o texto é cortado
+  // numa palavra inteira e ganha "…". Nenhum texto sai da caixa.
+  function caber(texto, w, h, max, min, larguraLetra) {
+    const limpo = String(texto || '').replace(/\s+/g, ' ').trim();
+    const linhasDe = (t, pt) => {
+      const porLinha = Math.max(1, Math.floor((w * 72) / (pt * larguraLetra)));
+      let linhas = 1, atual = 0;
+      t.split(' ').forEach((p) => { const n = p.length; if (atual && atual + 1 + n > porLinha) { linhas++; atual = n; } else atual += (atual ? 1 : 0) + n; });
+      return linhas;
+    };
+    const cabe = (t, pt) => linhasDe(t, pt) * pt * 1.22 / 72 <= h;
+    for (let pt = max; pt >= min; pt--) if (cabe(limpo, pt)) return { texto: limpo, pt };
+    const palavras = limpo.split(' ');
+    while (palavras.length > 1 && !cabe(palavras.join(' ') + '…', min)) palavras.pop();
+    return { texto: palavras.join(' ').replace(/[\s,;:.]+$/, '') + '…', pt: min };
+  }
+  const textoEm = (s, conteudo, x, y, w, h, op) => {
+    const o = Object.assign({ fontFace: TEXTO }, op);
+    const larg = (o.fontFace === TITULO ? 0.56 : 0.5) + (o.bold ? 0.04 : 0) + (o.charSpacing ? o.charSpacing / 20 : 0);
+    const max = o.fontSize || 14; const min = o.minimo || Math.max(10, Math.round(max * 0.62));
+    const r = caber(conteudo, w, h, max, min, larg);
+    delete o.minimo;
+    s.addText(r.texto, Object.assign({ x, y, w, h, margin: 0, valign: 'top' }, o, { fontSize: r.pt }));
+  };
+  const logo = (s, versao, x, y, alt) => { if (A.logo && A.logo[versao]) s.addImage({ data: A.logo[versao], x, y, w: alt * A.logo.proporcao, h: alt }); };
+
+  function slideClaro(etiqueta, titulo) {
+    const s = pptx.addSlide(); numero++;
+    s.background = { color: COR.fundo };
+    forma(s, F.rect, 0, 0, 0.14, H, COR.laranja);
+    logo(s, 'escuro', M, 0.36, 0.46);
+    textoEm(s, A.setor + ' · ' + A.empresa, W - M - 6, 0.48, 6, 0.3, { fontSize: 11, color: COR.cinza, align: 'right' });
+    textoEm(s, etiqueta.toUpperCase(), M, 1.2, W - 2 * M, 0.32, { fontSize: 12, bold: true, color: COR.laranja, charSpacing: 3 });
+    textoEm(s, titulo, M, 1.58, W - 2 * M, 1.0, { fontFace: TITULO, fontSize: 30, minimo: 22, bold: true, color: COR.navy });
+    textoEm(s, String(numero), W - M - 0.6, H - 0.55, 0.6, 0.3, { fontSize: 10, color: COR.cinza, align: 'right' });
+    return s;
+  }
+  function slideEscuro() {
+    const s = pptx.addSlide(); numero++;
+    s.background = { color: COR.navy };
+    forma(s, F.rect, 0, H - 0.16, W, 0.16, COR.laranja);
+    return s;
+  }
+
+  // 1. Capa
+  {
+    const s = slideEscuro();
+    logo(s, 'claro', M, 0.7, 0.9);
+    textoEm(s, 'PROPOSTA DE MELHORIA', M, 2.6, 8, 0.36, { fontSize: 14, bold: true, color: COR.laranja, charSpacing: 4 });
+    textoEm(s, A.c.titulo, M, 3.05, W - 2 * M, 1.75, { fontFace: TITULO, fontSize: 46, minimo: 30, bold: true, color: COR.branco });
+    textoEm(s, 'Para o setor ' + A.setor + ' · ' + A.empresa, M, 5.0, W - 2 * M, 0.45, { fontSize: 20, color: COR.laranjaClaro });
+    textoEm(s, [A.data, A.consultor].filter(Boolean).join(' · '), M, 6.55, 9, 0.35, { fontSize: 12, color: COR.claro });
+  }
+
+  // 2. A situação hoje (a dor)
+  {
+    const s = slideClaro(A.oportunidade ? 'O que o setor pediu' : 'A situação hoje', A.c.frase_dor);
+    const itens = A.c.dores.slice(0, 3);
+    const n = Math.max(1, itens.length), vao = 0.35, w = (W - 2 * M - vao * (n - 1)) / n;
+    itens.forEach((t, i) => {
+      const x = M + i * (w + vao);
+      forma(s, F.roundRect, x, 3.0, w, 3.35, COR.vermelhoClaro, { rectRadius: 0.12 });
+      forma(s, F.ellipse, x + 0.35, 3.35, 0.6, 0.6, COR.vermelho);
+      textoEm(s, String(i + 1), x + 0.35, 3.35, 0.6, 0.6, { fontSize: 18, bold: true, color: COR.branco, align: 'center', valign: 'middle' });
+      textoEm(s, t, x + 0.35, 4.2, w - 0.7, 1.9, { fontSize: n === 1 ? 24 : 19, minimo: 13, color: COR.tinta });
+    });
+  }
+
+  // 3. Como vai funcionar (passo a passo)
+  {
+    const s = slideClaro('Como vai funcionar', A.c.frase_melhoria);
+    const passos = A.c.passos.slice(0, 3);
+    const n = Math.max(1, passos.length), seta = 0.5, w = (W - 2 * M - seta * (n - 1)) / n;
+    const cores = [COR.navy, COR.laranja, COR.verde];
+    passos.forEach((p, i) => {
+      const x = M + i * (w + seta);
+      s.addShape(F.roundRect, { x, y: 3.0, w, h: 3.4, fill: { color: COR.branco }, line: { color: COR.linha, width: 1 }, rectRadius: 0.12 });
+      forma(s, F.ellipse, x + 0.35, 3.35, 0.76, 0.76, cores[i % 3]);
+      textoEm(s, String(i + 1), x + 0.35, 3.35, 0.76, 0.76, { fontSize: 22, bold: true, color: COR.branco, align: 'center', valign: 'middle' });
+      if (p.titulo) {
+        textoEm(s, p.titulo, x + 0.35, 4.3, w - 0.7, 0.7, { fontFace: TITULO, fontSize: 19, minimo: 14, bold: true, color: COR.navy });
+        textoEm(s, p.texto, x + 0.35, 5.1, w - 0.7, 1.1, { fontSize: 15, minimo: 11, color: COR.cinza });
+      } else textoEm(s, p.texto, x + 0.35, 4.3, w - 0.7, 1.9, { fontSize: 17, minimo: 12, color: COR.tinta });
+      if (i < n - 1) forma(s, F.rightArrow, x + w + 0.1, 4.48, 0.3, 0.4, COR.laranja);
+    });
+  }
+
+  // 4. O que muda no dia a dia
+  if (A.c.deixa_de_fazer.length || A.c.ganha.length) {
+    const s = slideClaro('No dia a dia', 'O que muda para o setor');
+    const colunas = [['Vocês deixam de', A.c.deixa_de_fazer, COR.vermelho, COR.vermelhoClaro], ['Vocês ganham', A.c.ganha, COR.verde, COR.verdeClaro]].filter((c) => c[1].length);
+    const vao = 0.4, w = (W - 2 * M - vao * (colunas.length - 1)) / colunas.length;
+    colunas.forEach(([rotulo, itens, cor, claro], i) => {
+      const x = M + i * (w + vao);
+      forma(s, F.roundRect, x, 2.85, w, 3.8, claro, { rectRadius: 0.12 });
+      textoEm(s, rotulo.toUpperCase(), x + 0.4, 3.1, w - 0.8, 0.36, { fontSize: 13, bold: true, color: cor, charSpacing: 2 });
+      itens.slice(0, 4).forEach((t, j) => {
+        const yy = 3.65 + j * 0.72;
+        forma(s, F.rect, x + 0.4, yy + 0.1, 0.15, 0.15, cor);
+        textoEm(s, t, x + 0.75, yy, w - 1.15, 0.62, { fontSize: 17, minimo: 12, color: COR.tinta });
+      });
+    });
+  }
+
+  // 5. Hoje e com a melhoria, lado a lado
+  if (A.c.comparacao.length) {
+    const s = slideClaro('Lado a lado', 'Hoje e com a melhoria');
+    const linhas = A.c.comparacao.slice(0, 3);
+    const larg = (W - 2 * M - 0.8) / 2, xA = M, xB = M + larg + 0.8;
+    textoEm(s, 'HOJE', xA, 2.75, larg, 0.32, { fontSize: 13, bold: true, color: COR.vermelho, charSpacing: 3 });
+    textoEm(s, 'COM A MELHORIA', xB, 2.75, larg, 0.32, { fontSize: 13, bold: true, color: COR.verde, charSpacing: 3 });
+    const alt = Math.min(1.6, 3.6 / linhas.length - 0.18);
+    linhas.forEach((l, i) => {
+      const yy = 3.2 + i * (alt + 0.18);
+      forma(s, F.roundRect, xA, yy, larg, alt, COR.vermelhoClaro, { rectRadius: 0.1 });
+      textoEm(s, l.hoje, xA + 0.3, yy + 0.15, larg - 0.6, alt - 0.3, { fontSize: 17, minimo: 12, color: COR.tinta, valign: 'middle' });
+      forma(s, F.rightArrow, xA + larg + 0.2, yy + alt / 2 - 0.18, 0.4, 0.36, COR.laranja);
+      forma(s, F.roundRect, xB, yy, larg, alt, COR.verdeClaro, { rectRadius: 0.1 });
+      textoEm(s, l.depois, xB + 0.3, yy + 0.15, larg - 0.6, alt - 0.3, { fontSize: 17, minimo: 12, color: COR.tinta, valign: 'middle' });
+    });
+  }
+
+  // 6. Próximo passo
+  {
+    const s = slideEscuro();
+    logo(s, 'claro', M, 0.55, 0.6);
+    textoEm(s, 'PRÓXIMO PASSO', M, 1.7, 8, 0.36, { fontSize: 14, bold: true, color: COR.laranja, charSpacing: 4 });
+    textoEm(s, A.c.pedido, M, 2.15, W - 2 * M, 1.3, { fontFace: TITULO, fontSize: 36, minimo: 26, bold: true, color: COR.branco });
+    if (A.c.precisamos.length) {
+      textoEm(s, 'Para começar, precisamos de:', M, 3.85, 8, 0.36, { fontSize: 16, color: COR.claro });
+      A.c.precisamos.slice(0, 3).forEach((t, j) => {
+        const yy = 4.4 + j * 0.62;
+        forma(s, F.rect, M, yy + 0.11, 0.15, 0.15, COR.laranja);
+        textoEm(s, t, M + 0.4, yy, W - 2 * M - 0.4, 0.5, { fontSize: 18, minimo: 13, color: COR.branco });
+      });
+    }
+    textoEm(s, [A.consultor, 'Real Forte Consultoria'].filter(Boolean).join(' · '), M, 6.6, 9, 0.35, { fontSize: 12, color: COR.claro });
+  }
+  return pptx;
+}
+/* PPT-FIM */
+</script>

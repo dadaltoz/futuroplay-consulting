@@ -1,0 +1,27 @@
+{
+  "conversas/ex-m1": {
+    "empresaId": "exemplo", "setorId": "ex-comercial", "autor": "eu", "quem": "Lucas Smarssaro Dadalto",
+    "texto": "Bom dia! Passei aí na terça e anotei como funciona o pedido do WhatsApp. Vou montar a proposta e te mostro na semana que vem.",
+    "data": "2026-10-24T09:12:00-03:00"
+  },
+  "conversas/ex-m2": {
+    "empresaId": "exemplo", "setorId": "ex-comercial", "autor": "setor", "quem": "Coordenação comercial",
+    "texto": "Perfeito. O que mais pega aqui é o pedido errado que volta do cliente.",
+    "data": "2026-10-24T10:05:00-03:00"
+  },
+  "conversas/ex-m3": {
+    "empresaId": "exemplo", "setorId": "ex-comercial", "autor": "sistema",
+    "texto": "“Pedido do WhatsApp digitado de novo na planilha” passou de Aberto para Proposta pronta",
+    "data": "2026-10-27T16:40:00-03:00"
+  },
+  "conversas/ex-m4": {
+    "empresaId": "exemplo", "setorId": "ex-comercial", "autor": "eu", "quem": "Lucas Smarssaro Dadalto",
+    "texto": "A proposta do pedido pelo WhatsApp está pronta. Posso apresentar na quinta às 10h?",
+    "data": "2026-10-28T11:20:00-03:00"
+  },
+  "conversas/ex-m5": {
+    "empresaId": "exemplo", "setorId": "ex-comercial", "autor": "setor", "quem": "Coordenação comercial",
+    "texto": "Pode sim, te espero aqui.",
+    "data": "2026-10-28T11:47:00-03:00"
+  }
+}

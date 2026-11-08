@@ -1,0 +1,28 @@
+{
+  "atualizadoEm": "2026-10-31T16:20:00Z",
+  "depois": "O conferente marca a carga no celular e o resumo mostra o que faltou antes do caminhão sair.",
+  "empresaId": "exemplo",
+  "familiaId": "f05",
+  "feedback": "A reclamação de volume faltando parou.",
+  "horasAntes": "33",
+  "horasDepois": "8,5",
+  "movimentos": [
+    {
+      "em": "2026-10-31T16:20:00Z",
+      "texto": "Horas registradas: 33 h → 8,5 h por mês"
+    },
+    {
+      "em": "2026-10-31T16:18:00Z",
+      "texto": "Passou de Em execução para Resolvido"
+    },
+    {
+      "em": "2026-10-24T12:00:00Z",
+      "texto": "Passou de Apresentado para Em execução"
+    }
+  ],
+  "observacao": "O conferente marca a carga numa folha impressa e tira foto para o grupo. As folhas ficam numa pasta e ninguém junta depois. Quando falta volume, a logística só descobre pela reclamação do cliente.",
+  "proposta": "Checklist no celular que gera o resumo da conferência de cada carga e mostra o que faltou antes do caminhão sair.",
+  "setorId": "ex-logistica",
+  "situacao": "Resolvido",
+  "titulo": "Conferência da carga no papel"
+}

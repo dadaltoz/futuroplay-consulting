@@ -1,0 +1,4 @@
+e1-ilha|{ alvo: new THREE.Vector3(0, 0, 6), raio: 360, theta: 0.6, phi: 1.32 }
+e4-holo|{ alvo: new THREE.Vector3(0, 8, 50), raio: 42, theta: 0.5, phi: 1.2 }
+e5-portal|{ alvo: new THREE.Vector3(150, 3, 29.5), raio: 40, theta: 1.0, phi: 1.2 }
+e6-baixo|{ alvo: new THREE.Vector3(0, 0, 6), raio: 330, theta: 1.2, phi: 1.85 }

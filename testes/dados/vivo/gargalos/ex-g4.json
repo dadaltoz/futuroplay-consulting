@@ -1,0 +1,20 @@
+{
+  "atualizadoEm": "2026-11-01T12:30:00Z",
+  "empresaId": "exemplo",
+  "familiaId": "f01",
+  "movimentos": [
+    {
+      "em": "2026-11-01T12:30:00Z",
+      "texto": "Passou de Apresentado para Em execução"
+    },
+    {
+      "em": "2026-10-30T12:00:00Z",
+      "texto": "Passou de Proposta pronta para Apresentado"
+    }
+  ],
+  "observacao": "A conciliação do extrato com o contas a receber é feita todo dia copiando de uma planilha para outra. Já houve pagamento lançado no cliente errado.",
+  "proposta": "Planilha que recebe o extrato exportado do banco e o contas a receber, cruza os dois e separa só o que não bateu para a coordenação olhar.",
+  "setorId": "ex-financeiro",
+  "situacao": "Em execução",
+  "titulo": "Conciliação do extrato linha por linha"
+}

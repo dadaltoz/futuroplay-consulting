@@ -1,0 +1,74 @@
+{
+  "apresentacao": {
+    "comparacao": [
+      {
+        "depois": "O pedido vem pronto da mensagem colada.",
+        "hoje": "O pedido é digitado de novo na planilha."
+      },
+      {
+        "depois": "O código já aparece em cada linha.",
+        "hoje": "O código vem do caderno ou da busca lenta."
+      },
+      {
+        "depois": "A vendedora vê as linhas e confere antes de enviar.",
+        "hoje": "O pedido segue para o faturamento sem conferência."
+      }
+    ],
+    "deixa_de_fazer": [
+      "Digitar o pedido de novo na planilha",
+      "Procurar código de produto na busca lenta",
+      "Depender do caderno de códigos",
+      "Mandar o pedido sem conferir"
+    ],
+    "dores": [
+      "Cada pedido do WhatsApp é redigitado na planilha.",
+      "A busca de códigos na planilha é lenta.",
+      "Ninguém confere o pedido antes do faturamento."
+    ],
+    "frase_dor": "Todo pedido do WhatsApp é digitado de novo na planilha.",
+    "frase_melhoria": "Uma página transforma a mensagem do pedido em linhas prontas para a planilha do faturamento.",
+    "ganha": [
+      "Pedido pronto no formato do faturamento",
+      "Código de cada produto já preenchido",
+      "Momento claro para conferir o pedido",
+      "Mais tempo para atender os clientes"
+    ],
+    "passos": [
+      {
+        "texto": "A vendedora copia o pedido que chegou pelo WhatsApp.",
+        "titulo": "Copiar a mensagem"
+      },
+      {
+        "texto": "Ela cola a mensagem na página e pede para montar o pedido.",
+        "titulo": "Colar na página"
+      },
+      {
+        "texto": "A página mostra as linhas prontas, com o código de cada produto. Ela confere e manda ao faturamento.",
+        "titulo": "Conferir e enviar"
+      }
+    ],
+    "pedido": "Podemos começar? Aprove para testarmos junto com o Comercial.",
+    "precisamos": [
+      "Exemplos de mensagens de pedido que chegam pelo WhatsApp",
+      "A lista de códigos dos produtos, inclusive os do caderno",
+      "O modelo da planilha do faturamento"
+    ],
+    "titulo": "Pedido pronto direto do WhatsApp"
+  },
+  "atualizadoEm": "2026-10-29T18:31:25Z",
+  "depois": "A vendedora cola a mensagem do pedido e a planilha sai pronta para o faturamento, com o código de cada produto. O caderno de códigos foi aposentado.",
+  "empresaId": "exemplo",
+  "familiaId": "f01",
+  "feedback": "Agora o pedido sai em um minuto e sem erro de código.",
+  "movimentos": [
+    {
+      "em": "2026-10-29T18:31:25Z",
+      "texto": "Proposta escrita. Passou para Proposta pronta"
+    }
+  ],
+  "observacao": "Todo pedido que chega pelo WhatsApp é digitado de novo na planilha. A vendedora mais antiga usa um caderno com os códigos dos produtos mais pedidos porque a busca na planilha é lenta. Ninguém confere o pedido antes de mandar para o faturamento.",
+  "proposta": "Uma página onde a vendedora cola a mensagem do pedido e recebe as linhas prontas no formato da planilha do faturamento, já com o código de cada produto.",
+  "setorId": "ex-comercial",
+  "situacao": "Proposta pronta",
+  "titulo": "Pedido do WhatsApp digitado de novo na planilha"
+}

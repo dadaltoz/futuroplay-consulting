@@ -1,0 +1,80 @@
+{
+  "apresentacao": {
+    "comparacao": [
+      {
+        "depois": "Registro feito direto na planilha",
+        "hoje": "Foto da folha enviada no grupo"
+      },
+      {
+        "depois": "Pasta digital com nome padrão por data e carga",
+        "hoje": "Folhas soltas numa pasta, sem ninguém juntar"
+      },
+      {
+        "depois": "Informações de cada carga reunidas num lugar só",
+        "hoje": "Informações espalhadas nas conversas"
+      }
+    ],
+    "deixa_de_fazer": [
+      "Mandar foto da folha no grupo",
+      "Procurar informação nas conversas",
+      "Guardar folhas soltas na pasta",
+      "Deixar o registro espalhado sem ninguém reunir"
+    ],
+    "dores": [
+      "O conferente marca a folha impressa e manda foto no grupo.",
+      "As folhas ficam numa pasta e ninguém junta depois.",
+      "Quando falta volume, só sabemos pela reclamação do cliente."
+    ],
+    "frase_dor": "As fotos da conferência ficam soltas no grupo e ninguém reúne as informações.",
+    "frase_melhoria": "Cada carga passa a ter um único registro, guardado num lugar só, com nome padrão.",
+    "ganha": [
+      "Registro de cada carga num lugar só",
+      "Informação fácil de achar",
+      "Menos folhas e conversas para procurar",
+      "Mais controle quando falta volume"
+    ],
+    "passos": [
+      {
+        "texto": "O conferente anota a conferência da carga direto na planilha, sem precisar mandar foto no grupo.",
+        "titulo": "Registrar na planilha"
+      },
+      {
+        "texto": "O registro de cada carga fica numa pasta digital, com nome por data e carga.",
+        "titulo": "Guardar com nome padrão"
+      },
+      {
+        "texto": "A logística abre a pasta e encontra o registro da carga que quiser ver.",
+        "titulo": "Achar tudo num só lugar"
+      }
+    ],
+    "pedido": "Podemos começar? Conte com o setor para aprovar esta melhoria.",
+    "precisamos": [
+      "Que o conferente aceite registrar na planilha, no lugar da foto",
+      "Que o setor combine o nome padrão por data e carga",
+      "Que a gerência de logística indique onde a pasta digital vai ficar"
+    ],
+    "titulo": "Registro único de cada carga"
+  },
+  "atualizadoEm": "2026-11-02T03:18:06.971Z",
+  "empresaId": "exemplo",
+  "movimentos": [
+    {
+      "em": "2026-11-02T03:18:06.971Z",
+      "texto": "Passou de Apresentado para Em execução"
+    },
+    {
+      "em": "2026-11-02T03:18:03.071Z",
+      "texto": "Passou de Proposta pronta para Apresentado"
+    },
+    {
+      "em": "2026-10-29T18:46:19Z",
+      "texto": "Encontrado pela IA nas anotações"
+    }
+  ],
+  "observacao": "O conferente tira foto da folha de conferência e envia para o grupo. Depois disso, as informações ficam espalhadas nas conversas e nas folhas da pasta, sem ninguém reunir.",
+  "origemIA": true,
+  "proposta": "Definir um jeito único de guardar o registro de cada carga, como uma pasta digital com nome padrão por data e carga. Se o registro passar a ser feito na planilha, a foto no grupo deixa de ser necessária.",
+  "setorId": "ex-logistica",
+  "situacao": "Em execução",
+  "titulo": "Fotos da conferência soltas no grupo"
+}

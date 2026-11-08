@@ -1,0 +1,15 @@
+{
+  "cidade": "Serra/ES",
+  "contato": "Diretor comercial · (27) 0000-0000",
+  "criadoEm": "2026-10-29",
+  "custoHora": "",
+  "diasMes": "22",
+  "exemplo": true,
+  "inicio": "2026-10-19",
+  "nome": "Distribuidora Exemplo",
+  "observacoes": "Empresa de exemplo para mostrar como o sistema funciona. Apague quando cadastrar a primeira empresa de verdade.",
+  "patrocinador": "Diretoria",
+  "proximos": "",
+  "resumo": "",
+  "segmento": "Distribuição de alimentos"
+}
