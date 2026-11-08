@@ -2755,15 +2755,13 @@ function montarPlano() {
   const rua = (x0, x1, z0, z1) => { caixaV(M.asfalto, x0, x1, z0, z1, 0, 0.012, false); P.ruas.push([x0, x1, z0, z1]); };
   P.XR.forEach((x) => rua(x - R, x + R, zMin, zMax));
   P.ZR.forEach((z) => rua(xMin, xMax, z - R, z + R));
-  P.entradas = [{ id: 'leste', no: [xMax - R, 29.5], fora: [150, 29.5] }, { id: 'oeste', no: [xMin + R, 29.5], fora: [-150, 29.5] }, { id: 'sul', no: [23.5, zMax - R], fora: [23.5, 155] }, { id: 'norte', no: [-23.5, zMin + R], fora: [-23.5, -150] }];
-  rua(xMax, 152, 29.5 - R, 29.5 + R); rua(-152, xMin, 29.5 - R, 29.5 + R); rua(23.5 - R, 23.5 + R, zMax, 157); rua(-23.5 - R, -23.5 + R, -152, zMin);
+  P.entradas = [{ id: 'leste', no: [xMax - R, 29.5], fora: [xMax, 29.5] }, { id: 'oeste', no: [xMin + R, 29.5], fora: [xMin, 29.5] }, { id: 'sul', no: [23.5, zMax - R], fora: [23.5, zMax] }, { id: 'norte', no: [-23.5, zMin + R], fora: [-23.5, zMin] }];
   const tracejar = (ax, az, bx, bz) => {
     const L = Math.hypot(bx - ax, bz - az), dx = (bx - ax) / L, dz = (bz - az) / L;
     for (let s = 1.2; s < L - 1.2; s += 2.4) K.add(G3.caixa, M.faixa, ax + dx * s, 0.012, az + dz * s, dx ? 1.2 : 0.1, 0.003, dz ? 1.2 : 0.1, 0, 0, 0, false);
   };
   P.XR.forEach((x) => { for (let k = 0; k < 5; k++) tracejar(x, P.ZR[k] + R, x, P.ZR[k + 1] - R); });
   P.ZR.forEach((z) => { for (let k = 0; k < 5; k++) tracejar(P.XR[k] + R, z, P.XR[k + 1] - R, z); });
-  tracejar(xMax, 29.5, 150, 29.5); tracejar(-150, 29.5, xMin, 29.5); tracejar(23.5, zMax, 23.5, 155); tracejar(-23.5, -150, -23.5, zMin);
   // Faixa de pedestre no meio de cada trecho (é só ali que se atravessa)
   const faixaPedestre = (cx, cz, ruaAoLongoDeX) => {
     const w = ruaAoLongoDeX ? 2.2 : P.RUA, d = ruaAoLongoDeX ? P.RUA : 2.2;
@@ -4931,7 +4929,7 @@ const CAMPUS_LAYOUT = {
    - no céu (sempre ao fundo, acompanha a câmera): estrelas, nebulosas, um planeta gigante com anel,
      um planeta azul com atmosfera, uma lua, uma estação espacial e estrelas cadentes;
    - no centro da Praça das Conexões: o holograma gigante da torre da Real Forte (hologramaDaTorre). */
-const ILHA = { x0: -134, x1: 134, z0: -128, z1: 140, raio: 20, esp: 7 };
+const ILHA = { x0: -105, x1: 105, z0: -99, z1: 111, raio: 12, esp: 7 };   // a borda fica logo depois das últimas ruas
 function texturaCanvas(w, h, desenhar) { const c = document.createElement('canvas'); c.width = w; c.height = h; desenhar(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t; }
 // Contorno da ilha (retângulo de cantos arredondados), no plano x/z
 function formaDaIlha() {
@@ -5007,10 +5005,10 @@ function montarEspaco() {
   // ---- Megaestrutura: casco, fundo, módulos, reator e luzes de navegação (no lugar da rocha) ----
   const MEGA = megaestrutura(g, cx, cz);
   // ---- Anéis de luz em volta da ilha (por baixo da borda) ----
-  const anel = new T.Mesh(new T.TorusGeometry(176, 0.32, 10, 260), luzMat(COR3D.laranja, 1.25)); anel.rotation.x = Math.PI / 2; anel.position.set(cx, -30, cz); g.add(anel);
-  const anel2 = new T.Mesh(new T.TorusGeometry(184, 0.16, 8, 260), luzMat(0x38d6f5, 1.2)); anel2.rotation.x = Math.PI / 2; anel2.position.set(cx, -34, cz); g.add(anel2);
+  const anel = new T.Mesh(new T.TorusGeometry(150, 0.32, 10, 260), luzMat(COR3D.laranja, 1.25)); anel.rotation.x = Math.PI / 2; anel.position.set(cx, -30, cz); g.add(anel);
+  const anel2 = new T.Mesh(new T.TorusGeometry(158, 0.16, 8, 260), luzMat(0x38d6f5, 1.2)); anel2.rotation.x = Math.PI / 2; anel2.position.set(cx, -34, cz); g.add(anel2);
   { const K = novoLote(), mm = mat(0x3a414c, { roughness: 0.4, metalness: 0.7 });   // braços que seguram o anel
-    for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + Math.PI / 8, r0 = 112, x = cx + Math.cos(a) * (r0 + 176) / 2, z = cz + Math.sin(a) * (r0 + 176) / 2; K.add(G3.caixaC, mm, x, -30, z, 176 - r0 + 2, 0.7, 0.9, 0, -a, 0, false); }
+    for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + Math.PI / 8, r0 = 95, x = cx + Math.cos(a) * (r0 + 150) / 2, z = cz + Math.sin(a) * (r0 + 150) / 2; K.add(G3.caixaC, mm, x, -30, z, 150 - r0 + 2, 0.7, 0.9, 0, -a, 0, false); }
     K.montar(g, []); }
   // ---- Propulsores: quatro nos cantos e um grande na ponta da rocha ----
   const chamas = [], geoChama = new T.ConeGeometry(1, 1, 24, 1, true).rotateX(Math.PI).translate(0, -0.5, 0);   // boca larga em cima, ponta para baixo
@@ -5034,7 +5032,7 @@ function montarEspaco() {
   const texSome = texturaCanvas(8, 256, (q, w, h) => { const gr = q.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#000'); gr.addColorStop(0.45, '#333'); gr.addColorStop(1, '#fff'); q.fillStyle = gr; q.fillRect(0, 0, w, h); });
   const brilhoTex = texturaCanvas(256, 256, (q, w) => { const gr = q.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); q.fillStyle = gr; q.fillRect(0, 0, w, w); });
   const cachoeiras = [];
-  [[75, I.z1, 0], [-85, I.z0, Math.PI], [I.x1, 90, Math.PI / 2], [I.x0, 95, -Math.PI / 2], [I.x1, -105, Math.PI / 2]].forEach(([x, z, rot], k) => {
+  [[75, I.z1, 0], [-85, I.z0, Math.PI], [I.x1, 90, Math.PI / 2], [I.x0, 95, -Math.PI / 2], [I.x1, -70, Math.PI / 2]].forEach(([x, z, rot], k) => {
     const tx = texAgua.clone(); tx.needsUpdate = true; tx.repeat.set(1, 0.6);
     const m = new T.MeshBasicMaterial({ map: tx, alphaMap: texSome, color: 0x8fdcff, transparent: true, opacity: 0.6, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide, fog: false, toneMapped: false });   /* cascata de energia */
     const w = 5 + (k % 2) * 3, h = 80, ox = Math.sin(rot), oz = Math.cos(rot);
@@ -5056,16 +5054,7 @@ function montarEspaco() {
     /* (o anel de árvores em volta da cidade saiu: o chão em volta é o deck da plataforma) */
     K.montar(g, []);
   }
-  // ---- Pontes de entrada terminando em portais ----
-  const portais = [];
-  P.entradas.forEach((e) => {
-    const [fx, fz] = e.fora, emX = Math.abs(fx) > 140;
-    const grupo = new T.Group(); grupo.position.set(fx, 0, fz); grupo.rotation.y = emX ? Math.PI / 2 : 0; g.add(grupo);
-    // a ponte por baixo do trecho que sai da ilha, com filete laranja dos dois lados
-    const borda = emX ? (fx > 0 ? I.x1 : I.x0) : (fz > 0 ? I.z1 : I.z0), ponta = emX ? fx : fz, L = Math.abs(ponta - borda) + 3, meio = (ponta + borda) / 2;
-    const viga = new T.Mesh(G3.caixa, lado); viga.scale.set(emX ? L : 5.4, 1.4, emX ? 5.4 : L); viga.position.set(emX ? meio : fx, -1.45, emX ? fz : meio); g.add(viga);
-    [-1, 1].forEach((sd) => { const l = new T.Mesh(G3.caixa, luzMat(COR3D.laranja, 1.5)); l.scale.set(emX ? L : 0.1, 0.1, emX ? 0.1 : L); l.position.set(emX ? meio : fx + sd * 2.75, -0.1, emX ? fz + sd * 2.75 : meio); g.add(l); });
-  });
+  const portais = [];   /* as avenidas para o espaço saíram (sem pontes e sem portais) */
   // ---- Ilhotas flutuantes e o cinturão de asteroides ----
   const ilhotas = [];
   { const s4 = sorteio('ilhotas-rf');
@@ -6790,6 +6779,7 @@ function universoExtra(g, ceu, cz, ilhotas) {
   return A;
 }
 function passoUniverso(t) {
+  ((CAMPO.mundo && CAMPO.mundo.animadosRF) || []).forEach((f) => f(t));
   const A = CAMPO.universo; if (!A) return;
   A.naves.forEach((n) => { const d = ((t * n.vel + n.fase) % n.vao) - n.vao / 2; n.nave.position.copy(n.centro).addScaledVector(n.dir, d); });
   A.satelites.forEach((st) => { const a = t * st.vel + st.fase; st.sat.position.set(Math.cos(a) * st.raio, st.alt, 6 + Math.sin(a) * st.raio); st.sat.rotation.y = -a; });
@@ -6850,7 +6840,7 @@ function globoDaPraca(g, x, z) {
    No centro, os quarteirões que eram das empresas viram a cidade da Real Forte: torres de vidro com
    coroa de LED, prédios redondos, telões com gráficos, jardins no teto e heliponto.
    O mapa de onde dá para pisar passa a cobrir as ilhas e as pontes; o vazio entre elas é bloqueado. */
-const SATELITE = { raio: 232, raio2: 318, ilha: 36, porAnel: 12 };
+const SATELITE = { raio: 200, raio2: 285, ilha: 36, porAnel: 12 };
 function loteSatelite(k) {
   const anel = k < SATELITE.porAnel ? 0 : 1, n = SATELITE.porAnel, m = anel ? k - n : k, passo = Math.PI * 2 / n;
   const lado = m % 2 ? 1 : -1, a = Math.PI / 2 + lado * (passo / 2 + (2 + Math.floor(m / 2)) * passo) + anel * passo / 2;   // as primeiras nas laterais (a frente fica livre para a vista)   // ângulos fora dos eixos (lá ficam as pontes de entrada)
@@ -6903,11 +6893,11 @@ function materiaisDaMetropole() {
   (CAMPO.matsTorre = CAMPO.matsTorre || []).push([residencial, 0.9]);
   // Telões com gráficos (barras, linha e mapa) para as fachadas
   const tela = (desenhar) => { const t = new T.CanvasTexture(telaDe(512, 288, desenhar)); t.encoding = T.sRGBEncoding; t.anisotropy = 8; return new T.MeshBasicMaterial({ map: t, toneMapped: false }); };
-  const fundoTela = (g) => { const gr = g.createLinearGradient(0, 0, 512, 288); gr.addColorStop(0, '#071a33'); gr.addColorStop(1, '#0c2a52'); g.fillStyle = gr; g.fillRect(0, 0, 512, 288); g.strokeStyle = 'rgba(80,170,255,.18)'; for (let x = 0; x < 512; x += 32) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 288); g.stroke(); } for (let y = 0; y < 288; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke(); } g.strokeStyle = '#46b4ff'; g.lineWidth = 6; g.strokeRect(3, 3, 506, 282); };
+  const fundoTela = (g) => { const gr = g.createLinearGradient(0, 0, 512, 288); gr.addColorStop(0, '#0a2a5a'); gr.addColorStop(1, '#1450a0'); g.fillStyle = gr; g.fillRect(0, 0, 512, 288); g.strokeStyle = 'rgba(160,210,255,.08)'; for (let x = 0; x < 512; x += 32) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 288); g.stroke(); } for (let y = 0; y < 288; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke(); } g.strokeStyle = '#46b4ff'; g.lineWidth = 6; g.strokeRect(3, 3, 506, 282); };
   const telas = [
     tela((g) => { fundoTela(g); const v = [0.35, 0.5, 0.42, 0.66, 0.58, 0.8, 0.92]; v.forEach((h, i) => { g.fillStyle = i % 2 ? '#38b6ff' : '#ff8a3d'; g.fillRect(50 + i * 62, 250 - h * 200, 38, h * 200); }); }),
     tela((g) => { fundoTela(g); g.strokeStyle = '#7fe0ff'; g.lineWidth = 6; g.beginPath(); [[30, 230], [100, 190], [170, 205], [240, 140], [310, 160], [380, 90], [470, 50]].forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); g.fillStyle = '#ff8a3d'; g.beginPath(); g.moveTo(470, 30); g.lineTo(495, 60); g.lineTo(445, 60); g.fill(); }),
-    tela((g) => { fundoTela(g); const s = sorteio('mapa-tela'); for (let k = 0; k < 2600; k++) { const x = s() * 512, y = 30 + s() * 230; if (fbm3(x / 90, y / 90, 3.3, 3) > 0.55) { g.fillStyle = s() < 0.25 ? '#ff9a52' : '#5fd0ff'; g.fillRect(x, y, 3, 3); } } })
+    tela((g) => { fundoTela(g); g.fillStyle = '#fff'; g.font = '800 64px Arial'; g.textBaseline = 'middle'; g.fillText('REAL FORTE', 40, 110); g.fillStyle = '#ff9a52'; g.font = '500 30px Arial'; g.fillText('Diagnóstico · Estratégia · Resultados', 42, 175); g.fillStyle = '#ff8a3d'; g.fillRect(42, 215, 160, 8); })   // tela da marca (a de pontos parecia defeito)
   ];
   const vidros = [fachadaRepetida(4, 4, 0x1d3550, '#bfe3ff', 0.55, 0.9), fachadaRepetida(4, 4, 0x24506a, '#ffe2b0', 0.5, 0.85), fachadaRepetida(4, 4, 0xdfe3e8, '#ffe9c4', 0.5, 0.7), fachadaRepetida(4, 4, 0x2a2f38, '#ffcf8a', 0.6, 0.95)];
   return (CAMPO.matsMetropole = { residencial, telas, vidros, ledL: luzMat(COR3D.laranja, 1.6), ledA: luzMat(0x38b6ff, 1.6), teto: matTelhado(0x6f7680), escuro: revestido(mat(0x232a33, { roughness: 0.4, metalness: 0.6 }), 'chapa') });
@@ -6960,7 +6950,9 @@ function cidadeRealForte(W) {
     const b = loteDaEmpresa(k).b, C = P.CALC + 0.4;
     const x0 = b.x0 + C, x1 = b.x1 - C, z0 = b.z0 + C, z1 = b.z1 - C, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, tipo = MARCOS_DOS_LOTES[k], so = sorteio('quarteirao' + k);
     K.add(G3.caixa, P.mats.pedraClara, cx, 0.035, cz, x1 - x0, 0.03, z1 - z0, 0, 0, 0, false);
-    if (tipo) edificioMarco(tipo, K, g, W.extras, cx, cz, x1 - x0, z1 - z0, so, materiaisDaMetropole(), obst); else pracaDoQuarteirao(K, cx, cz, x1 - x0, z1 - z0, so, obst);   // poucos prédios, grandes e bonitos
+    if (tipo === 'terminal') alaDoTerminal(K, g, W, cx, cz, x1 - x0, z1 - z0, obst);   // o Terminal ocupa dois quarteirões
+    else if (['instituto', 'academia', 'pesquisa', 'auditorio', 'sinais', 'galeria', 'eventos'].includes(tipo)) edificioRF(tipo, K, g, W, cx, cz, x1 - x0, z1 - z0, obst);   // edifícios da Real Forte
+    else if (tipo) edificioMarco(tipo, K, g, W.extras, cx, cz, x1 - x0, z1 - z0, so, materiaisDaMetropole(), obst); else pracaDoQuarteirao(K, cx, cz, x1 - x0, z1 - z0, so, obst);
   }
   K.montar(g, W.extras);
   obst.forEach(([a0, a1, c0, c1]) => navBloquear(I, a0, a1, c0, c1));
@@ -6984,19 +6976,8 @@ function ilhaSatelite(W, L, ponte, il, daIlha) {
   // piso: calçada de pedra e um anel de grama na beira
   K.add(G3.cil64, V_pedra(), 0, -0.6, 0, R, 0.62, R);
   const grama = new T.Mesh(new T.RingGeometry(R - 5.5, R - 0.4, 96).rotateX(-Math.PI / 2), CAMPO.vida.grama); grama.position.y = 0.035; g.add(grama);
-  // bairro residencial em volta da empresa (fora do lado da ponte)
-  const giro = L.giro, c = Math.cos(giro), sn = Math.sin(giro), mundo = (ox, oz) => [ox * c + oz * sn, -ox * sn + oz * c];
-  const nPred = 7;
-  for (let q = 0; q < nPred; q++) {
-    const th = (40 + q * (280 / (nPred - 1))) * Math.PI / 180, r = 25.5, [x, z] = mundo(Math.sin(th) * r, Math.cos(th) * r), w = 4.2 + s() * 1.6, d = 4.2 + s() * 1.6, h = 5 + s() * 7;   // prédios de morar, mais baixos que a empresa em destaque
-    const pr = new T.Mesh(caixaUV(w, h, d, 6, 6), MM.residencial); pr.position.set(x, 0, z); pr.rotation.y = giro + th; pr.castShadow = pr.receiveShadow = true; g.add(pr); W.extras.push(pr.geometry);
-    K.add(G3.caixa, MM.teto, x, h, z, w + 0.3, 0.3, d + 0.3, 0, giro + th, 0);
-    if (s() < 0.6) { K.add(G3.caixa, CAMPO.vida.grama, x, h + 0.3, z, w * 0.7, 0.1, d * 0.7, 0, giro + th, 0, false); K.add(G3.copa, MP.copa, x, h + 0.9, z, 0.6, 0.7, 0.6, 0, q, 0); }
-    K.add(G3.caixa, q % 2 ? MM.ledL : MM.ledA, x, h + 0.32, z, w + 0.34, 0.06, d + 0.34, 0, giro + th, 0, false);
-    const e = Math.max(w, d) * 0.72; obst.push([L.cx + x - e, L.cx + x + e, L.cz + z - e, L.cz + z + e]);
-  }
-  for (let q = 0; q < 14; q++) { const th = (25 + q * 22) * Math.PI / 180, r = 31.5, [x, z] = mundo(Math.sin(th) * r, Math.cos(th) * r); K.add(G3.cil, MP.tronco, x, 0, z, 0.07, 0.7, 0.07); K.add(G3.copa, q % 2 ? MP.copa : MP.copa2, x, 1.15, z, 0.75, 0.85, 0.75, 0, q, 0); obst.push([L.cx + x - 0.3, L.cx + x + 0.3, L.cz + z - 0.3, L.cz + z + 0.3]); }
-  for (let q = 0; q < 10; q++) { const th = q / 10 * Math.PI * 2, [x, z] = mundo(Math.sin(th) * 20.5, Math.cos(th) * 20.5); K.add(G3.cil, MP.navy, x, 0, z, 0.05, 2.6, 0.05); K.add(G3.bola, MP.lampadaQuente, x, 2.6, z, 0.17, 0.17, 0.17, 0, 0, 0, false); }
+  const giro = L.giro;
+  bairroDaIlha(K, g, W, L, il, obst, s);   // residencial alto, prédios de serviço, anel viário, ipês e palmeiras
   if (!il) {   // ilha preparada para a próxima empresa
     const tex = texturaTexto(['ILHA PREPARADA', 'para a próxima empresa · Real Forte'], '#0f2342', '#ffffff', 640, 160); W.extras.push(tex);
     const pl = new T.Mesh(G3.placa, new T.MeshBasicMaterial({ map: tex, toneMapped: false })); pl.scale.set(6, 1.5, 1); pl.position.set(0, 2.2, 0); pl.rotation.y = giro; g.add(pl);
@@ -7009,6 +6990,7 @@ function ilhaSatelite(W, L, ponte, il, daIlha) {
   P(MS.chapa, -1.4, 0, 1.4, 5.6); P(MP.asfalto, 0.0, 0, 0.04, 2.6, false); P(V_pedra(), 0.0, 1.85, 0.05, 1.3, false); P(V_pedra(), 0.0, -1.85, 0.05, 1.3, false);
   [-2.65, 2.65].forEach((o) => { P(MP.vidroGuarda, 0.05, o, 1.0, 0.06, false); P(o > 0 ? MM.ledL : MM.ledA, 1.05, o, 0.06, 0.1, false); P(MM.ledA, -0.75, o * 1.05, 0.08, 0.08, false); });
   Kp.montar(gp, W.extras);
+  if (il) porticoBoasVindas(gp, W, il, ponte);   // "Bem-vindo" com a logo da empresa na chegada à cidade central
   obst.forEach(([a0, a1, c0, c1]) => navBloquear(new T.Matrix4(), a0, a1, c0, c1));
 }
 
@@ -7016,7 +6998,7 @@ function ilhaSatelite(W, L, ponte, il, daIlha) {
    Menos prédios, maiores e mais bonitos: sete quarteirões recebem um edifício-marco (cúpula de vidro,
    prédio redondo em terraços, cubo de vidro com telão, torres gêmeas com passarela, prédio em
    degraus com jardins e duas torres altas); os outros viram praças com jardim redondo. */
-const MARCOS_DOS_LOTES = ['cupula', 'redondo', 'cubo', 'gemeas', 'terracos', null, null, 'torre', 'torre', null, null, null, null, null, null];
+const MARCOS_DOS_LOTES = ['cupula', 'redondo', 'cubo', 'gemeas', 'terracos', 'eventos', 'galeria', 'torre', 'torre', 'terminal', 'instituto', 'sinais', 'auditorio', 'pesquisa', 'academia'];   // na ordem de PLANO.ORDEM_LOTES
 function ledContorno(K, led, x, y, z, w, d) {
   [[0, d / 2 + 0.05, w + 0.2, 0.1], [0, -d / 2 - 0.05, w + 0.2, 0.1], [w / 2 + 0.05, 0, 0.1, d + 0.2], [-w / 2 - 0.05, 0, 0.1, d + 0.2]].forEach(([ox, oz, ww, dd]) => K.add(G3.caixa, led, x + ox, y, z + oz, ww, 0.12, dd, 0, 0, 0, false));
 }
@@ -7096,6 +7078,314 @@ function torreMonumental(torre, T0, Y0) {
   [0, Math.PI / 2, Math.PI, -Math.PI / 2].forEach((r) => { const pl = new T.Mesh(G3.placa, mRF); pl.scale.set(4.4, 4.4, 1); pl.position.set(Math.sin(r) * 2.56, T0 + 17, Math.cos(r) * 2.56); pl.rotation.y = r; torre.add(pl); });
 }
 
+/* ---------- 16. Edifícios da Real Forte, Terminal ampliado, ilhas das empresas e pórticos de boas-vindas ----------
+   Placas desenhadas na hora (fundo grafite, filete laranja, ícone e texto), edifícios com nome e função
+   da consultoria (Instituto, Academia, Pesquisa e Inovação, Auditório, RF Sinais, Galeria dos Cases,
+   Centro de Eventos), a ala nova do Terminal no quarteirão ao lado e o pórtico "Bem-vindo" na chegada
+   de cada ponte. Tudo é cenário: não muda dado nenhum do painel. */
+function desenharIcone(q, tipo, x, y, s, cor) {
+  q.save(); q.translate(x, y); q.strokeStyle = cor; q.fillStyle = cor; q.lineWidth = s * 0.09; q.lineCap = 'round'; q.lineJoin = 'round';
+  const L = (pts) => { q.beginPath(); pts.forEach(([a, b], i) => (i ? q.lineTo(a * s, b * s) : q.moveTo(a * s, b * s))); q.stroke(); };
+  if (tipo === 'predios') { [[-0.45, 0.1, 0.25, 0.4], [-0.15, -0.25, 0.3, 0.75], [0.2, -0.05, 0.25, 0.55]].forEach(([a, b, w, h]) => q.strokeRect(a * s, b * s, w * s, h * s)); L([[-0.55, 0.5], [0.55, 0.5]]); }
+  else if (tipo === 'chapeu') { L([[-0.5, -0.05], [0, -0.3], [0.5, -0.05], [0, 0.2], [-0.5, -0.05]]); L([[-0.28, 0.08], [-0.28, 0.35], [0.28, 0.35], [0.28, 0.08]]); L([[0.45, -0.03], [0.45, 0.3]]); }
+  else if (tipo === 'frasco') { L([[-0.12, -0.45], [-0.12, -0.1], [-0.4, 0.4], [0.4, 0.4], [0.12, -0.1], [0.12, -0.45]]); L([[-0.2, -0.45], [0.2, -0.45]]); L([[-0.25, 0.15], [0.25, 0.15]]); }
+  else if (tipo === 'grafico') { [[-0.4, 0.2], [-0.12, 0.0], [0.16, -0.2], [0.44, -0.4]].forEach(([a, b]) => q.fillRect(a * s - s * 0.09, b * s, s * 0.18, (0.45 - b) * s)); L([[-0.5, 0.1], [-0.1, -0.15], [0.15, -0.05], [0.5, -0.45]]); }
+  else if (tipo === 'mais') { q.fillRect(-0.12 * s, -0.42 * s, 0.24 * s, 0.84 * s); q.fillRect(-0.42 * s, -0.12 * s, 0.84 * s, 0.24 * s); }
+  else if (tipo === 'engrenagem') { q.beginPath(); for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2, r = (k % 2 ? 0.32 : 0.45) * s; q.lineTo(Math.cos(a) * r, Math.sin(a) * r); } q.closePath(); q.stroke(); q.beginPath(); q.arc(0, 0, 0.14 * s, 0, Math.PI * 2); q.stroke(); }
+  else if (tipo === 'xicara') { q.strokeRect(-0.35 * s, -0.15 * s, 0.55 * s, 0.5 * s); q.beginPath(); q.arc(0.28 * s, 0.08 * s, 0.14 * s, -Math.PI / 2, Math.PI / 2); q.stroke(); L([[-0.2, -0.45], [-0.15, -0.28]]); L([[0, -0.45], [0.05, -0.28]]); }
+  else if (tipo === 'carrinho') { L([[-0.5, -0.35], [-0.35, -0.35], [-0.2, 0.2], [0.4, 0.2], [0.5, -0.2], [-0.3, -0.2]]); q.beginPath(); q.arc(-0.15 * s, 0.38 * s, 0.08 * s, 0, 7); q.arc(0.32 * s, 0.38 * s, 0.08 * s, 0, 7); q.fill(); }
+  else if (tipo === 'antena') { L([[0, 0.5], [0, -0.1]]); [0.2, 0.35, 0.5].forEach((r) => { q.beginPath(); q.arc(0, -0.15 * s, r * s, -Math.PI * 0.85, -Math.PI * 0.15); q.stroke(); }); }
+  else if (tipo === 'pessoas') { [[-0.3, 0], [0.3, 0], [0, -0.1]].forEach(([a, b]) => { q.beginPath(); q.arc(a * s, (b - 0.2) * s, 0.13 * s, 0, 7); q.stroke(); q.beginPath(); q.arc(a * s, (b + 0.35) * s, 0.22 * s, Math.PI, 0); q.stroke(); }); }
+  else if (tipo === 'estrela') { q.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k / 10 * Math.PI * 2, r = (k % 2 ? 0.2 : 0.48) * s; q.lineTo(Math.cos(a) * r, Math.sin(a) * r); } q.closePath(); q.stroke(); }
+  else if (tipo === 'onibus') { q.strokeRect(-0.45 * s, -0.35 * s, 0.9 * s, 0.6 * s); L([[-0.45, 0.0], [0.45, 0.0]]); q.beginPath(); q.arc(-0.25 * s, 0.35 * s, 0.09 * s, 0, 7); q.arc(0.25 * s, 0.35 * s, 0.09 * s, 0, 7); q.fill(); }
+  q.restore();
+}
+// Placa institucional: título grande, subtítulo e o ícone. Guarda pela chave (a mesma placa serve em todos os lugares)
+function texturaPlacaRF(titulo, sub, icone, w, h, claro) {
+  CAMPO.placasRF = CAMPO.placasRF || new Map();
+  const chave = [titulo, sub, icone, w, h, claro].join('|');
+  if (CAMPO.placasRF.has(chave)) return CAMPO.placasRF.get(chave);
+  const W = w || 1024, H = h || 384, c = telaDe(W, H, (q) => {
+    const gr = q.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, claro ? '#f4f6f9' : '#1a1f27'); gr.addColorStop(1, claro ? '#dfe3e8' : '#0b0e13'); q.fillStyle = gr; q.fillRect(0, 0, W, H);
+    q.strokeStyle = '#ff8a3d'; q.lineWidth = H * 0.025; q.strokeRect(H * 0.04, H * 0.04, W - H * 0.08, H - H * 0.08);
+    const alta = H > W * 0.5;   // placa alta: ícone em cima e o texto embaixo, centralizados
+    const tx = alta || !icone ? W / 2 : H * 0.95, larg = alta || !icone ? W * 0.86 : W - tx - H * 0.15, U = alta ? W * 0.5 : H;
+    if (icone) { if (alta) desenharIcone(q, icone, W / 2, H * 0.3, W * 0.3, '#ff8a3d'); else desenharIcone(q, icone, H * 0.5, H * 0.5, H * 0.55, '#ff8a3d'); }
+    q.fillStyle = claro ? '#0f2342' : '#ffffff'; q.textAlign = alta || !icone ? 'center' : 'left'; q.textBaseline = 'middle';
+    const yT = alta ? H * 0.62 : sub ? H * 0.42 : H * 0.5, yS = alta ? H * 0.8 : H * 0.72;
+    const partes = alta && titulo.split(' ').length > 2 ? [titulo.split(' ')[0], titulo.split(' ').slice(1).join(' ')] : [titulo];
+    let tam = U * 0.3; q.font = `800 ${tam}px Arial, sans-serif`; while (partes.some((t) => q.measureText(t).width > larg) && tam > 10) { tam *= 0.92; q.font = `800 ${tam}px Arial, sans-serif`; }
+    partes.forEach((t, i) => q.fillText(t, tx, yT + (i - (partes.length - 1) / 2) * tam * 1.05));
+    if (sub) { q.fillStyle = '#ff9a52'; let t2 = U * 0.13; q.font = `500 ${t2}px Arial, sans-serif`; while (q.measureText(sub).width > larg && t2 > 8) { t2 *= 0.92; q.font = `500 ${t2}px Arial, sans-serif`; } q.fillText(sub, tx, alta ? yS + tam * 0.4 : yS); }
+  });
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8;
+  const m = new THREE.MeshBasicMaterial({ map: t, toneMapped: false });
+  CAMPO.placasRF.set(chave, m); return m;
+}
+// Placa de pé ou na fachada: plano com a placa dos dois lados e um fundo escuro
+function placaRF(g, m, x, y, z, w, h, giro, comFundo) {
+  const pl = new THREE.Mesh(G3.placa, m); pl.scale.set(w, h, 1); pl.position.set(x + Math.sin(giro || 0) * 0.08, y, z + Math.cos(giro || 0) * 0.08); pl.rotation.y = giro || 0; g.add(pl);
+  if (comFundo) { const f = new THREE.Mesh(G3.caixaC, mat(0x101318, { roughness: 0.35, metalness: 0.6 })); f.scale.set(w + 0.3, h + 0.3, 0.14); f.position.set(x, y, z); f.rotation.y = giro || 0; g.add(f); }
+  return pl;
+}
+const VIDRO_QUENTE = () => CAMPO.vidroQuente || (CAMPO.vidroQuente = fachadaRepetida(4, 4, 0x30261c, '#ffcf8a', 0.85, 1.25));   // vidro com o interior aceso (luz quente)
+const BRONZE = () => luzMat(0xff9a40, 1.35);
+// Escultura: globo dourado com dois anéis (gira devagar)
+function esculturaGlobo(g, W, x, y, z, R) {
+  const T = THREE, gg = new T.Group(); gg.position.set(x, y, z); g.add(gg);
+  if (!CAMPO.texGloboRF) {
+    CAMPO.texGloboRF = new T.CanvasTexture(telaDe(512, 256, (q) => { q.fillStyle = '#10141c'; q.fillRect(0, 0, 512, 256); for (let k = 0; k < 9000; k++) { const u = Math.random(), v = Math.random(); const la = (v - 0.5) * Math.PI, lo = u * Math.PI * 2; if (fbm3(Math.cos(la) * Math.cos(lo) * 2 + 5, Math.sin(la) * 2 + 5, Math.cos(la) * Math.sin(lo) * 2 + 5, 4) > 0.53) { q.fillStyle = Math.random() < 0.7 ? '#ffb45c' : '#ffe0a8'; q.fillRect(u * 512, v * 256, 2, 2); } } }));
+    CAMPO.texGloboRF.encoding = T.sRGBEncoding;
+  }
+  const globo = new T.Mesh(new T.SphereGeometry(R, 40, 24), new T.MeshStandardMaterial({ map: CAMPO.texGloboRF, emissive: 0xffffff, emissiveMap: CAMPO.texGloboRF, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.4 })); globo.position.y = R; gg.add(globo);
+  W.extras.push(globo.geometry, globo.material);
+  const aneis = [[R * 1.35, 0.5, 0.2], [R * 1.5, -0.7, 1.2]].map(([r, incl, giro]) => { const pv = new T.Group(); pv.position.y = R; pv.rotation.set(incl, giro, 0); gg.add(pv); const an = new T.Mesh(new T.TorusGeometry(r, R * 0.07, 10, 80), new T.MeshStandardMaterial({ color: 0xc98a3e, roughness: 0.25, metalness: 1, envMap: CAMPO.ambiente, emissive: 0x6a3a10, emissiveIntensity: 0.6 })); an.rotation.x = Math.PI / 2; pv.add(an); W.extras.push(an.geometry, an.material); return pv; });
+  (W.animadosRF = W.animadosRF || []).push((t) => { globo.rotation.y = t * 0.15; aneis.forEach((a, k) => { a.rotation.y += 0.004 * (k ? -1 : 1); }); });
+  return gg;
+}
+// Fonte redonda com borda acesa
+function fonteRF(K, x, z, r) {
+  const MP = PLANO.mats; K.add(G3.cil64, MP.pedraBege, x, 0.04, z, r, 0.5, r); K.add(G3.cil64, MP.agua, x, 0.55, z, r - 0.25, 0.02, r - 0.25, 0, 0, 0, false); K.add(G3.toroFino, luzMat(COR3D.laranja, 1.6), x, 0.56, z, r, 30, r, 0, 0, 0, false);
+}
+function balizas(K, pts) { pts.forEach(([x, z]) => { K.add(G3.cil, mat(0x1a1d22), x, 0.04, z, 0.09, 0.8); K.add(G3.cil, luzMat(0xffc27a, 1.5), x, 0.75, z, 0.095, 0.1, 0.095, false); }); }
+function canteiroRF(K, x, z, w, d, flores) {
+  const MP = PLANO.mats; K.add(G3.caixa, mat(0x2a2f37), x, 0.04, z, w, 0.45, d); K.add(G3.caixa, CAMPO.vida.grama, x, 0.49, z, w - 0.2, 0.05, d - 0.2, 0, 0, 0, false);
+  for (let q = 0; q < Math.max(2, Math.floor(w / 1.2)); q++) K.add(G3.copa, q % 3 === 0 && flores ? mat(0xe887b5, { roughness: 0.8 }) : MP.sebe, x - w / 2 + 0.6 + q * 1.2, 0.75, z + ((q % 2) - 0.5) * d * 0.3, 0.45, 0.35, 0.45, 0, q, 0);
+}
+function arvoreRF(K, x, z, e, roxa) { const MP = PLANO.mats; K.add(G3.cil, MP.tronco, x, 0.04, z, 0.08 * e, 1.0 * e, 0.08 * e); K.add(G3.copa, roxa ? (CAMPO.matIpe || (CAMPO.matIpe = mat(0x9a6ad0, { roughness: 0.8 }))) : MP.copa, x, 1.5 * e, z, 0.9 * e, 1.0 * e, 0.9 * e, 0, x, 0); }
+function palmeira(K, x, z, h, y0) {
+  const MP = PLANO.mats, b = y0 == null ? 0.04 : y0; K.add(G3.cil, MP.tronco, x, b, z, 0.08, h, 0.08);
+  for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; K.add(G3.caixaC, MP.copa2, x + Math.cos(a) * 0.55, b + h + 0.05, z + Math.sin(a) * 0.55, 1.3, 0.05, 0.35, 0, -a, -0.35); }
+}
+/* Edifício institucional da Real Forte: corpo de vidro aceso por dentro, faixa grafite, marquise com
+   o arco de bronze, a placa com o nome e uma praça na frente. "forma": 'instituto', 'academia',
+   'pesquisa', 'auditorio', 'sinais', 'galeria', 'eventos'. A frente fica virada para +z. */
+function edificioRF(forma, K, g, W, cx, cz, LW, LD, obst) {
+  const T = THREE, MP = PLANO.mats, MM = materiaisDaMetropole(), vq = VIDRO_QUENTE(), graf = revestido(mat(0x1c2027, { roughness: 0.4, metalness: 0.5 }), 'concreto'), bronze = BRONZE();
+  const frente = cz + LD / 2, fundo = cz - LD / 2;
+  const praca = (z0) => { K.add(G3.caixa, MP.pedraClara, cx, 0.045, (z0 + frente) / 2, LW - 1, 0.03, frente - z0, 0, 0, 0, false); };
+  const placaFrente = (titulo, sub, icone, x, y, z, w) => placaRF(g, texturaPlacaRF(titulo, sub, icone), x, y, z, w, w * 0.375, 0, true);
+  const totem = (titulo, icone, x, z) => { K.add(G3.caixa, mat(0x101318, { roughness: 0.3, metalness: 0.6 }), x, 0.04, z, 1.6, 3.2, 0.4); K.add(G3.caixa, bronze, x + 0.82, 0.04, z, 0.05, 3.2, 0.42, 0, 0, 0, false); placaRF(g, texturaPlacaRF(titulo, '', icone, 512, 1024), x, 1.75, z + 0.21, 1.4, 2.8, 0, false); obst.push([x - 0.9, x + 0.9, z - 0.3, z + 0.3]); };
+  const corpo = (m, x, y, z, w, h, d) => { const me = caixaDeVidro(g, W.extras, m, x, y, z, w, h, d); return me; };
+  if (forma === 'instituto') {
+    // prédio largo de vidro com o interior aceso, grafite nas laterais, placa grande e o arco de bronze
+    const w = LW - 5, d = 11, h = 11, z = fundo + 2 + d / 2;
+    corpo(vq, cx, 0, z, w, h, d); K.add(G3.caixa, graf, cx, h, z, w + 0.4, 0.6, d + 0.4);
+    [-1, 1].forEach((s) => K.add(G3.caixa, graf, cx + s * (w / 2 - 1.2), 0, z, 2.4, h, d + 0.2));
+    for (let y = 3.6; y < h; y += 3.6) K.add(G3.caixa, graf, cx, y, z + d / 2 + 0.05, w - 4.8, 0.25, 0.3, 0, 0, 0, false);   // lajes
+    K.add(G3.caixa, mat(0x0d1015, { roughness: 0.3, metalness: 0.6 }), cx + 3, 3.8, z + d / 2 + 0.3, 9.4, 7.6, 0.5);
+    placaRF(g, texturaPlacaRF('INSTITUTO REAL FORTE', 'LIDERANÇA · GESTÃO · INOVAÇÃO', 'predios', 1024, 768), cx + 3, 7.6, z + d / 2 + 0.56, 8.8, 6.6, 0, false);
+    // arco de bronze: sobe do chão à esquerda, passa por cima e desce no fundo à direita
+    const arco = new T.CatmullRomCurve3([[cx - w / 2 - 1.5, 0, z + d / 2 + 2], [cx - w / 2 - 0.5, h * 0.7, z + d / 2 + 1.6], [cx - w / 4, h + 2.2, z + d / 2 + 1.0], [cx + w / 4, h + 2.6, z + d / 2], [cx + w / 2 + 0.8, h + 1.2, z - d / 4], [cx + w / 2 + 1.2, 0, z - d / 2]].map((p) => new T.Vector3(...p)));
+    const tubo = new T.Mesh(new T.TubeGeometry(arco, 80, 0.38, 10, false), bronze); g.add(tubo); W.extras.push(tubo.geometry);
+    const tubo2 = new T.Mesh(new T.TubeGeometry(arco, 80, 0.55, 10, false), new T.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.3, metalness: 0.9, envMap: CAMPO.ambiente })); tubo2.scale.set(1, 1, 1); tubo2.position.set(0, -0.15, -0.25); g.add(tubo2); W.extras.push(tubo2.geometry, tubo2.material);
+    // painel lateral com os pilares do instituto
+    K.add(G3.caixa, mat(0x101318, { roughness: 0.3, metalness: 0.6 }), cx + w / 2 + 2.6, 0.04, z + d / 2 - 1, 3.6, 5.2, 0.4);
+    const lista = new T.CanvasTexture(telaDe(384, 560, (q) => { q.fillStyle = '#0d1015'; q.fillRect(0, 0, 384, 560); [['chapeu', 'Educação Corporativa'], ['frasco', 'Pesquisa e Inovação'], ['pessoas', 'Desenvolvimento de Lideranças'], ['grafico', 'Impacto Empresarial']].forEach(([ic, t], i) => { const y = 80 + i * 125; desenharIcone(q, ic, 60, y, 60, '#ff9a52'); q.fillStyle = '#fff'; q.font = '600 26px Arial'; q.textBaseline = 'middle'; const p = t.split(' '); q.fillText(p[0], 110, y - 15); q.fillText(p.slice(1).join(' '), 110, y + 17); }); }));
+    lista.encoding = T.sRGBEncoding; W.extras.push(lista);
+    placaRF(g, new T.MeshBasicMaterial({ map: lista, toneMapped: false }), cx + w / 2 + 2.6, 2.7, z + d / 2 - 0.78, 3.2, 4.6, 0, false);
+    // bandeiras
+    [0, 1, 2].forEach((k) => { const x = cx + w / 2 + 5 + k * 1.1, zf = z + d / 2 + 3; K.add(G3.cil, mat(0xc9d0da, { metalness: 0.8, roughness: 0.3 }), x, 0.04, zf, 0.05, 7.5); K.add(G3.caixa, mat(0x14171d), x + 0.65, 5.6, zf, 1.2, 1.8, 0.04, 0, 0, 0, false); K.add(G3.caixa, bronze, x + 0.65, 6.0, zf + 0.03, 0.6, 0.12, 0.02, 0, 0, 0, false); });
+    praca(z + d / 2); fonteRF(K, cx - 3, frente - 6, 3.4); esculturaGlobo(g, W, cx - 3, 0.6, frente - 6, 1.2);
+    balizas(K, [[cx - 9, frente - 2], [cx - 5, frente - 1], [cx + 1, frente - 1], [cx + 5, frente - 2], [cx - 8, frente - 9], [cx + 2, frente - 9]]);
+    canteiroRF(K, cx - w / 2 + 1, frente - 2.5, 4, 1.4, true); canteiroRF(K, cx + w / 2 - 1, frente - 2.5, 4, 1.4, true);
+    arvoreRF(K, cx - w / 2 - 0.5, frente - 6, 1.1); arvoreRF(K, cx + w / 2 - 1, frente - 7, 1.0);
+    totem('INSTITUTO', 'predios', cx - LW / 2 + 2, frente - 1.5);
+    obst.push([cx - w / 2 - 2, cx + w / 2 + 4.6, z - d / 2 - 0.4, z + d / 2 + 0.8], [cx - 6.5, cx + 0.5, frente - 9.5, frente - 2.5]);
+  } else if (forma === 'academia') {
+    // pavilhão em forma de estádio (pontas redondas), dois andares de vidro e faixa branca entre eles
+    const w = LW - 9, d = 9, z = fundo + 3 + d / 2, h = 7.4;
+    corpo(vq, cx, 0, z, w - d, h, d);
+    [-1, 1].forEach((s) => { const c = new T.Mesh(cilindroUV(d / 2, h, 10.4, 12.8), vq); c.position.set(cx + s * (w - d) / 2, 0, z); c.castShadow = c.receiveShadow = true; g.add(c); W.extras.push(c.geometry); K.add(G3.cil64, MM.teto, cx + s * (w - d) / 2, h, z, d / 2 + 0.2, 0.4, d / 2 + 0.2); K.add(G3.cil64, mat(0xf2f4f7), cx + s * (w - d) / 2, 3.6, z, d / 2 + 0.25, 0.3, d / 2 + 0.25); });
+    K.add(G3.caixa, MM.teto, cx, h, z, w - d, 0.4, d + 0.4); K.add(G3.caixa, mat(0xf2f4f7), cx, 3.6, z, w - d, 0.3, d + 0.5);
+    K.add(G3.caixa, bronze, cx, h + 0.4, z + d / 2 + 0.2, w - d, 0.12, 0.08, 0, 0, 0, false);
+    for (let q = 0; q < 6; q++) K.add(G3.caixa, mat(0x1d3a7a, { roughness: 0.3, metalness: 0.7 }), cx - w / 3 + q * w / 7.5, h + 0.75, z, 1.6, 0.08, 2.4, 0.35, 0, 0, false);   // placas solares
+    placaFrente('ACADEMIA RF', 'EDUCAÇÃO CORPORATIVA', 'chapeu', cx, 5.6, z + d / 2 + 0.3, 7.2);
+    praca(z + d / 2); fonteRF(K, cx, frente - 5, 2.6); balizas(K, [[cx - 6, frente - 2], [cx + 6, frente - 2], [cx - 3, frente - 8], [cx + 3, frente - 8]]);
+    arvoreRF(K, cx - w / 2 + 1, frente - 3, 1.1, true); arvoreRF(K, cx + w / 2 - 1, frente - 3, 1.1, true); canteiroRF(K, cx, frente - 1.4, 8, 1.2, true);
+    obst.push([cx - w / 2 - 0.3, cx + w / 2 + 0.3, z - d / 2 - 0.3, z + d / 2 + 0.5], [cx - 2.8, cx + 2.8, frente - 7.8, frente - 2.2]);
+  } else if (forma === 'pesquisa') {
+    // tambor de vidro com aletas brancas em volta e cúpula no alto
+    const r = 7, h = 12, z = cz - 1;
+    const c = new T.Mesh(cilindroUV(r, h, 10.4, 12.8), MM.vidros[0]); c.position.set(cx, 0, z); c.castShadow = c.receiveShadow = true; g.add(c); W.extras.push(c.geometry);
+    for (let k = 0; k < 28; k++) { const a = k / 28 * Math.PI * 2; K.add(G3.caixa, mat(0xf2f4f7), cx + Math.cos(a) * (r + 0.35), 0, z + Math.sin(a) * (r + 0.35), 0.18, h, 0.7, 0, -a, 0); }
+    K.add(G3.cil64, MM.teto, cx, h, z, r + 0.6, 0.5, r + 0.6); K.add(G3.toroFino, luzMat(0x38b6ff, 1.6), cx, h + 0.5, z, r + 0.6, 40, r + 0.6, 0, 0, 0, false);
+    const vd = new T.MeshStandardMaterial({ color: 0xbfe0ff, transparent: true, opacity: 0.35, roughness: 0.05, metalness: 0.7, envMap: CAMPO.ambiente, depthWrite: false }); W.extras.push(vd);
+    const dome = new T.Mesh(new T.SphereGeometry(r * 0.6, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), vd); dome.position.set(cx, h + 0.5, z); g.add(dome); W.extras.push(dome.geometry);
+    placaFrente('PESQUISA E INOVAÇÃO', 'LABORATÓRIO REAL FORTE', 'frasco', cx, 2.6, z + r + 1.6, 6.4);
+    praca(z + r); balizas(K, [[cx - 7, frente - 2], [cx + 7, frente - 2]]); arvoreRF(K, cx - LW / 2 + 2.5, frente - 2.5, 1.1); arvoreRF(K, cx + LW / 2 - 2.5, frente - 2.5, 1.1);
+    obst.push([cx - r - 0.8, cx + r + 0.8, z - r - 0.8, z + r + 2.0]);
+  } else if (forma === 'auditorio' || forma === 'eventos') {
+    // auditório: telhado inclinado (cunha) em grafite com o filete aceso, frente toda de vidro
+    const w = LW - 6, d = 14, z = fundo + 2 + d / 2, hF = forma === 'eventos' ? 9 : 10.5, hT = 4;
+    const f = new T.Shape(); f.moveTo(-d / 2, 0); f.lineTo(d / 2, 0); f.lineTo(d / 2, hF); f.lineTo(-d / 2, hT); f.closePath();
+    const cunha = new T.Mesh(new T.ExtrudeGeometry(f, { depth: w, bevelEnabled: false }).translate(0, 0, -w / 2).rotateY(Math.PI / 2), graf); cunha.position.set(cx, 0, z); cunha.castShadow = cunha.receiveShadow = true; g.add(cunha); W.extras.push(cunha.geometry);
+    corpo(vq, cx, 0, z + d / 2 + 0.6, w - 2, hF - 1.4, 1.2);
+    K.add(G3.caixa, bronze, cx, hF + 0.05, z + d / 2 + 0.05, w + 0.2, 0.18, 0.18, 0, 0, 0, false);
+    [-1, 1].forEach((s) => K.add(G3.caixa, bronze, cx + s * (w / 2 + 0.05), 0, z + d / 2 + 0.05, 0.16, hF, 0.16, 0, 0, 0, false));
+    if (forma === 'eventos') placaFrente('CENTRO DE EVENTOS', 'REAL FORTE', 'estrela', cx, hF - 2.2, z + d / 2 + 1.3, 7);
+    else placaFrente('AUDITÓRIO REAL FORTE', 'LIDERANÇAS EM DEBATE', 'pessoas', cx, hF - 2.2, z + d / 2 + 1.3, 7.4);
+    K.add(G3.caixa, mat(0x2b3038), cx, 3.4, z + d / 2 + 2.4, w * 0.6, 0.18, 2.6); [-1, 1].forEach((s) => K.add(G3.cil, mat(0x2b3038), cx + s * w * 0.28, 0, z + d / 2 + 3.5, 0.08, 3.4));
+    praca(z + d / 2 + 1.2); balizas(K, [[cx - 8, frente - 2], [cx - 3, frente - 2], [cx + 3, frente - 2], [cx + 8, frente - 2]]);
+    canteiroRF(K, cx - 7, frente - 4.5, 5, 1.4, true); canteiroRF(K, cx + 7, frente - 4.5, 5, 1.4, true); arvoreRF(K, cx, frente - 3.5, 1.2, forma === 'eventos');
+    obst.push([cx - w / 2 - 0.3, cx + w / 2 + 0.3, z - d / 2 - 0.3, z + d / 2 + 1.4]);
+  } else if (forma === 'sinais') {
+    // torre de comunicação: fuste afilado, anéis acesos, pratos de antena e o pavilhão na base
+    const z = cz - 2, h = 46;
+    const fuste = new T.Mesh(new T.CylinderGeometry(0.9, 2.2, h, 24).translate(0, h / 2, 0), mat(0x1c2027, { roughness: 0.35, metalness: 0.7 })); fuste.position.set(cx, 0, z); fuste.castShadow = true; g.add(fuste); W.extras.push(fuste.geometry);
+    [12, 24, 34].forEach((y, k) => { const r = 2.2 - (y / h) * 1.3 + 0.9; K.add(G3.cil64, mat(0xe6e9ee), cx, y, z, r + 1.2, 0.5, r + 1.2); K.add(G3.toroFino, k % 2 ? luzMat(0x38b6ff, 1.6) : BRONZE(), cx, y + 0.52, z, r + 1.2, 40, r + 1.2, 0, 0, 0, false); });
+    const prato = G3.prato || (G3.prato = new T.SphereGeometry(1, 24, 10, 0, Math.PI * 2, 0, Math.PI * 0.32));
+    [[0, 26, 1.8], [2.1, 36, 1.3], [-2.4, 18, 1.5]].forEach(([a, y, s]) => { const p = new T.Mesh(prato, mat(0xf2f4f7, { roughness: 0.4 })); p.scale.setScalar(s); p.position.set(cx + Math.cos(a) * 2.3, y, z + Math.sin(a) * 2.3); p.rotation.set(0, -a, Math.PI / 2); g.add(p); });
+    K.add(G3.cil, mat(0xc9d0da), cx, h, z, 0.12, 8); brilho(g, 0xff3b30, 2.4, cx, h + 8.2, z, 0.95);
+    const base = new T.Mesh(cilindroUV(6, 4.5, 10.4, 12.8), vq); base.position.set(cx, 0, z); base.castShadow = true; g.add(base); W.extras.push(base.geometry); K.add(G3.cil64, MM.teto, cx, 4.5, z, 6.3, 0.4, 6.3); K.add(G3.toroFino, BRONZE(), cx, 4.9, z, 6.3, 40, 6.3, 0, 0, 0, false);
+    placaFrente('RF SINAIS', 'MONITORAMENTO E ALERTAS', 'antena', cx, 2.3, z + 7.6, 6);
+    praca(z + 6); balizas(K, [[cx - 6, frente - 2], [cx + 6, frente - 2], [cx - 8, cz], [cx + 8, cz]]); arvoreRF(K, cx - LW / 2 + 2.5, frente - 2.5, 1.1); arvoreRF(K, cx + LW / 2 - 2.5, frente - 2.5, 1.1);
+    obst.push([cx - 6.4, cx + 6.4, z - 6.4, z + 8.0]);
+  } else if (forma === 'galeria') {
+    // galeria dos cases: corpo baixo e comprido com telhado em dente de serra e telão
+    const w = LW - 5, d = 10, z = fundo + 3 + d / 2, h = 6;
+    corpo(MM.vidros[2], cx, 0, z, w, h, d); K.add(G3.caixa, MM.teto, cx, h, z, w + 0.3, 0.3, d + 0.3);
+    for (let k = 0; k < 6; k++) { const x = cx - w / 2 + w / 12 + k * w / 6; const f = new T.Shape(); f.moveTo(-w / 12, 0); f.lineTo(w / 12, 0); f.lineTo(w / 12, 2.2); f.closePath(); const dente = new T.Mesh(new T.ExtrudeGeometry(f, { depth: d, bevelEnabled: false }).translate(0, 0, -d / 2), graf); dente.position.set(x, h + 0.3, z); dente.castShadow = true; g.add(dente); W.extras.push(dente.geometry); }
+    telaoNaFachada(g, K, MM, 1, cx - w / 4, h * 0.55, z + d / 2, 6.5);
+    placaFrente('GALERIA DOS CASES', 'RESULTADOS QUE INSPIRAM', 'grafico', cx + w / 4, h * 0.55, z + d / 2 + 0.2, 6);
+    praca(z + d / 2); fonteRF(K, cx, frente - 5, 2.2); balizas(K, [[cx - 7, frente - 2], [cx + 7, frente - 2]]); arvoreRF(K, cx - w / 2 + 1, frente - 3, 1.1, true); arvoreRF(K, cx + w / 2 - 1, frente - 3, 1.1, true);
+    obst.push([cx - w / 2 - 0.3, cx + w / 2 + 0.3, z - d / 2 - 0.3, z + d / 2 + 0.5], [cx - 2.4, cx + 2.4, frente - 7.4, frente - 2.6]);
+  }
+}
+// Ala nova do Terminal da Real Forte (no quarteirão ao lado do Terminal): saguão em arco de vidro com o
+// arco laranja, telão curvo REAL FORTE VISION, plataformas 01 a 03 com shuttles, praça com a escultura,
+// totem de direções e a placa de boas-vindas à cidade.
+function alaDoTerminal(K, g, W, cx, cz, LW, LD, obst) {
+  const T = THREE, frente = cz + LD / 2, fundo = cz - LD / 2, bronze = luzMat(COR3D.laranja, 1.7), metal = mat(0xd5dbe3, { roughness: 0.3, metalness: 0.8 });
+  // saguão: abóbada de vidro (meio cilindro deitado no x) com as costelas de metal e o arco laranja na frente
+  const R = 8, L = LW - 9, x0 = cx - 2.5, z = fundo + R + 1;
+  const vidro = new T.MeshStandardMaterial({ color: 0xbcd6f2, transparent: true, opacity: 0.3, roughness: 0.05, metalness: 0.7, envMap: CAMPO.ambiente, envMapIntensity: 1.3, depthWrite: false, side: T.DoubleSide }); W.extras.push(vidro);
+  const abobada = new T.Mesh(new T.CylinderGeometry(R, R, L, 40, 1, true, -Math.PI / 2, Math.PI).rotateZ(Math.PI / 2), vidro); abobada.position.set(x0, 0, z); g.add(abobada); W.extras.push(abobada.geometry);
+  const costela = new T.TorusGeometry(R, 0.12, 6, 40, Math.PI); W.extras.push(costela);
+  for (let k = 0; k <= 6; k++) { const c = new T.Mesh(costela, metal); c.rotation.y = Math.PI / 2; c.position.set(x0 - L / 2 + k * L / 6, 0, z); g.add(c); }
+  const arcoF = new T.Mesh(new T.TorusGeometry(R + 0.6, 0.55, 12, 60, Math.PI), bronze); arcoF.position.set(x0 + L / 2 + 0.4, 0, z); arcoF.rotation.y = Math.PI / 2; g.add(arcoF); W.extras.push(arcoF.geometry);
+  const arcoF2 = new T.Mesh(new T.TorusGeometry(R + 0.6, 0.55, 12, 60, Math.PI), bronze); arcoF2.position.set(x0 - L / 2 - 0.4, 0, z); arcoF2.rotation.y = Math.PI / 2; g.add(arcoF2);
+  // fachada de vidro aceso por dentro, na frente (lado +z da abóbada), e o letreiro
+  caixaDeVidro(g, W.extras, VIDRO_QUENTE(), x0, 0, z + R - 1.4, L - 2, 5.2, 1.2);
+  K.add(G3.caixa, mat(0x14171d, { roughness: 0.3, metalness: 0.6 }), x0, 5.2, z + R - 0.9, L - 1, 1.8, 0.4);
+  placaRF(g, texturaPlacaRF('TERMINAL DA REAL FORTE', 'ALA LESTE · EMBARQUE PARA AS EMPRESAS', 'onibus', 1536, 256), x0, 6.1, z + R - 0.68, L - 1.6, (L - 1.6) / 6, 0, false);
+  K.add(G3.caixa, MP_PISO(), x0, 0.05, z, L, 0.04, 2 * R, 0, 0, 0, false);
+  obst.push([x0 - L / 2 - 1, x0 + L / 2 + 1, z - R, z + R - 0.6]);
+  // telão curvo REAL FORTE VISION (abraça a ponta direita do saguão)
+  if (!CAMPO.matVision) {
+    const c = telaDe(1536, 384, (q) => { const gr = q.createLinearGradient(0, 0, 1536, 0); gr.addColorStop(0, '#061a44'); gr.addColorStop(1, '#0b3b8f'); q.fillStyle = gr; q.fillRect(0, 0, 1536, 384);
+      q.strokeStyle = '#46b4ff'; q.lineWidth = 6; q.beginPath(); for (let x = 0; x <= 1536; x += 8) q.lineTo(x, 270 + Math.sin(x / 90) * 40 + Math.sin(x / 31) * 10); q.stroke();
+      for (let k = 0; k < 14; k++) { const x = 900 + k * 40, h = 60 + Math.random() * 160; q.strokeStyle = 'rgba(120,200,255,.9)'; q.lineWidth = 3; q.strokeRect(x, 300 - h, 26, h); }
+      q.fillStyle = '#fff'; q.font = '800 110px Arial'; q.textBaseline = 'middle'; q.fillText('REAL FORTE', 90, 140); q.fillStyle = '#ff9a52'; q.fillText('VISION', 90, 250); });
+    const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 8; CAMPO.matVision = new T.MeshBasicMaterial({ map: t, toneMapped: false, side: T.DoubleSide });
+  }
+  const RV = 9, curva = new T.Mesh(new T.CylinderGeometry(RV, RV, 4.4, 40, 1, true, Math.PI * 0.12, Math.PI * 0.5).translate(0, 2.2, 0), CAMPO.matVision); curva.position.set(x0 + L / 2 - 1, 2.0, z - 2); curva.rotation.y = Math.PI; curva.scale.x = -1;   // lido do lado de fora g.add(curva); W.extras.push(curva.geometry);
+  // plataformas 01 a 03 no lado direito, com cobertura, número aceso e um shuttle parado
+  const xp = cx + LW / 2 - 3.2, M = modelosDeVeiculo().capsula;
+  [0, 1, 2].forEach((k) => {
+    const zp = fundo + 4 + k * 6.2;
+    K.add(G3.caixa, MP_PISO(), xp - 1.6, 0.04, zp, 2.4, 0.25, 5.4); K.add(G3.caixa, metal, xp - 1.6, 3.2, zp, 3.2, 0.12, 5.6);
+    K.add(G3.caixa, bronze, xp - 0.05, 3.32, zp, 0.08, 0.06, 5.6, 0, 0, 0, false); [-2.4, 2.4].forEach((o) => K.add(G3.cil, metal, xp - 2.9, 0, zp + o, 0.07, 3.2));
+    K.add(G3.caixa, mat(0x14171d), xp - 2.9, 3.4, zp, 0.2, 0.9, 1.1);
+    placaRF(g, texturaPlacaRF('0' + (k + 1), '', null, 256, 256), xp - 2.78, 3.85, zp, 0.8, 0.8, Math.PI / 2, false);
+    const bus = new T.Mesh(M.geoBase, matDeVeiculo()); bus.position.set(xp + 0.9, 0, zp); bus.rotation.y = Math.PI / 2; bus.scale.setScalar(1.3); bus.castShadow = true; g.add(bus);
+    obst.push([xp - 3.0, xp + 2.2, zp - 2.8, zp + 2.8]);
+  });
+  // praça da frente: fonte com a escultura de anéis, caminhos de luz, totem e placa de boas-vindas
+  const xs = cx - 5, zs = frente - 6;
+  fonteRF(K, xs, zs, 3.6);
+  const anelM = new T.MeshStandardMaterial({ color: 0xdfe5ec, roughness: 0.15, metalness: 1, envMap: CAMPO.ambiente, envMapIntensity: 1.3 }); W.extras.push(anelM);
+  const anel1 = new T.Mesh(new T.TorusGeometry(1.9, 0.18, 12, 60), anelM); anel1.position.set(xs, 2.6, zs); g.add(anel1);
+  const anel2 = new T.Mesh(new T.TorusGeometry(2.1, 0.2, 12, 60), bronze); anel2.position.set(xs, 2.4, zs); anel2.rotation.set(Math.PI / 2.4, 0.4, 0); g.add(anel2);
+  [[-0.6, 1.4], [-0.1, 2.2], [0.5, 1.7]].forEach(([dx, h]) => K.add(G3.caixa, luzMat(0xf2f6ff, 1.2), xs + dx, 1.3, zs, 0.38, h, 0.1, 0, 0, 0, false));
+  (W.animadosRF = W.animadosRF || []).push((t) => { anel1.rotation.y = t * 0.3; anel2.rotation.z = t * 0.2; });
+  W.extras.push(anel1.geometry, anel2.geometry);
+  [[0.0, Math.PI * 0.55, 6], [Math.PI * 0.9, Math.PI * 0.5, 7.5]].forEach(([a0, comp, r]) => { const fio = new T.Mesh(new T.RingGeometry(r - 0.06, r + 0.06, 48, 1, a0, comp).rotateX(-Math.PI / 2), luzMat(0xffb060, 1.5)); fio.position.set(xs, 0.08, zs); g.add(fio); W.extras.push(fio.geometry); });
+  K.add(G3.caixa, mat(0x101318, { roughness: 0.3, metalness: 0.6 }), cx - LW / 2 + 2.2, 0.04, frente - 2.5, 1.8, 4.2, 0.45); K.add(G3.caixa, bronze, cx - LW / 2 + 3.15, 0.04, frente - 2.5, 0.06, 4.2, 0.47, 0, 0, 0, false);
+  if (!CAMPO.matDirecoes) { const c = telaDe(384, 900, (q) => { q.fillStyle = '#0d1015'; q.fillRect(0, 0, 384, 900); q.fillStyle = '#fff'; q.font = '800 46px Arial'; q.textAlign = 'center'; q.fillText('REAL FORTE', 192, 110); q.fillStyle = '#ff9a52'; q.font = '500 26px Arial'; q.fillText('CONSULTORIA', 192, 150);
+    [['onibus', 'Terminal'], ['predios', 'Empresas'], ['frasco', 'Real Forte Lab'], ['chapeu', 'Academia RF'], ['estrela', 'Praça Central']].forEach(([ic, t], i) => { const y = 260 + i * 120; q.fillStyle = 'rgba(255,255,255,.07)'; q.fillRect(24, y - 44, 336, 88); desenharIcone(q, ic, 70, y, 46, '#ff9a52'); q.fillStyle = '#fff'; q.font = '600 30px Arial'; q.textAlign = 'left'; q.fillText(t, 112, y + 10); q.fillText('→', 320, y + 10); q.textAlign = 'center'; }); });
+    const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 8; CAMPO.matDirecoes = new T.MeshBasicMaterial({ map: t, toneMapped: false }); }
+  placaRF(g, CAMPO.matDirecoes, cx - LW / 2 + 2.2, 2.15, frente - 2.27, 1.6, 3.75, 0, false); obst.push([cx - LW / 2 + 1.2, cx - LW / 2 + 3.3, frente - 2.8, frente - 2.2]);
+  const bv = texturaPlacaRF('BEM-VINDO À CIDADE REAL FORTE', 'CONSULTORIA · INOVAÇÃO · CONEXÃO', null, 1536, 384);
+  K.add(G3.caixa, mat(0x2a2f37), cx + LW / 2 - 7, 0.04, frente - 1.6, 9, 0.5, 1.6); canteiroRF(K, cx + LW / 2 - 7, frente - 0.9, 9, 0.8, true);
+  placaRF(g, bv, cx + LW / 2 - 7, 1.7, frente - 1.9, 8, 2, 0, true); obst.push([cx + LW / 2 - 11.6, cx + LW / 2 - 2.4, frente - 2.4, frente - 0.4]);
+  balizas(K, [[xs - 5, zs + 4], [xs + 5, zs + 4], [xs - 5.5, zs - 2], [xs + 5.5, zs - 2]]);
+  arvoreRF(K, cx - LW / 2 + 2.5, frente - 8, 1.2); arvoreRF(K, xs + 7, frente - 2.5, 1.0);
+  obst.push([xs - 3.8, xs + 3.8, zs - 3.8, zs + 3.8]);
+}
+const MP_PISO = () => PLANO.mats.pedraClara;
+// Pórtico "Bem-vindo" na chegada de cada ponte à cidade central, com a logo (ou o nome) da empresa
+function texturaBoasVindas(il) {
+  const T = THREE, c = document.createElement('canvas'); c.width = 1536; c.height = 384; const q = c.getContext('2d'), D = il.dados || {};
+  const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 8;
+  const desenhar = (img) => {
+    const gr = q.createLinearGradient(0, 0, 0, 384); gr.addColorStop(0, '#1a1f27'); gr.addColorStop(1, '#090b0f'); q.fillStyle = gr; q.fillRect(0, 0, 1536, 384);
+    q.fillStyle = '#ff8a3d'; q.fillRect(0, 0, 1536, 10); q.fillRect(0, 374, 1536, 10);
+    q.fillStyle = '#fff'; q.textBaseline = 'middle'; q.font = '800 120px Arial, sans-serif'; q.fillText('BEM-VINDO', 70, 150);
+    q.fillStyle = '#ff9a52'; q.font = '500 44px Arial, sans-serif'; q.fillText('à Cidade Real Forte', 76, 270);
+    const x0 = 820, w = 650, h = 300;
+    q.fillStyle = '#ffffff'; q.beginPath(); q.roundRect ? q.roundRect(x0, 42, w, h, 28) : q.rect(x0, 42, w, h); q.fill();
+    if (img) { const k = Math.min((w - 60) / img.width, (h - 60) / img.height); q.drawImage(img, x0 + (w - img.width * k) / 2, 42 + (h - img.height * k) / 2, img.width * k, img.height * k); }
+    else { q.fillStyle = '#0f2342'; let tam = 90; q.font = `800 ${tam}px Arial`; const nome = String(D.nome || 'Empresa'); while (q.measureText(nome).width > w - 60 && tam > 20) { tam *= 0.9; q.font = `800 ${tam}px Arial`; } q.textAlign = 'center'; q.fillText(nome, x0 + w / 2, 42 + h / 2); q.textAlign = 'left'; }
+    t.needsUpdate = true;
+  };
+  desenhar(null);
+  if (D.logo) { const img = new Image(); img.onload = () => desenhar(img); img.src = D.logo; }
+  return t;
+}
+function porticoBoasVindas(g, W, il, ponte) {
+  const T = THREE, x = ponte.x1 + ponte.ux * 3.5, z = ponte.z1 + ponte.uz * 3.5, gp = new T.Group(); gp.position.set(x, 0, z); gp.rotation.y = Math.atan2(-ponte.ux, -ponte.uz); g.add(gp);
+  const graf = mat(0x14171d, { roughness: 0.3, metalness: 0.65 }), laranja = luzMat(COR3D.laranja, 1.8), azul = luzMat(0x38b6ff, 1.6);
+  [-1, 1].forEach((s) => { caixa(gp, 0.9, 7.6, 0.9, graf, s * 4.75, 0, 0); caixa(gp, 0.12, 7.6, 0.95, laranja, s * 4.75 - s * 0.47, 0, 0).castShadow = false; caixa(gp, 1.4, 0.3, 1.4, graf, s * 4.75, 0, 0); });
+  caixa(gp, 10.4, 2.6, 0.5, graf, 0, 5.0, 0); caixa(gp, 10.5, 0.1, 0.6, laranja, 0, 7.6, 0).castShadow = false; caixa(gp, 10.5, 0.08, 0.6, azul, 0, 4.92, 0).castShadow = false;
+  const tex = texturaBoasVindas(il); W.extras.push(tex);
+  const m = new T.MeshBasicMaterial({ map: tex, toneMapped: false }); W.extras.push(m);
+  const frente = new T.Mesh(G3.placa, m); frente.scale.set(8.2, 2.05, 1); frente.position.set(0, 6.3, 0.27); gp.add(frente);
+  const costas = texturaPlacaRF(String((il.dados && il.dados.nome) || 'Empresa').toUpperCase(), 'SIGA PELA PONTE ATÉ A EMPRESA', 'predios', 1536, 384);
+  const tr = new T.Mesh(G3.placa, costas); tr.scale.set(8.2, 2.05, 1); tr.position.set(0, 6.3, -0.27); tr.rotation.y = Math.PI; gp.add(tr);
+  const I = new T.Matrix4(); [-1, 1].forEach((s) => { const px = x + Math.cos(gp.rotation.y) * s * 4.75, pz = z - Math.sin(gp.rotation.y) * s * 4.75; navBloquear(I, px - 0.6, px + 0.6, pz - 0.6, pz + 0.6); });
+  return gp;
+}
+// Mini-cidade de cada ilha: residencial alto com piscina no teto, prédios de serviço com ícone, anel viário, ipês e palmeiras
+function bairroDaIlha(K, g, W, L, il, obst, s) {
+  const T = THREE, MP = PLANO.mats, MM = materiaisDaMetropole(), giro = L.giro, c = Math.cos(giro), sn = Math.sin(giro), mundo = (ox, oz) => [ox * c + oz * sn, -ox * sn + oz * c];
+  const pol = (th, r) => mundo(Math.sin(th) * r, Math.cos(th) * r), bloq = (x, z, e) => obst.push([L.cx + x - e, L.cx + x + e, L.cz + z - e, L.cz + z + e]);
+  // anel viário com faixa tracejada e meio-fio aceso
+  const anel = new T.Mesh(new T.RingGeometry(18.4, 21.8, 96).rotateX(-Math.PI / 2), MP.asfalto); anel.position.y = 0.045; anel.receiveShadow = true; g.add(anel); W.extras.push(anel.geometry);
+  for (let k = 0; k < 48; k++) { const th = k / 48 * Math.PI * 2, [x, z] = pol(th, 20.1); K.add(G3.caixa, MP.faixa, x, 0.06, z, 0.8, 0.01, 0.12, 0, giro + th + Math.PI / 2, 0, false); }
+  K.add(G3.toroFino, luzMat(COR3D.laranja, 1.4), 0, 0.08, 0, 21.9, 30, 21.9, 0, 0, 0, false); K.add(G3.toroFino, luzMat(0x38b6ff, 1.3), 0, 0.08, 0, 18.3, 30, 18.3, 0, 0, 0, false);
+  for (let k = 0; k < 16; k++) { const th = (k + 0.5) / 16 * Math.PI * 2; if (Math.abs(Math.sin(th / 2)) < 0.2) continue; const [x, z] = pol(th, 22.6); K.add(G3.cil, MP.navy, x, 0, z, 0.05, 2.8, 0.05); K.add(G3.bola, MP.lampadaQuente, x, 2.8, z, 0.18, 0.18, 0.18, 0, 0, 0, false); }
+  // residencial alto no fundo: varandas brancas, filetes quentes, lobby de vidro e a cobertura com piscina e palmeiras
+  { const th = Math.PI, r = 27, [x, z] = pol(th, r), w = 11, d = 8, h = 30, rot = giro + th;
+    const pr = new T.Mesh(caixaUV(w, h, d, 6, 6), MM.residencial); pr.position.set(x, 0, z); pr.rotation.y = rot; pr.castShadow = pr.receiveShadow = true; g.add(pr); W.extras.push(pr.geometry);
+    for (let y = 3.5; y < h; y += 3) K.add(G3.caixa, mat(0xf2f0eb, { roughness: 0.6 }), x, y, z, w + 0.9, 0.22, d + 0.9, 0, rot, 0);
+    const cr = Math.cos(rot), sr = Math.sin(rot), loc = (ox, oz) => [x + ox * cr + oz * sr, z - ox * sr + oz * cr];
+    [[-w / 2 - 0.47, d / 2 + 0.47], [w / 2 + 0.47, d / 2 + 0.47], [-w / 2 - 0.47, -d / 2 - 0.47], [w / 2 + 0.47, -d / 2 - 0.47]].forEach(([ox, oz]) => { const [px, pz] = loc(ox, oz); K.add(G3.caixa, luzMat(0xffc27a, 1.5), px, 0.5, pz, 0.1, h - 0.5, 0.1, 0, rot, 0, false); });
+    K.add(G3.caixa, MM.teto, x, h, z, w + 0.4, 0.4, d + 0.4, 0, rot, 0);
+    { const [px, pz] = loc(-1.2, 0); K.add(G3.caixa, MP.agua, px, h + 0.42, pz, 5, 0.12, 3.6, 0, rot, 0, false); K.add(G3.caixa, luzMat(0x5fd0ff, 1.2), px, h + 0.4, pz, 5.2, 0.08, 3.8, 0, rot, 0, false); }
+    [[3.6, 2.4], [3.6, -2.4], [-4.6, 2.8], [-4.6, -2.8]].forEach(([ox, oz]) => { const [px, pz] = loc(ox, oz); palmeira(K, px, pz, 2.2, h + 0.4); });
+    { const [px, pz] = loc(0, d / 2 + 1.4); K.add(G3.caixa, VIDRO_QUENTE(), px, 0, pz, w * 0.7, 3.2, 1.6, 0, rot, 0); K.add(G3.caixa, mat(0x2b3038), px, 3.2, pz, w * 0.8, 0.2, 3.0, 0, rot, 0); }
+    bloq(x, z, Math.max(w, d) * 0.62 + 0.6);
+  }
+  // prédios de serviço em volta (cada um com o seu ícone)
+  const SERV = [[1.15, 'grafico', 'caixa'], [-1.15, 'chapeu', 'redondo'], [1.95, 'mais', 'caixa'], [-1.95, 'xicara', 'redondo'], [2.55, 'engrenagem', 'caixa'], [-2.55, 'carrinho', 'caixa']];
+  SERV.forEach(([th, icone, forma], k) => {
+    const r = 27, [x, z] = pol(th, r), rot = giro + th, h = 4.5 + (k % 3) * 1.2;
+    if (forma === 'redondo') { const cy = new T.Mesh(cilindroUV(3.4, h, 10.4, 12.8), VIDRO_QUENTE()); cy.position.set(x, 0, z); cy.castShadow = cy.receiveShadow = true; g.add(cy); W.extras.push(cy.geometry); K.add(G3.cil64, mat(0xeceae4), x, h, z, 3.7, 0.5, 3.7); K.add(G3.cil64, mat(0xeceae4), x, 2.2, z, 3.65, 0.25, 3.65); }
+    else { const bx = new T.Mesh(caixaUV(7, h, 5.2, 10.4, 12.8), k % 2 ? MM.vidros[2] : VIDRO_QUENTE()); bx.position.set(x, 0, z); bx.rotation.y = rot; bx.castShadow = bx.receiveShadow = true; g.add(bx); W.extras.push(bx.geometry); K.add(G3.caixa, mat(0xeceae4), x, h, z, 7.4, 0.45, 5.6, 0, rot, 0);
+      for (let q = 0; q < 3; q++) { const cr = Math.cos(rot), sr = Math.sin(rot), ox = -2.2 + q * 2.2; K.add(G3.caixa, mat(0x1d3a7a, { roughness: 0.3, metalness: 0.7 }), x + ox * cr, h + 0.6, z - ox * sr, 1.8, 0.08, 2.8, 0.3, rot, 0, false); } }
+    // placa com o ícone virada para o anel viário (para dentro)
+    const [px, pz] = pol(th, r - (forma === 'redondo' ? 3.5 : 2.7)); placaRF(g, texturaPlacaRF('', '', icone, 256, 256), px, h - 1.3, pz, 1.6, 1.6, rot + Math.PI, true);
+    bloq(x, z, 4.2);
+    // mesas com guarda-sol do lado do café
+    if (icone === 'xicara') for (let q = 0; q < 3; q++) { const [mx, mz] = pol(th + 0.16 + q * 0.09, r - 5.4); K.add(G3.cil, mat(0xf4f6fa), mx, 0, mz, 0.35, 0.7); K.add(G3.cil, mat(0x2b3446), mx, 0.7, mz, 0.03, 1.3, false); K.add(G3.cone, mat(0xff8a3d), mx, 1.9, mz, 0.9, 0.3); }
+  });
+  // ipês e palmeiras entre os prédios e na beira
+  for (let k = 0; k < 18; k++) { const th = (k + 0.5) / 18 * Math.PI * 2, [x, z] = pol(th, 32.3); if (Math.abs(Math.sin(th / 2)) < 0.15) continue; if (k % 3 === 0) palmeira(K, x, z, 2.6); else arvoreRF(K, x, z, 0.9 + s() * 0.3, k % 3 === 1); bloq(x, z, 0.4); }
+  // monumento com a logo da empresa na entrada (perto da ponte)
+  if (il) { const [x, z] = pol(0.32, 24.5); K.add(G3.caixa, mat(0x14171d, { roughness: 0.3, metalness: 0.6 }), x, 0.04, z, 4.2, 1.6, 0.6, 0, giro + 0.32, 0); placaLogo(g, il, il.dados, 3.6, 1.1, x + Math.sin(giro + 0.32) * 0.32, 0.95, z + Math.cos(giro + 0.32) * 0.32, giro + 0.32); bloq(x, z, 2.2); }
+}
+
 /* ---------- 1. Pós-processamento ----------
    A cena é desenhada numa imagem de alta precisão (com antisserrilhado). Dela sai o brilho das
    luzes (só o que passa do branco: LEDs, telões, sol, propulsores), espalhado em 6 tamanhos.
@@ -7109,7 +7399,8 @@ const CINEMA_AJUSTE = {
   grao: 0.022,         // granulação de filme
   aberracao: 0.0010,   // separação de cor nas bordas (lente)
   sombraContato: 0.9,  // força da sombra de contato (oclusão de ambiente): cantos, pés de prédio, embaixo de carro
-  verSombraContato: false,  // true mostra só a sombra de contato, em preto e branco (para conferir)
+  verSombraContato: false,
+  semSombraNoCelular: true,   // no celular a sombra de contato fica desligada  // true mostra só a sombra de contato, em preto e branco (para conferir)
   nevoa: 0.22          // névoa de distância: quanto o fundo clareia (dá escala de cidade grande)
 };
 const VERT_TELA = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
@@ -7248,10 +7539,10 @@ function renderizarCinema() {
     const cam = CAMPO.camera, pe = cam.projectionMatrix.elements, raioAO = Math.max(0.3, Math.min(2.6, CAM.raio * 0.012));
     [CINEMA.matAO, CINEMA.matAOLimpa].forEach((m) => { const u = m.uniforms; u.tProf.value = CINEMA.cena.depthTexture; u.uLonge.value = cam.far; u.uP0.value = pe[0]; u.uP1.value = pe[5]; u.uPasso.value.set(2 / w, 2 / h); });
     CINEMA.matAO.uniforms.uRaio.value = raioAO; CINEMA.matAO.uniforms.uForcaAO.value = 1;
-    passeDeTela(CINEMA.matAO, CINEMA.ao);
-    CINEMA.matAOLimpa.uniforms.tAO.value = CINEMA.ao.texture; passeDeTela(CINEMA.matAOLimpa, CINEMA.aoLimpo);
+    const celular = CINEMA_AJUSTE.semSombraNoCelular && (telaPequena() || /iPhone|iPad|Android|Mobile/i.test(navigator.userAgent || '')), comAO = CINEMA_AJUSTE.sombraContato > 0 && !celular;
+    if (comAO) { passeDeTela(CINEMA.matAO, CINEMA.ao); CINEMA.matAOLimpa.uniforms.tAO.value = CINEMA.ao.texture; passeDeTela(CINEMA.matAOLimpa, CINEMA.aoLimpo); }
     const F = CINEMA.matFinal.uniforms;
-    F.tAO.value = CINEMA.aoLimpo.texture; F.uForcaAO.value = CINEMA_AJUSTE.sombraContato; F.uVerAO.value = CINEMA_AJUSTE.verSombraContato ? 1 : 0;
+    F.tAO.value = CINEMA.aoLimpo.texture; F.uForcaAO.value = comAO ? CINEMA_AJUSTE.sombraContato : 0; F.uVerAO.value = CINEMA_AJUSTE.verSombraContato ? 1 : 0;
     // névoa de distância: começa um pouco antes do alvo da câmera e chega no máximo bem depois; de noite fica azul-escura
     const luzC = CAMPO.luzDoCeu, noiteC = luzC ? luzC.postes : 0;
     F.tProf.value = CINEMA.cena.depthTexture; F.uLonge.value = cam.far; F.uNevoaIni.value = CAM.raio * 0.55; F.uNevoaDens.value = 1 / (CAM.raio * 2.2 + 40);
