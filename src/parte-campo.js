@@ -1818,11 +1818,11 @@ function escolherTarefa(M, a) {
   if (a.tipo === 'func' && il) {
     /* Funcionário trabalha na empresa: quem é da carga (papel fixo) vive pegando e levando caixa (ou
        fazendo a ronda de serviço); os outros vão para o posto. Só uma parte pequena sai da ilha. */
-    if (a.papel === 'carga' || r < 0.25) { const q = tarefaCarga(M, a, il, anterior); if (q) return q; }
-    if (r < 0.72) { const p = livreDe(il.postos || [], a); if (p) return irAte(M, a, p.x, p.z, { tipo: 'posto', lugar: p }); const q = tarefaCarga(M, a, il, anterior); if (q) return q; }
-    if (r < 0.84) { const q = pontoAleatorio(il.area, a.dono); if (q) return irAte(M, a, q[0], q[1], { tipo: 'passear' }); }   // anda pela própria empresa
-    if (r < 0.9) { const q = destinoFora(M, a); if (q) return q; }   // poucos saem: estação, praça, Terminal
-    if (r < 0.93 && A > 0.6) { const q = irAoHub(M, a); if (q) return q; }   // e menos ainda vão ao Hub
+    if (a.papel === 'carga' || r < 0.15) { const q = tarefaCarga(M, a, il, anterior); if (q) return q; }
+    if (r < 0.58) { const p = livreDe(il.postos || [], a); if (p) return irAte(M, a, p.x, p.z, { tipo: 'posto', lugar: p }); const q = tarefaCarga(M, a, il, anterior); if (q) return q; }
+    if (r < 0.7) { const q = pontoAleatorio(il.area, a.dono); if (q) return irAte(M, a, q[0], q[1], { tipo: 'passear' }); }   // anda pela própria empresa
+    if (r < 0.86) { const q = destinoFora(M, a); if (q) return q; }   // parte sai: estação, praça, Terminal
+    if (r < 0.92 && A > 0.6) { const q = irAoHub(M, a); if (q) return q; }   // e menos ainda vão ao Hub
     const q = pontoAleatorio(il.area, a.dono); if (q) return irAte(M, a, q[0], q[1], { tipo: 'passear' });
   }
   if (a.tipo === 'consultor') {
@@ -2230,13 +2230,13 @@ function montarMundo(lista) {
   const porCidade = Math.max(14, Math.min(60, Math.floor((MULTIDAO_MAX - 260) / Math.max(1, lista.length))));
   const CAPACETE = { industria: 0xf0b429, construcao: 0xf0b429, distribuicao: 0xf0b429 };
   lista.forEach((il) => {
-    const n = Math.min(porCidade, 40 + il.setores.size * 2), cena = il.dados.cena;   // de manhã a empresa cheia   // poucos e com destino
+    const n = Math.min(porCidade, 28 + il.setores.size * 2), cena = il.dados.cena;   // de manhã a empresa cheia   // poucos e com destino
     for (let i = 0; i < n; i++) {
       const u = uniformeDa(il, 200 + i);
       if (CAPACETE[cena] && i % 5 < 2) u.capacete = CAPACETE[cena];
       if (cena === 'saude' && i % 3 === 0) { u.roupa = 0xffffff; u.detalhe = 0x4d8ff0; }   // jaleco
       const a = novoAgente(M, { tipo: 'func', il: il.id, dono: il.navDono, look: lookDe(u), sorte, limiar: i % 10 < Math.round(turnoDe(il) * 1.6) ? 0.04 + sorte() * 0.12 : 0.24 + sorte() * 0.7 });
-      a.portaCasa = il.portaCasa; if (i % 5 < 2) a.papel = 'carga';   // 2 em cada 5 ficam na carga (ou na ronda)
+      a.portaCasa = il.portaCasa; if (i % 4 === 0) a.papel = 'carga';   // 1 em cada 4 fica na carga (ou na ronda)
       nascer(a, il.area, il.postos);
     }
     // Quem trabalha por dentro (no galpão, dá para ver pelo telhado de vidro)
@@ -4077,7 +4077,7 @@ const PESO_DA_FASE = {
 const comFase = (pesos) => { const f = PESO_DA_FASE[faseDoDia().chave] || {}; return pesos.map(([k, w]) => [k, w * (f[k] || 1)]); };
 // Ao montar a cidade de dia, parte do pessoal já está no Hub (senão ele leva minutos para encher)
 function semearHub(M) {
-  CAMPO.hubAp = null;   // o mundo foi montado de novo: a rotina recomeça
+  if (CAMPO.hubAp) { CAMPO.hubAp.quem = null; CAMPO.hubAp.k = null; CAMPO.hubAp.ativo = false; }   // a agenda segue o relógio: só refaz o palco e a plateia
   const todos = (M.centros && M.centros.hub) || [], H = todos.filter((p) => !p.plateia); if (!todos.length || (CAMPO.atividade != null && CAMPO.atividade < 0.6)) return;
   const quem = M.agentes.filter((a) => a.visivel && ['equipe', 'consultor', 'visitante'].includes(a.tipo) && !a.semNav).concat(M.agentes.filter((a) => a.visivel && a.tipo === 'func' && a.papel !== 'carga' && !a.semNav).filter((_, i) => i % 6 === 0));   // funcionário no Hub é minoria
   let n = 0;
@@ -4088,13 +4088,12 @@ function semearHub(M) {
     a.x = p.x; a.z = p.z; a.y = p.y != null ? p.y : alturaEm(a.x, a.z); a.rot = p.rot; a.anim = p.anim; a.estado = 'atividade'; a.t = 5 + Math.random() * (p.dur || 40); a.caminho = null; n++;
   });
   // ao abrir de dia, já tem uma apresentação começando: a plateia está sentada e alguém sobe no palco em seguida
-  const R = rodizioDoHub(); CAMPO.hubAp = { ativo: false, preparado: true, proximo: (CAMPO.t || 0) + 8, k: 1, id: R[0] };
   const pl = todos.filter((p) => p.plateia && !p.ocupado).sort(() => Math.random() - 0.5);
   quem.filter((a, i) => i % 3 !== 1 && !(a.lugar && todos.includes(a.lugar))).slice(0, 34).forEach((a) => { const p = pl.pop(); if (!p || !podePisar(navI(p.x, p.z), a.dono)) return; soltarPonto(a); p.ocupado = a; a.lugar = p; a.tarefa = { tipo: 'centro', lugar: p }; a.x = p.x; a.z = p.z; a.y = p.y; a.rot = p.rot; a.anim = 'sentar'; a.estado = 'atividade'; a.t = 200 + Math.random() * 80; a.caminho = null; });
 }
 // Hub de Conexões: prefere lugar perto de quem já está lá (forma roda e mesa cheia)
 function irAoHub(M, a) {
-  const H = CAMPO.hubAp, show = !!(H && (H.ativo || H.preparado));
+  const H = CAMPO.hubAp, show = !!(H && H.k != null);
   const L = ((M.centros && M.centros.hub) || []).filter((p) => !p.plateia || show); if (!L.length) return null;   // a arquibancada só abre quando tem apresentação
   if (show && Math.random() < 0.7) { const pl = livreDe(L.filter((p) => p.plateia), a); if (pl) return irAte(M, a, pl.x, pl.z, { tipo: 'centro', lugar: pl }); }
   const perto = L.filter((p) => !p.ocupado && L.some((q) => q !== p && q.ocupado && Math.hypot(q.x - p.x, q.z - p.z) < 1.8));
@@ -7817,6 +7816,16 @@ function desenharSlide(c, D, u, semApresentacao) {
   q.fillStyle = '#ff8a3d'; q.fillRect(0, H - 8, W, 8);
   const texto = (t, x, y, tam, cor, peso, alinha) => { q.fillStyle = cor || '#fff'; q.font = `${peso || 700} ${tam}px Arial, sans-serif`; q.textAlign = alinha || 'left'; q.textBaseline = 'middle'; q.fillText(String(t), x, y); };
   const caber = (t, max, tam) => { let s = tam; q.font = `800 ${s}px Arial`; while (q.measureText(t).width > max && s > 14) { s *= 0.92; q.font = `800 ${s}px Arial`; } return s; };
+  if (semApresentacao && typeof semApresentacao === 'object') {   // a seguir: logo, nome e em quantos minutos
+    const P = semApresentacao, img = imagemDaLogo(P.logo), lw = 420, lh = 210, lx = W / 2 - lw / 2, ly = 150;
+    texto('A SEGUIR NO HUB DE CONEXÕES', W / 2, 90, 34, '#ff9a52', 700, 'center');
+    q.fillStyle = corDoCartao(img); q.beginPath(); q.roundRect ? q.roundRect(lx, ly, lw, lh, 18) : q.rect(lx, ly, lw, lh); q.fill();
+    if (img) { const s2 = Math.min((lw - 40) / img.width, (lh - 30) / img.height); q.drawImage(img, lx + (lw - img.width * s2) / 2, ly + (lh - img.height * s2) / 2, img.width * s2, img.height * s2); }
+    else texto(P.nome, W / 2, ly + lh / 2, caber(P.nome, lw - 40, 52), '#0f2342', 800, 'center');
+    texto(P.nome, W / 2, H * 0.68, caber(P.nome, W - 160, 60), '#fff', 800, 'center');
+    texto(P.min <= 1 ? 'Começa em instantes' : `Começa em ${P.min} minutos`, W / 2, H * 0.8, 32, '#bcd2ee', 500, 'center');
+    return;
+  }
   if (semApresentacao || !D) {
     texto('HUB DE CONEXÕES', W / 2, H * 0.4, 84, '#fff', 800, 'center'); texto('REAL FORTE', W / 2, H * 0.53, 84, '#ff9a52', 800, 'center');
     texto(semApresentacao === 'noite' ? 'As apresentações voltam amanhã' : 'Próxima apresentação em breve', W / 2, H * 0.68, 30, '#bcd2ee', 500, 'center');
@@ -7874,12 +7883,19 @@ function desenharSlide(c, D, u, semApresentacao) {
   }
 }
 // Quem está no rodízio agora
+/* A agenda do Hub segue o relógio da cidade (não reinicia quando o painel abre de novo).
+   O dia é dividido em sessões fixas; a sessão de número k é de quem está na posição k % N do rodízio.
+   Cada sessão: chegada da plateia (antecedência), a apresentação (duração) e o intervalo até a próxima.
+   Quem abre o painel no meio de uma sessão entra na apresentação que está acontecendo, no slide certo. */
+function sessaoDoHub() {
+  const A = APRESENTACOES, d = horaDaCidade(), fase = faseDoDia().chave;
+  const seg = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds() + d.getMilliseconds() / 1000;
+  const L = A.antecedencia + A.duracao + (A.intervalo[fase] || 240), k = Math.floor(seg / L), dentro = seg - k * L, R = rodizioDoHub();
+  return { k, id: R[k % R.length], proximoId: R[(k + 1) % R.length], u: dentro - A.antecedencia, faltam: Math.max(0, A.antecedencia - dentro), fimSessao: L - dentro };
+}
 function rodizioDoHub() {
-  const ap = CAMPO.ap, fase = faseDoDia().chave;
-  if (ap) return [ap.id];
-  const ids = [...CAMPO.ilhas.values()].map((il) => il.id);
-  const empresas = fase === 'manha' ? ids.slice(0, Math.max(1, Math.ceil(ids.length / 2))) : ids;
-  return ['rf'].concat(empresas);
+  const ap = CAMPO.ap; if (ap) return [ap.id];   // na apresentação para o cliente: só ele
+  return ['rf'].concat([...CAMPO.ilhas.values()].map((il) => il.id));   // a Real Forte e todas as empresas, o dia inteiro
 }
 function irAoPalco(M, a, p) { soltarPonto(a); p.ocupado = a; a.lugar = p; a.tarefa = { tipo: 'centro', lugar: p }; a.destino = [p.x, p.z]; a.caminho = [[a.x, a.z], [p.x, p.z]]; a.ip = 1; a.estado = 'andando'; return true; }
 function tarefaApresentador(M, a) {
@@ -7888,45 +7904,53 @@ function tarefaApresentador(M, a) {
   if (!p) { a.apresentador = false; return false; }
   return irAoPalco(M, a, p);
 }
-// Leva gente para a plateia (quem já está perto do Hub primeiro)
-function chamarPlateia(M, quantos) {
+// Leva gente para a plateia: Real Forte, visitantes e quem circula (os mais perto primeiro) e, se
+// "empresa" vier, os colegas dela (vêm da ilha pela ponte, por isso são chamados uma sessão antes)
+function chamarPlateia(M, quantos, empresa) {
   const W = CAMPO.mundo, A = W && W.alturaHub; if (!A) return;
   const lugares = ((M.centros && M.centros.hub) || []).filter((p) => p.plateia && !p.ocupado);
-  const quem = M.agentes.filter((a) => a.visivel && !a.apresentador && !a.semNav && ['func', 'equipe', 'consultor', 'visitante'].includes(a.tipo) && !(a.lugar && a.lugar.plateia) && a.limiar < (CAMPO.atividade == null ? 1 : CAMPO.atividade))
-    .filter((a) => a.tipo !== 'func' || (a.papel !== 'carga' && Math.random() < 0.25)).map((a) => [a, Math.hypot(a.x - A.cx, a.z - A.zs)]).filter(([, d]) => d < 170).sort((x, y) => x[1] - y[1]).map(([a]) => a);   /* a plateia é sobretudo da Real Forte e de visitantes */
+  const ok = (a) => a.visivel && !a.apresentador && !a.semNav && !(a.lugar && a.lugar.plateia) && a.limiar < (CAMPO.atividade == null ? 1 : CAMPO.atividade);
+  const quem = empresa
+    ? M.agentes.filter((a) => ok(a) && a.tipo === 'func' && a.il === empresa && a.papel !== 'carga').sort(() => Math.random() - 0.5)
+    : M.agentes.filter((a) => ok(a) && ['equipe', 'consultor', 'visitante', 'circula'].includes(a.tipo)).map((a) => [a, Math.hypot(a.x - A.cx, a.z - A.zs)]).filter(([, d]) => d < 150).sort((x, y) => x[1] - y[1]).map(([a]) => a);
   let n = 0;
   for (const a of quem) { if (n >= quantos || !lugares.length) break; const i = Math.floor(Math.random() * Math.min(lugares.length, 12)), p = lugares.splice(i, 1)[0]; soltarPonto(a); irAte(M, a, p.x, p.z, { tipo: 'centro', lugar: p }); n++; }
 }
+function terminarApresentacao(M, H) {
+  if (H.quem) { H.quem.apresentador = false; H.quem.estado = 'parado'; H.quem.t = 1; H.quem = null; }
+  M.agentes.forEach((a) => { if (a.lugar && a.lugar.plateia && a.estado === 'atividade') a.t = Math.random() * 25; });
+}
+function subirNoPalco(M, W, H) {
+  const p0 = W.palcoHub[1], ehRF = H.id === 'rf';
+  const cand = M.agentes.filter((a) => a.visivel && !a.semNav && !(a.lugar && a.lugar.plateia) && (ehRF ? a.tipo === 'equipe' || a.tipo === 'consultor' : (a.tipo === 'func' || a.tipo === 'circula') && a.il === H.id));
+  cand.sort((x, y) => Math.hypot(x.x - p0.x, x.z - p0.z) - Math.hypot(y.x - p0.x, y.z - p0.z));
+  const a = cand[0];
+  if (a) { a.apresentador = true; soltarPonto(a); a.x = p0.x - 3.2; a.z = p0.z - 0.6; a.y = 0.55; irAoPalco(M, a, p0); H.quem = a; }   // entra pela lateral do palco
+}
 function passoApresentacoesHub(t) {
   const W = CAMPO.mundo, M = CAMPO.multidao, Tl = CAMPO.telaoHub; if (!W || !M || !W.palcoHub || !Tl) return;
-  const H = CAMPO.hubAp = CAMPO.hubAp || { ativo: false, proximo: t + 30, k: 0, preparado: false };
-  const noite = noiteNaCidade(), A = APRESENTACOES;
-  // começo: chama a plateia antes, depois sobe alguém no palco
-  if (!H.ativo && !noite) {
-    if (!H.preparado && t > H.proximo - A.antecedencia) { H.preparado = true; const R = rodizioDoHub(); H.id = R[H.k % R.length]; H.k++; chamarPlateia(M, 26 + Math.floor(Math.random() * 14)); }
-    if (H.preparado && t > H.proximo) {
-      H.ativo = true; H.t0 = t; H.dados = dadosDaApresentacao(H.id) || dadosDaApresentacao('rf');
-      const p0 = W.palcoHub[1], ehRF = H.id === 'rf';
-      const cand = M.agentes.filter((a) => a.visivel && !a.semNav && (ehRF ? a.tipo === 'equipe' || a.tipo === 'consultor' : a.tipo === 'func' && a.il === H.id));
-      cand.sort((x, y) => Math.hypot(x.x - p0.x, x.z - p0.z) - Math.hypot(y.x - p0.x, y.z - p0.z));
-      const a = cand[0];
-      if (a) { a.apresentador = true; soltarPonto(a); a.x = p0.x - 3.2; a.z = p0.z - 0.6; a.y = 0.55; irAoPalco(M, a, p0); H.quem = a; }   // entra pela lateral do palco
-      chamarPlateia(M, 10);
-    }
+  const H = CAMPO.hubAp = CAMPO.hubAp || {}, A = APRESENTACOES, noite = noiteNaCidade();
+  if (noite) { if (H.ativo) { terminarApresentacao(M, H); H.ativo = false; } if (Tl.ultimo !== 'noite') { Tl.ultimo = 'noite'; desenharSlide(Tl.c, null, 0, 'noite'); Tl.tex.needsUpdate = true; } return; }
+  const S = sessaoDoHub();
+  if (H.k !== S.k) {   // começou uma sessão nova (ou o painel acabou de abrir)
+    if (H.ativo) terminarApresentacao(M, H);
+    H.k = S.k; H.id = S.id; H.ativo = false; H.dados = dadosDaApresentacao(S.id) || dadosDaApresentacao('rf');
+    chamarPlateia(M, 26 + Math.floor(Math.random() * 12));      // a plateia chega
+    if (S.id !== 'rf') chamarPlateia(M, 6, S.id);                // colegas de quem apresenta agora
+    if (S.proximoId !== 'rf') chamarPlateia(M, 8, S.proximoId);  // e os da próxima já saem da ilha
   }
+  const ativo = S.u >= 0 && S.u <= A.duracao;
+  if (ativo && !H.ativo) { H.ativo = true; H.t0 = t - S.u; subirNoPalco(M, W, H); chamarPlateia(M, 8); }
+  if (!ativo && H.ativo) { H.ativo = false; terminarApresentacao(M, H); }
   if (H.ativo) {
-    const u = t - H.t0;
-    if (u > A.duracao || noite) {   // fim: quem apresentou e a plateia vão embora aos poucos
-      H.ativo = false; H.preparado = false;
-      if (H.quem) { H.quem.apresentador = false; H.quem.t = 0; H.quem.estado = 'parado'; H.quem.t = 1; H.quem = null; }
-      M.agentes.forEach((a) => { if (a.lugar && a.lugar.plateia && a.estado === 'atividade') a.t = Math.random() * 25; });
-      const f = faseDoDia().chave; H.proximo = t + (A.intervalo[f] || 300) + A.antecedencia;
-    }
-    const chave = (H.id || '') + '|' + Math.floor(u * (u > A.abertura && u < A.abertura + 2 ? 20 : 2));
+    const u = S.u, chave = (H.id || '') + '|' + Math.floor(u * (u > A.abertura && u < A.abertura + 2 ? 20 : 2));
     if (chave !== Tl.ultimo) { Tl.ultimo = chave; desenharSlide(Tl.c, H.dados, u); Tl.tex.needsUpdate = true; }
   } else {
-    const chave = noite ? 'noite' : 'espera';
-    if (Tl.ultimo !== chave) { Tl.ultimo = chave; desenharSlide(Tl.c, null, 0, chave); Tl.tex.needsUpdate = true; }
+    // espera: quem apresenta a seguir e em quanto tempo
+    const proximo = S.u < 0 ? { id: S.id, seg: S.faltam } : { id: S.proximoId, seg: S.fimSessao + A.antecedencia };
+    const D = dadosDaApresentacao(proximo.id) || dadosDaApresentacao('rf'), min = Math.ceil(proximo.seg / 60);
+    const chave = 'espera|' + proximo.id + '|' + min;
+    if (Tl.ultimo !== chave) { Tl.ultimo = chave; desenharSlide(Tl.c, null, 0, { nome: D.nome, logo: D.logo, min }); Tl.tex.needsUpdate = true; }
   }
 }
 // Mapa de pisar: degraus da arquibancada e o palco têm altura
