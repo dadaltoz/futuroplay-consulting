@@ -8383,15 +8383,20 @@ function materiaisDaMetropole() {
     for (let k = 0; k < 500; k++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.04})`; g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); }
     [0, 128].forEach((x) => [0, 128].forEach((y) => {
       g.fillStyle = '#2b3340'; g.fillRect(x + 16, y + 18, 96, 80);
-      const gr = g.createLinearGradient(0, y + 22, 0, y + 94); gr.addColorStop(0, '#b9cfe6'); gr.addColorStop(1, '#4d6588'); g.fillStyle = gr; g.fillRect(x + 20, y + 22, 88, 72);
+      const gr = g.createLinearGradient(0, y + 22, 0, y + 94); gr.addColorStop(0, '#59616b'); gr.addColorStop(1, '#231f1b'); g.fillStyle = gr; g.fillRect(x + 20, y + 22, 88, 72);   // vidro escuro: à noite sobra só a luz amarela
       g.fillStyle = '#2b3340'; g.fillRect(x + 62, y + 22, 4, 72);
-      g.fillStyle = '#9aa2ad'; g.fillRect(x, y + 100, 128, 10); g.fillStyle = 'rgba(190,220,245,.55)'; g.fillRect(x + 4, y + 84, 120, 16);
+      g.fillStyle = '#9aa2ad'; g.fillRect(x, y + 100, 128, 10); g.fillStyle = 'rgba(150,170,190,.35)'; g.fillRect(x + 4, y + 84, 120, 16);
     }));
   });
-  const residLuz = telaDe(256, 256, (g) => { g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256); [0, 128].forEach((x) => [0, 128].forEach((y) => { if (Math.random() < 0.6) { g.fillStyle = Math.random() < 0.8 ? '#ffd29a' : '#cfe3ff'; g.fillRect(x + 20, y + 22, 88, 72); } })); });
-  const tR = texturaRepetida(resid), tL = texturaRepetida(residLuz);
-  const residencial = new T.MeshStandardMaterial({ map: tR, emissive: 0xffffff, emissiveMap: tL, emissiveIntensity: 0.9, roughness: 0.75, metalness: 0.05 });
-  (CAMPO.matsTorre = CAMPO.matsTorre || []).push([residencial, 0.9]);
+  const residLuz = telaDe(1024, 1024, (g) => {   // 8 x 8 apartamentos por repetição: quase todos com luz amarela (gente em casa)
+    g.fillStyle = '#000'; g.fillRect(0, 0, 1024, 1024);
+    for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { if (Math.random() < 0.12) continue; const x = i * 128, y = j * 128, k = 0.7 + Math.random() * 0.3;
+      const gr = g.createRadialGradient(x + 64, y + 60, 6, x + 64, y + 60, 60); gr.addColorStop(0, `rgba(255,${Math.round(214 * k)},${Math.round(120 * k)},1)`); gr.addColorStop(1, `rgba(255,${Math.round(170 * k)},${Math.round(60 * k)},${0.75 * k})`);
+      g.fillStyle = gr; g.fillRect(x + 20, y + 22, 88, 72); } });
+  const residCor = telaDe(1024, 1024, (g) => { for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) g.drawImage(resid, i * 256, j * 256); });
+  const tR = texturaRepetida(residCor), tL = texturaRepetida(residLuz);
+  const residencial = new T.MeshStandardMaterial({ map: tR, emissive: 0xffc24a, emissiveMap: tL, emissiveIntensity: 0.2, roughness: 0.75, metalness: 0.05 });   // luz âmbar: amarelo de casa com gente
+  CAMPO.matResidencial = residencial;   // a força da luz das janelas segue a noite (passoCeuDeCinema)
   // Telões com gráficos (barras, linha e mapa) para as fachadas
   const tela = (desenhar) => { const t = new T.CanvasTexture(telaDe(512, 288, desenhar)); t.encoding = T.sRGBEncoding; t.anisotropy = 8; return new T.MeshBasicMaterial({ map: t, toneMapped: false }); };
   const fundoTela = (g) => { const gr = g.createLinearGradient(0, 0, 512, 288); gr.addColorStop(0, '#0a2a5a'); gr.addColorStop(1, '#1450a0'); g.fillStyle = gr; g.fillRect(0, 0, 512, 288); g.strokeStyle = 'rgba(160,210,255,.08)'; for (let x = 0; x < 512; x += 32) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 288); g.stroke(); } for (let y = 0; y < 288; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke(); } g.strokeStyle = '#46b4ff'; g.lineWidth = 6; g.strokeRect(3, 3, 506, 282); };
@@ -8875,7 +8880,7 @@ function bairroDaIlha(K, g, W, L, il, obst, s) {
   for (let k = 0; k < 16; k++) { const th = (k + 0.5) / 16 * Math.PI * 2; if (Math.abs(Math.sin(th / 2)) < 0.2) continue; const [x, z] = pol(th, 22.6); K.add(G3.cil, MP.navy, x, 0, z, 0.05, 2.8, 0.05); K.add(G3.bola, MP.lampadaQuente, x, 2.8, z, 0.18, 0.18, 0.18, 0, 0, 0, false); }
   // residencial alto no fundo: varandas brancas, filetes quentes, lobby de vidro e a cobertura com piscina e palmeiras
   { const th = Math.PI, r = 27, [x, z] = pol(th, r), w = 11, d = 8, h = 30, rot = giro + th;
-    const pr = new T.Mesh(caixaUV(w, h, d, 6, 6), MM.residencial); pr.position.set(x, 0, z); pr.rotation.y = rot; pr.castShadow = pr.receiveShadow = true; g.add(pr); W.extras.push(pr.geometry);
+    const pr = new T.Mesh(caixaUV(w, h, d, 24, 24), MM.residencial); pr.position.set(x, 0, z); pr.rotation.y = rot; pr.castShadow = pr.receiveShadow = true; g.add(pr); W.extras.push(pr.geometry);
     for (let y = 3.5; y < h; y += 3) K.add(G3.caixa, mat(0xf2f0eb, { roughness: 0.6 }), x, y, z, w + 0.9, 0.22, d + 0.9, 0, rot, 0);
     const cr = Math.cos(rot), sr = Math.sin(rot), loc = (ox, oz) => [x + ox * cr + oz * sr, z - ox * sr + oz * cr];
     [[-w / 2 - 0.47, d / 2 + 0.47], [w / 2 + 0.47, d / 2 + 0.47], [-w / 2 - 0.47, -d / 2 - 0.47], [w / 2 + 0.47, -d / 2 - 0.47]].forEach(([ox, oz]) => { const [px, pz] = loc(ox, oz); K.add(G3.caixa, luzMat(0xffc27a, 1.5), px, 0.5, pz, 0.1, h - 0.5, 0.1, 0, rot, 0, false); });
@@ -8937,7 +8942,7 @@ function gentDaNoiteNaCidade(M, sorte) {
   const casas = [st ? st.saida : { x: -2.8, z: -61.8 }, ce ? ce.saida : { x: -6.5, z: 35.5 }];
   const cabelos = [0x1b1b1f, 0x3a2a1e, 0x5a3a22, 0xe8c66a, 'careca', 0x8a5a3a, 0x2a1e16];
   const lugares = [].concat(M.centros.fotoTorre || [], M.centros.fotoMarcos || [], M.centros.conexoes || [], M.centros.cafeIdeias || []);
-  for (let i = 0; i < 56; i++) {
+  for (let i = 0; i < 26; i++) {   // à noite a rua tem gente, mas pouca
     const a = novoAgente(M, { tipo: 'passeio', soNoite: true, dono: 0, limiar: 0, look: lookDe(Object.assign({ pele: PELES[(i * 5 + 1) % PELES.length], cabelo: cabelos[i % cabelos.length] }, LOOKS_NOITE[i % LOOKS_NOITE.length])), sorte });
     a.portaCasa = casas[i % 2];
     comecarDeNoite(a, { x0: -30, x1: 30, z0: -70, z1: 60 }, lugares);
@@ -8957,14 +8962,14 @@ function moradoresDasIlhas(M, lista, sorte) {
     if (!il.pontosTeto) return;
     // na cobertura: andam de um ponto a outro por cima do prédio (sem o mapa do chão)
     il.pontosTeto.forEach((p) => { p.ocupado = null; });
-    for (let i = 0; i < Math.min(9, il.pontosTeto.length - 1); i++) {
+    for (let i = 0; i < Math.min(5, il.pontosTeto.length - 1); i++) {
       const a = novoAgente(M, { tipo: 'morador', teto: true, soNoite: true, semNav: true, il: il.id, dono: il.navDono, limiar: 0, yFixo: il.yTeto, look: lookDe(Object.assign({ pele: PELES[(n * 3 + i) % PELES.length], cabelo: cabelos[i % cabelos.length] }, LOOKS_NOITE[(i + n) % LOOKS_NOITE.length])), sorte });
       const p = il.pontosTeto[i]; a.portaCasa = { x: p.x, z: p.z }; a.x = p.x; a.z = p.z; a.y = il.yTeto;
       if (noiteNaCidade()) { p.ocupado = a; a.lugar = p; a.tarefa = { tipo: 'posto', lugar: p }; a.rot = p.rot; a.anim = p.anim; a.estado = 'atividade'; a.t = 3 + Math.random() * 12; a.visivel = true; }
       else { a.estado = 'sumido'; a.visivel = false; a.t = 2 + Math.random() * 6; }
     }
     // no chão da ilha: café, bancos do lobby, o monumento e o anel viário
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 5; i++) {
       const a = novoAgente(M, { tipo: 'morador', soNoite: true, il: il.id, dono: il.navDono, limiar: 0, look: lookDe(Object.assign({ pele: PELES[(n + i * 2) % PELES.length], cabelo: cabelos[(i + 2) % cabelos.length] }, LOOKS_NOITE[(i * 2 + n) % LOOKS_NOITE.length])), sorte });
       a.portaCasa = il.casaMorador;
       comecarDeNoite(a, il.areaIlha, il.pontosNoiteChao);
@@ -9342,6 +9347,7 @@ function passoCeuDeCinema(t) {
   // à noite a "luz do sol" da cena é a lua: o planeta fica de costas para o sol
   U.uSolPlaneta.value.copy(U.uSol.value).lerp(CINEMA.tmpNoite || (CINEMA.tmpNoite = new THREE.Vector3(0.25, -0.9, -0.35).normalize()), Math.min(1, noite * 1.1)).normalize();
   U.uForcaSol.value = 1 - noite * 0.55; U.uNoite.value = noite;
+  if (CAMPO.matResidencial) CAMPO.matResidencial.emissiveIntensity = 0.1 + noite * 1.5;   // de dia quase apagadas; à noite amarelas e fortes
   (CAMPO.matsFiletes || []).forEach(([mf, base]) => { mf.emissiveIntensity = base * (0.12 + 0.88 * noite); });
   U.uDeriva.value.set(t * 0.00016, t * 0.00005);   // o planeta e as nuvens andam devagar lá embaixo
 }
