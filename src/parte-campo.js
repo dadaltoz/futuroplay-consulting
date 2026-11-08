@@ -1641,7 +1641,7 @@ function acharCaminho(ax, az, bx, bz, dono, limiteNos) {
    da Real Forte tomar café, ver os telões, sentar no lounge, conversar com quem encontra. Ela escolhe o
    destino e acha o caminho sozinha (sempre por onde dá para pisar, entrando e saindo pelas portas),
    faz curvas suaves, desvia de quem está na frente e, à noite, a maioria vai embora. */
-const MULTIDAO_MAX = 520;
+const MULTIDAO_MAX = 720;   // cabe o povo do dia e o da noite
 const PARTES = ['roupa', 'detalhe', 'cracha', 'calca', 'pele', 'cabelo', 'cabeloLongo', 'coque', 'capacete', 'pernaE', 'pernaD', 'bracoE', 'bracoD', 'maoE', 'maoD', 'prancheta', 'caixa', 'tablet', 'xicara', 'lanterna', 'facho'];
 function geometriaDasPartes() {
   formasDeGente();
@@ -1762,6 +1762,8 @@ function escolherTarefa(M, a) {
   if (a.tipo === 'equipe') return tarefaEquipe(M, a);
   if (a.tipo === 'obra') return tarefaObra(M, a);
   if (a.tipo === 'visitante') return tarefaVisitante(M, a);
+  if (a.tipo === 'passeio') return tarefaPasseio(M, a);
+  if (a.tipo === 'morador') return tarefaMorador(M, a);
   const A = CAMPO.atividade == null ? 1 : CAMPO.atividade, il = a.il && CAMPO.ilhas.get(a.il);
   if (a.limiar > A + 0.04) { const porta = a.portaCasa; if (porta) return irAte(M, a, porta.x, porta.z, { tipo: 'embora' }); }
   const r = Math.random();
@@ -1946,7 +1948,7 @@ function passoMultidao(M, t, dt) {
       if (a.t <= 0) escolherTarefa(M, a);
     } else if (a.estado === 'pedindo') { a.pose = ANIMS.parado(t, f); a.dy = 0; }
     misturarPose(a, dt);
-    const yAlvo = alturaEm(a.x, a.z); a.y += (yAlvo - a.y) * Math.min(1, dt * 8);
+    const yAlvo = a.yFixo != null ? a.yFixo : alturaEm(a.x, a.z); a.y += (yAlvo - a.y) * Math.min(1, dt * 8);   // quem está na cobertura fica lá em cima
   });
   desenharMultidao(M);
 }
@@ -2168,7 +2170,7 @@ function montarMundo(lista) {
   // Equipe da Real Forte no hall (a maior concentração de gente do mundo)
   const cabelos = [0x1b1b1f, 0x3a2a1e, 0x5a3a22, 0xe8c66a, 'careca', 0x1b1b1f, 0x2a1e16];
   for (let i = 0; i < 30; i++) {
-    const a = novoAgente(M, { tipo: 'rf', dono: 0, look: lookDe(uniformeRealForte(cabelos[i % cabelos.length], PELES[(i * 3) % PELES.length])), sorte, limiar: 0.06 + sorte() * 0.6 });
+    const a = novoAgente(M, { tipo: 'rf', dono: 0, look: lookDe(uniformeRealForte(cabelos[i % cabelos.length], PELES[(i * 3) % PELES.length])), sorte, limiar: 0.15 + sorte() * 0.7 });   // à noite fica pouca gente no hall
     a.portaCasa = M.elevadores[i % Math.max(1, M.elevadores.length)] || { x: 0, z: 11 };
     nascer(a, M.areaHall, lugaresHall);
   }
@@ -2180,15 +2182,15 @@ function montarMundo(lista) {
     nascer(a, M.areaHall, M.hall.empe);
   }
   // Funcionários de cada empresa (alguns ficam no turno da noite)
-  const porCidade = Math.max(14, Math.min(48, Math.floor((MULTIDAO_MAX - 70) / Math.max(1, lista.length))));
+  const porCidade = Math.max(14, Math.min(60, Math.floor((MULTIDAO_MAX - 260) / Math.max(1, lista.length))));
   const CAPACETE = { industria: 0xf0b429, construcao: 0xf0b429, distribuicao: 0xf0b429 };
   lista.forEach((il) => {
-    const n = Math.min(porCidade, 20 + il.setores.size * 2), cena = il.dados.cena;   // poucos e com destino
+    const n = Math.min(porCidade, 32 + il.setores.size * 2), cena = il.dados.cena;   // de manhã a empresa cheia   // poucos e com destino
     for (let i = 0; i < n; i++) {
       const u = uniformeDa(il, 200 + i);
       if (CAPACETE[cena] && i % 5 < 2) u.capacete = CAPACETE[cena];
       if (cena === 'saude' && i % 3 === 0) { u.roupa = 0xffffff; u.detalhe = 0x4d8ff0; }   // jaleco
-      const a = novoAgente(M, { tipo: 'func', il: il.id, dono: il.navDono, look: lookDe(u), sorte, limiar: i % 10 < Math.round(1 + turnoDe(il) * 2.5) ? 0.04 + sorte() * 0.12 : 0.24 + sorte() * 0.7 });
+      const a = novoAgente(M, { tipo: 'func', il: il.id, dono: il.navDono, look: lookDe(u), sorte, limiar: i % 10 < Math.round(turnoDe(il) * 1.6) ? 0.04 + sorte() * 0.12 : 0.24 + sorte() * 0.7 });
       a.portaCasa = il.portaCasa;
       nascer(a, il.area, il.postos);
     }
@@ -2204,7 +2206,7 @@ function montarMundo(lista) {
   // Vigias, manutenção e limpeza
   gentDaNoite(M, lista, sorte);
   // Centros, praças e estações; a equipe da Real Forte pela cidade, a obra e o trânsito
-  prepararLugaresDaCidade(M); gentDaCidade(M, sorte); visitantesDaCidade(M, sorte); montarTransito(lista);
+  prepararLugaresDaCidade(M); gentDaCidade(M, sorte); visitantesDaCidade(M, sorte); gentDaNoiteNaCidade(M, sorte); moradoresDasIlhas(M, lista, sorte); montarTransito(lista);
 }
 
 /* ---------- Gráficos dos telões do hall (com os números do painel) ----------
@@ -4013,7 +4015,8 @@ function prepararLugaresDaCidade(M) {
   M.centros = {}; Object.keys(P.pontos).forEach((k) => { M.centros[k] = copiar(P.pontos[k]); });
   M.estacoes = P.estacoes.concat((CAMPO.mundo && CAMPO.mundo.estacoesOnibus) || []).map((e) => ({ id: e.id, linha: e.linha, il: e.il, saida: e.saida, espera: copiar(e.espera.map((p) => Object.assign({}, p, { dur: e.linha === 3 ? 90 : 45 }))).concat(e.id === 'central' ? M.centros.central || [] : e.id === 'terminal' ? M.centros.terminal || [] : e.id === 'station' ? (M.centros.stationBancos || []).concat(M.centros.station || []) : []) }));
   M.obras = (CAMPO.mundo && CAMPO.mundo.obras || []).map((o) => Object.assign({}, o, { pontos: copiar(o.pontos) }));
-  M.centros.fachadas = copiar((CAMPO.mundo && CAMPO.mundo.pontosVisita) || []);   // calçada em frente ao portão de cada empresa
+  M.centros.fachadas = copiar((CAMPO.mundo && CAMPO.mundo.pontosVisita) || []);
+  M.centros.fotoMarcos = copiar((CAMPO.mundo && CAMPO.mundo.pontosFotoRF) || []);   // em frente ao Instituto, ao Terminal, à Academia...   // calçada em frente ao portão de cada empresa
 }
 function irAoCentro(M, a, chave) {
   const p = livreDe((M.centros && M.centros[chave]) || [], a);
@@ -4083,7 +4086,7 @@ function gentDaCidade(M, sorte) {
   const cabelos = [0x1b1b1f, 0x3a2a1e, 0x5a3a22, 0xe8c66a, 'careca', 0x2a1e16];
   const central = (M.estacoes || []).find((e) => e.id === 'central'), casa = central ? central.saida : { x: -6.5, z: 35.5 };
   const lugares = [].concat(M.centros.conexoes || [], M.centros.sedeFora || [], M.centros.diag || [], M.centros.estr || []);
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 20; i++) {
     const a = novoAgente(M, { tipo: 'equipe', dono: 0, look: lookDe(uniformeRealForte(cabelos[i % cabelos.length], PELES[(i * 2 + 1) % PELES.length]), i % 3 === 0 ? { prancheta: true } : {}), sorte, limiar: 0.1 + sorte() * 0.75 });
     a.portaCasa = casa;   // chegam e vão embora pela Estação Central
     nascer(a, { x0: -18, x1: 18, z0: 38, z1: 60 }, lugares);
@@ -4117,7 +4120,7 @@ function tarefaVisitante(M, a) {
   for (let tent = 0; tent < 3 && a.roteiro.length; tent++) {
     const passo = a.roteiro.shift();
     const r = passo === 'totem' ? irAoCentro(M, a, 'totem')
-      : passo === 'foto' ? irAoCentro(M, a, 'fotoTorre')
+      : passo === 'foto' ? (irAoCentro(M, a, Math.random() < 0.55 ? 'fotoMarcos' : 'fotoTorre') || irAoCentro(M, a, 'fotoTorre'))
       : passo === 'centro' ? irAoCentro(M, a, sortearChave([['diag', 3], ['estr', 3], ['ia', 2], ['perf', 2], ['apres', 2]]))
       : passo === 'empresa' ? irAoCentro(M, a, 'fachadas')
       : passo === 'cafe' ? irAoCentro(M, a, 'cafeIdeias')
@@ -4138,7 +4141,7 @@ function visitantesDaCidade(M, sorte) {
   const st = (M.estacoes || []).find((e) => e.id === 'station'), casa = st ? st.saida : { x: -2.8, z: -61.8 };
   const cabelos = [0x1b1b1f, 0x3a2a1e, 0x5a3a22, 0xe8c66a, 'careca', 0x8a5a3a, 0x2a1e16];
   const lugares = [].concat(M.centros.totem || [], M.centros.fotoTorre || [], M.centros.stationBancos || []);
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 34; i++) {
     const L = LOOKS_VISITANTE[i % LOOKS_VISITANTE.length];
     const a = novoAgente(M, { tipo: 'visitante', dono: 0, look: lookDe(Object.assign({ pele: PELES[(i * 3 + 2) % PELES.length], cabelo: cabelos[i % cabelos.length] }, L), i % 4 === 1 ? { prancheta: true } : {}), sorte, limiar: 0.12 + sorte() * 0.7 });
     a.portaCasa = casa;
@@ -7170,6 +7173,8 @@ function palmeira(K, x, z, h, y0) {
    o arco de bronze, a placa com o nome e uma praça na frente. "forma": 'instituto', 'academia',
    'pesquisa', 'auditorio', 'sinais', 'galeria', 'eventos'. A frente fica virada para +z. */
 function edificioRF(forma, K, g, W, cx, cz, LW, LD, obst) {
+  const fotos = W.pontosFotoRF = W.pontosFotoRF || [];   // quem passa para e tira foto da fachada
+  for (let k = -2; k <= 2; k++) fotos.push(ponto(cx + k * 2.4 + 1.2, cz + LD / 2 - 1.6 - (k % 2 ? 0.8 : 0), Math.PI / 2, k % 2 ? 'olhar' : 'foto', { dur: 8 }));
   const T = THREE, MP = PLANO.mats, MM = materiaisDaMetropole(), vq = VIDRO_QUENTE(), graf = revestido(mat(0x1c2027, { roughness: 0.4, metalness: 0.5 }), 'concreto'), bronze = BRONZE();
   const frente = cz + LD / 2, fundo = cz - LD / 2;
   const praca = (z0) => { K.add(G3.caixa, MP.pedraClara, cx, 0.045, (z0 + frente) / 2, LW - 1, 0.03, frente - z0, 0, 0, 0, false); };
@@ -7265,6 +7270,7 @@ function edificioRF(forma, K, g, W, cx, cz, LW, LD, obst) {
 // arco laranja, telão curvo REAL FORTE VISION, plataformas 01 a 03 com shuttles, praça com a escultura,
 // totem de direções e a placa de boas-vindas à cidade.
 function alaDoTerminal(K, g, W, cx, cz, LW, LD, obst) {
+  const fotos = W.pontosFotoRF = W.pontosFotoRF || [];
   const T = THREE, frente = cz + LD / 2, fundo = cz - LD / 2, bronze = luzMat(COR3D.laranja, 1.7), metal = mat(0xd5dbe3, { roughness: 0.3, metalness: 0.8 });
   // saguão: abóbada de vidro (meio cilindro deitado no x) com as costelas de metal e o arco laranja na frente
   const R = 8, L = LW - 9, x0 = cx - 2.5, z = fundo + R + 1;
@@ -7321,6 +7327,8 @@ function alaDoTerminal(K, g, W, cx, cz, LW, LD, obst) {
   balizas(K, [[xs - 5, zs + 4], [xs + 5, zs + 4], [xs - 5.5, zs - 2], [xs + 5.5, zs - 2]]);
   arvoreRF(K, cx - LW / 2 + 2.5, frente - 8, 1.2); arvoreRF(K, xs + 7, frente - 2.5, 1.0);
   obst.push([xs - 3.8, xs + 3.8, zs - 3.8, zs + 3.8]);
+  for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, px = xs + Math.cos(a) * 4.8, pz = zs + Math.sin(a) * 4.8; fotos.push(ponto(px, pz, rotDe(xs - px, zs - pz), k % 3 ? 'foto' : 'olhar', { dur: 9 })); }   // em volta da escultura
+  for (let k = 0; k < 4; k++) fotos.push(ponto(x0 - L / 2 + 3 + k * 3.2, z + R + 1.4, rotDe(0, -1), 'foto', { dur: 9 }));   // de frente para o letreiro e o VISION
 }
 const MP_PISO = () => PLANO.mats.pedraClara;
 // Pórtico "Bem-vindo" na chegada de cada ponte à cidade central, com a logo (ou o nome) da empresa
@@ -7386,6 +7394,16 @@ function bairroDaIlha(K, g, W, L, il, obst, s) {
     [[3.6, 2.4], [3.6, -2.4], [-4.6, 2.8], [-4.6, -2.8]].forEach(([ox, oz]) => { const [px, pz] = loc(ox, oz); palmeira(K, px, pz, 2.2, h + 0.4); });
     { const [px, pz] = loc(0, d / 2 + 1.4); K.add(G3.caixa, VIDRO_QUENTE(), px, 0, pz, w * 0.7, 3.2, 1.6, 0, rot, 0); K.add(G3.caixa, mat(0x2b3038), px, 3.2, pz, w * 0.8, 0.2, 3.0, 0, rot, 0); }
     bloq(x, z, Math.max(w, d) * 0.62 + 0.6);
+    // espreguiçadeiras na beira da piscina e os lugares de quem sobe à noite
+    const [pxP, pzP] = loc(-1.2, 0), mundoXZ = (ox, oz) => { const [lx, lz] = loc(ox, oz); return [L.cx + lx, L.cz + lz]; }, pTeto = [];
+    [-3, -1.6, -0.2].forEach((ox) => { const [lx, lz] = loc(ox, 2.9); K.add(G3.caixa, mat(0xf4f6fa), lx, h + 0.4, lz, 0.7, 0.22, 1.5, 0, rot, 0); const [wx, wz] = mundoXZ(ox, 2.9); pTeto.push(ponto(wx, wz, rotDe(L.cx + pxP - wx, L.cz + pzP - wz), 'sentar', { dur: 18 })); });
+    [[3.1, 0.2, 'conversar'], [3.4, 1.3, 'conversar'], [2.4, -0.9, 'emPeCafe'], [-2.2, -2.9, 'olhar'], [-0.6, -3.0, 'foto'], [4.6, -3.0, 'olhar'], [-4.4, 1.0, 'olhar'], [0.9, 2.8, 'conversar'], [1.6, -2.6, 'conversar'], [-3.8, -1.8, 'foto']].forEach(([ox, oz, an]) => {
+      const [wx, wz] = mundoXZ(ox, oz), cxT = L.cx + x, czT = L.cz + z, fora = an === 'olhar' || an === 'foto';
+      pTeto.push(ponto(wx, wz, fora ? rotDe(wx - cxT, wz - czT) : rotDe(L.cx + pxP - wx, L.cz + pzP - wz), an, { dur: 14 }));
+    });
+    if (il) { il.pontosTeto = pTeto; il.yTeto = h + 0.42; const [cx2, cz2] = mundoXZ(0, d / 2 + 3.2); il.casaMorador = { x: cx2, z: cz2 }; il.pontosNoiteChao = [];
+      [-2.5, 0, 2.5].forEach((ox) => { const [wx, wz] = mundoXZ(ox, d / 2 + 4.4); il.pontosNoiteChao.push(ponto(wx, wz, rotDe(L.cx + x - wx, L.cz + z - wz), ox ? 'conversar' : 'olhar', { dur: 12 })); });
+      il.areaIlha = { x0: L.cx - 28, x1: L.cx + 28, z0: L.cz - 28, z1: L.cz + 28 }; }
   }
   // prédios de serviço em volta (cada um com o seu ícone)
   const SERV = [[1.15, 'grafico', 'caixa'], [-1.15, 'chapeu', 'redondo'], [1.95, 'mais', 'caixa'], [-1.95, 'xicara', 'redondo'], [2.55, 'engrenagem', 'caixa'], [-2.55, 'carrinho', 'caixa']];
@@ -7398,12 +7416,88 @@ function bairroDaIlha(K, g, W, L, il, obst, s) {
     const [px, pz] = pol(th, r - (forma === 'redondo' ? 3.5 : 2.7)); placaRF(g, texturaPlacaRF('', '', icone, 256, 256), px, h - 1.3, pz, 1.6, 1.6, rot + Math.PI, true);
     bloq(x, z, 4.2);
     // mesas com guarda-sol do lado do café
-    if (icone === 'xicara') for (let q = 0; q < 3; q++) { const [mx, mz] = pol(th + 0.16 + q * 0.09, r - 5.4); K.add(G3.cil, mat(0xf4f6fa), mx, 0, mz, 0.35, 0.7); K.add(G3.cil, mat(0x2b3446), mx, 0.7, mz, 0.03, 1.3, false); K.add(G3.cone, mat(0xff8a3d), mx, 1.9, mz, 0.9, 0.3); }
+    if (icone === 'xicara') for (let q = 0; q < 3; q++) { const [mx, mz] = pol(th + 0.16 + q * 0.09, r - 5.4); K.add(G3.cil, mat(0xf4f6fa), mx, 0, mz, 0.35, 0.7); K.add(G3.cil, mat(0x2b3446), mx, 0.7, mz, 0.03, 1.3, false); K.add(G3.cone, mat(0xff8a3d), mx, 1.9, mz, 0.9, 0.3); bloq(mx, mz, 0.45);
+      if (il && il.pontosNoiteChao) [0.9, -0.9].forEach((o) => { const wx = L.cx + mx + o, wz = L.cz + mz; il.pontosNoiteChao.push(ponto(wx, wz, rotDe(-o, 0), 'cafe', { dur: 16 })); }); }   // mesas do café: à noite os moradores sentam ali
   });
   // ipês e palmeiras entre os prédios e na beira
   for (let k = 0; k < 18; k++) { const th = (k + 0.5) / 18 * Math.PI * 2, [x, z] = pol(th, 32.3); if (Math.abs(Math.sin(th / 2)) < 0.15) continue; if (k % 3 === 0) palmeira(K, x, z, 2.6); else arvoreRF(K, x, z, 0.9 + s() * 0.3, k % 3 === 1); bloq(x, z, 0.4); }
   // monumento com a logo da empresa na entrada (perto da ponte)
-  if (il) { const [x, z] = pol(0.32, 24.5); K.add(G3.caixa, mat(0x14171d, { roughness: 0.3, metalness: 0.6 }), x, 0.04, z, 4.2, 1.6, 0.6, 0, giro + 0.32, 0); placaLogo(g, il, il.dados, 3.6, 1.1, x + Math.sin(giro + 0.32) * 0.32, 0.95, z + Math.cos(giro + 0.32) * 0.32, giro + 0.32); bloq(x, z, 2.2); }
+  if (il) { const [x, z] = pol(0.32, 24.5); if (il.pontosNoiteChao) [-1.2, 1.2].forEach((o) => { const [fx, fz] = pol(0.32 + o * 0.08, 21.6); il.pontosNoiteChao.push(ponto(L.cx + fx, L.cz + fz, rotDe(x - fx, z - fz), 'foto', { dur: 8 })); });
+    K.add(G3.caixa, mat(0x14171d, { roughness: 0.3, metalness: 0.6 }), x, 0.04, z, 4.2, 1.6, 0.6, 0, giro + 0.32, 0); placaLogo(g, il, il.dados, 3.6, 1.1, x + Math.sin(giro + 0.32) * 0.32, 0.95, z + Math.cos(giro + 0.32) * 0.32, giro + 0.32); bloq(x, z, 2.2); }
+}
+
+/* ---------- 17. Gente da noite e moradores das ilhas ----------
+   De dia a cidade trabalha; à noite quem trabalha vai embora e a rua enche de outro jeito:
+   - "passeio": gente que chega pelo Terminal e pela Estação Central ao anoitecer, tira foto da torre
+     e dos edifícios da Real Forte, espera nas estações, passa no café e nas praças;
+   - "morador": quem mora no residencial de cada ilha. À noite uns ficam na cobertura (espreguiçadeiras
+     da piscina, roda de conversa, olhando a vista) e outros descem para o café e o anel viário.
+   Todos são só ambientação: nenhum número do painel muda. */
+const noiteNaCidade = () => (CAMPO.atividade == null ? 1 : CAMPO.atividade) < 0.6;
+function comecarDeNoite(a, area, lugares) {
+  if (!noiteNaCidade()) { a.estado = 'sumido'; a.visivel = false; a.t = 1 + Math.random() * 8; const c = a.portaCasa; if (c) { a.x = c.x; a.z = c.z; } return; }
+  nascer(a, area, lugares);
+}
+const LOOKS_NOITE = [
+  { roupa: 0x1c1f26, calca: 0x2a2f3a, detalhe: 0xd9681a }, { roupa: 0xe9e2d4, calca: 0x3b4250, detalhe: 0xffffff }, { roupa: 0x7a2840, calca: 0x1c1f26, detalhe: 0xf2d0a7 },
+  { roupa: 0x2f5ea8, calca: 0xd9cfbd, detalhe: 0xffffff }, { roupa: 0xf2f2f2, calca: 0x1c1f26, detalhe: 0x2f8f83 }, { roupa: 0x4a3a6a, calca: 0x2a2f3a, detalhe: 0xffd59a }
+];
+function gentDaNoiteNaCidade(M, sorte) {
+  const E = M.estacoes || [], st = E.find((e) => e.id === 'station'), ce = E.find((e) => e.id === 'central');
+  const casas = [st ? st.saida : { x: -2.8, z: -61.8 }, ce ? ce.saida : { x: -6.5, z: 35.5 }];
+  const cabelos = [0x1b1b1f, 0x3a2a1e, 0x5a3a22, 0xe8c66a, 'careca', 0x8a5a3a, 0x2a1e16];
+  const lugares = [].concat(M.centros.fotoTorre || [], M.centros.fotoMarcos || [], M.centros.conexoes || [], M.centros.cafeIdeias || []);
+  for (let i = 0; i < 56; i++) {
+    const a = novoAgente(M, { tipo: 'passeio', soNoite: true, dono: 0, limiar: 0, look: lookDe(Object.assign({ pele: PELES[(i * 5 + 1) % PELES.length], cabelo: cabelos[i % cabelos.length] }, LOOKS_NOITE[i % LOOKS_NOITE.length])), sorte });
+    a.portaCasa = casas[i % 2];
+    comecarDeNoite(a, { x0: -30, x1: 30, z0: -70, z1: 60 }, lugares);
+  }
+}
+function tarefaPasseio(M, a) {
+  if (!noiteNaCidade()) { const r = irAEstacao(M, a, Math.random() < 0.5 ? 'station' : 'central'); if (r) return r; const p = a.portaCasa; if (p) return irAte(M, a, p.x, p.z, { tipo: 'embora' }); }
+  const k = sortearChave([['fotoMarcos', 4], ['fotoTorre', 3], ['estacao', 3], ['station', 3], ['praca', 3], ['encontro', 2], ['cafeIdeias', 2], ['sedeFora', 2], ['totem', 1]]);
+  const r = k === 'estacao' ? irAEstacao(M, a) : k === 'station' ? irAEstacao(M, a, 'station') : k === 'praca' ? irAPraca(M, a) : k === 'encontro' ? irAoEncontro(M, a) : irAoCentro(M, a, k);
+  if (r) return r;
+  const q = pontoAleatorio(M.areaPraca, a.dono); if (q) return irAte(M, a, q[0], q[1], { tipo: 'passear' });
+  a.estado = 'parado'; a.t = 2 + Math.random() * 3; return true;
+}
+function moradoresDasIlhas(M, lista, sorte) {
+  const cabelos = [0x1b1b1f, 0x3a2a1e, 0xe8c66a, 'careca', 0x5a3a22, 0x2a1e16];
+  lista.forEach((il, n) => {
+    if (!il.pontosTeto) return;
+    // na cobertura: andam de um ponto a outro por cima do prédio (sem o mapa do chão)
+    il.pontosTeto.forEach((p) => { p.ocupado = null; });
+    for (let i = 0; i < Math.min(9, il.pontosTeto.length - 1); i++) {
+      const a = novoAgente(M, { tipo: 'morador', teto: true, soNoite: true, semNav: true, il: il.id, dono: il.navDono, limiar: 0, yFixo: il.yTeto, look: lookDe(Object.assign({ pele: PELES[(n * 3 + i) % PELES.length], cabelo: cabelos[i % cabelos.length] }, LOOKS_NOITE[(i + n) % LOOKS_NOITE.length])), sorte });
+      const p = il.pontosTeto[i]; a.portaCasa = { x: p.x, z: p.z }; a.x = p.x; a.z = p.z; a.y = il.yTeto;
+      if (noiteNaCidade()) { p.ocupado = a; a.lugar = p; a.tarefa = { tipo: 'posto', lugar: p }; a.rot = p.rot; a.anim = p.anim; a.estado = 'atividade'; a.t = 3 + Math.random() * 12; a.visivel = true; }
+      else { a.estado = 'sumido'; a.visivel = false; a.t = 2 + Math.random() * 6; }
+    }
+    // no chão da ilha: café, bancos do lobby, o monumento e o anel viário
+    for (let i = 0; i < 10; i++) {
+      const a = novoAgente(M, { tipo: 'morador', soNoite: true, il: il.id, dono: il.navDono, limiar: 0, look: lookDe(Object.assign({ pele: PELES[(n + i * 2) % PELES.length], cabelo: cabelos[(i + 2) % cabelos.length] }, LOOKS_NOITE[(i * 2 + n) % LOOKS_NOITE.length])), sorte });
+      a.portaCasa = il.casaMorador;
+      comecarDeNoite(a, il.areaIlha, il.pontosNoiteChao);
+    }
+  });
+}
+function tarefaMorador(M, a) {
+  const il = CAMPO.ilhas.get(a.il);
+  if (!il || !noiteNaCidade()) {
+    if (a.teto || !a.portaCasa) { a.estado = 'sumido'; a.visivel = false; a.t = 5; return true; }
+    return irAte(M, a, a.portaCasa.x, a.portaCasa.z, { tipo: 'embora' });
+  }
+  if (a.teto) {
+    const livres = (il.pontosTeto || []).filter((p) => !p.ocupado);
+    const p = livres[Math.floor(Math.random() * livres.length)];
+    if (!p) { a.estado = 'parado'; a.t = 3; return true; }
+    p.ocupado = a; a.lugar = p; a.tarefa = { tipo: 'posto', lugar: p }; a.destino = [p.x, p.z];
+    a.caminho = [[a.x, a.z], [p.x, p.z]]; a.ip = 1; a.estado = 'andando';
+    return true;
+  }
+  if (Math.random() < 0.5) { const p = livreDe(il.pontosNoiteChao || [], a); if (p) return irAte(M, a, p.x, p.z, { tipo: 'posto', lugar: p }); }
+  const q = pontoAleatorio(il.areaIlha, a.dono); if (q) return irAte(M, a, q[0], q[1], { tipo: 'passear' });
+  a.estado = 'parado'; a.t = 3; return true;
 }
 
 /* ---------- 1. Pós-processamento ----------
