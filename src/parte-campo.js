@@ -2959,7 +2959,7 @@ function montarPlano() {
     K.add(G3.cil, M.pedraClara, 0, P.ALT + 0.006, 50, 11.5, 0.006, 11.5, 0, 0, 0, false);
     // Espelho d'água com o holograma da torre da Real Forte flutuando em cima
     K.add(G3.cil, M.pedraBege, 0, P.ALT, 50, 4.9, 0.32, 4.9); K.add(G3.cil, M.agua, 0, P.ALT, 50, 4.6, 0.34, 4.6, 0, 0, 0, false); obstCirculo(0, 50, 5.0);
-    PLANO.holograma = hologramaDaTorre(g, 0, 50);   /* holograma gigante da torre da Real Forte flutuando sobre o espelho d'água */
+    PLANO.holograma = globoDaPraca(g, 0, 50);   /* esfera holográfica com anéis (Praça Central da Transformação) */   /* holograma gigante da torre da Real Forte flutuando sobre o espelho d'água */
     for (let n = 0; n < 8; n++) { const a = n / 8 * Math.PI * 2 + Math.PI / 8, x = Math.cos(a) * 8.2, z = 50 + Math.sin(a) * 8.2; if (z < 41) continue; banco(k, x, z, -Math.cos(a), -Math.sin(a), 1.2); }
     for (let n = 0; n < 12; n++) { const a = n / 12 * Math.PI * 2, x = Math.cos(a) * 13.2, z = 50 + Math.sin(a) * 13.2; if (z > 39.5 && z < 60.5 && Math.abs(x) < 18.5) arvore(x, z, 1.1); }
     for (let n = 0; n < 10; n++) { const a = n / 10 * Math.PI * 2, x = Math.cos(a) * 5.8, z = 50 + Math.sin(a) * 5.8; pt(k, x, z, -Math.cos(a), -Math.sin(a), n % 3 ? 'olhar' : 'conversar', 12); }
@@ -4972,7 +4972,7 @@ function montarEspaco() {
   if (CAMPO.luzes && CAMPO.luzes.chao) CAMPO.luzes.chao.visible = false;
   const I = ILHA, cx = (I.x0 + I.x1) / 2, cz = (I.z0 + I.z1) / 2, forma = formaDaIlha();
   // ---- Laje da ilha: gramado em cima, borda de metal escuro ----
-  const geoLaje = new T.ExtrudeGeometry(forma, { depth: I.esp, bevelEnabled: false, curveSegments: 12 }).rotateX(Math.PI / 2);   // topo em y = 0, desce até -esp
+  const geoLaje = new T.ExtrudeGeometry(forma, { depth: CASCO.aro, bevelEnabled: false, curveSegments: 12 }).rotateX(Math.PI / 2);   /* a borda grossa agora é o casco da megaestrutura */   // topo em y = 0, desce até -esp
   const topo = pisoNoturno(new T.MeshStandardMaterial({ color: 0x475f33, roughness: 0.95 }));
   pisoRealista(topo, { escala: 1, manchas: 0.42 });   // gramado com manchas (acabamento de cinema)
   const lado = new T.MeshStandardMaterial({ color: 0x262d39, roughness: 0.4, metalness: 0.55, envMap: CAMPO.ambiente, envMapIntensity: 0.8 });   // usado nas pontes
@@ -4980,7 +4980,6 @@ function montarEspaco() {
   const laje = new T.Mesh(geoLaje, [topo, penhasco]); laje.position.y = -0.03; laje.receiveShadow = true; g.add(laje);
   // contornos acesos (alto e baixo da borda)
   const contorno = (y, cor, esp, forca) => { const tubo = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(contornoParaDentro(260, -0.02, y), true), 520, esp, 6, true), luzMat(cor, forca)); g.add(tubo); };
-  contorno(-0.3, COR3D.laranja, 0.07, 1.3);   /* um filete fino de luz na beira (o resto da borda é rocha) */
   // ---- O nome gravado na borda, dos quatro lados (fora das pontes e das cachoeiras) ----
   const texNome = texturaCanvas(4096, 256, (q, w, h) => {
     q.fillStyle = '#121822'; q.fillRect(0, 0, w, h);
@@ -4995,35 +4994,25 @@ function montarEspaco() {
     q.strokeStyle = 'rgba(56,214,245,0.8)'; q.lineWidth = 5; [[20, lx - 40], [w - lx + 40, w - 20]].forEach(([a, b]) => { q.beginPath(); q.moveTo(a, h * 0.5); q.lineTo(b, h * 0.5); q.stroke(); for (let x = a; x < b; x += 90) { q.beginPath(); q.arc(x, h * 0.5, 9, 0, Math.PI * 2); q.stroke(); } });
   });
   texNome.anisotropy = 8;
-  const mNome = new T.MeshBasicMaterial({ map: texNome, toneMapped: false });
-  const placaW = 80, placaH = 5;
-  [[-60, I.z1 + 0.05, 0], [60, I.z0 - 0.05, Math.PI], [I.x1 + 0.05, -50, Math.PI / 2], [I.x0 - 0.05, -50, -Math.PI / 2]].forEach(([x, z, rot]) => {
-    const pl = new T.Mesh(G3.placa, mNome); pl.scale.set(placaW, placaH, 1); pl.position.set(x, -I.esp / 2 - 0.1, z); pl.rotation.y = rot; g.add(pl);
+  texNome.dispose();
+  const mNome = new T.MeshBasicMaterial({ map: texturaDoPainelRF(), toneMapped: false });   /* painel iluminado REAL FORTE CONSULTORIA */
+  const placaW = 64, placaH = 8, fora = CASCO.saida + 0.12;
+  [[-60, I.z1 + fora, 0], [60, I.z0 - fora, Math.PI], [I.x1 + fora, -50, Math.PI / 2], [I.x0 - fora, -50, -Math.PI / 2]].forEach(([x, z, rot]) => {
+    const pl = new T.Mesh(G3.placa, mNome); pl.scale.set(placaW, placaH, 1); pl.position.set(x, -(CASCO.aro + CASCO.base) / 2, z); pl.rotation.y = rot; g.add(pl);
   });
-  // ---- Rocha por baixo (ilha flutuante), com cores de terra que escurecem para baixo ----
-  const geoR = geometriaDeRocha();   // alta resolução, com saliências, sulcos e camadas (acabamento de cinema)
-  const matRocha = materialDeRocha({ topo: 47.5, altura: 95 });
-  const rocha = new T.Mesh(geoR, matRocha); rocha.scale.set(128, 95, 128); rocha.position.set(cx, -I.esp - 95 / 2 + 0.6, cz); rocha.receiveShadow = true; g.add(rocha);
-  estalactites(g, cx, cz, materialDeRocha({ topo: -I.esp, altura: 95, relevo: 0.6 }), -I.esp);
-  // cristais acesos encravados na rocha (ciano e lilás)
-  { const s1 = sorteio('cristais-rf'), m4 = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), sc = new T.Vector3(), p = new T.Vector3(), geoC = new T.OctahedronGeometry(1, 0);
-    const im = new T.InstancedMesh(geoC, luzMat(0x38d6f5, 1.25), 34), im2 = new T.InstancedMesh(geoC, luzMat(0xb478ff, 1.1), 10);
-    const colocar = (mesh, k) => { const h = 0.05 + s1() * 0.85, a = s1() * Math.PI * 2, raio = raioDaRocha(a, h); p.set(cx + Math.cos(a) * raio, -I.esp - h * 95, cz + Math.sin(a) * raio); e.set(s1() - 0.5, a, (s1() - 0.5) * 1.4); q.setFromEuler(e); const t = 0.5 + s1() * 1.3; sc.set(t * 0.45, t * 1.6, t * 0.45); mesh.setMatrixAt(k, m4.compose(p, q, sc)); };
-    for (let k = 0; k < 34; k++) colocar(im, k); for (let k = 0; k < 10; k++) colocar(im2, k); g.add(im, im2); }
-  // trepadeiras penduradas da borda
-  { const s2 = sorteio('vinhas-rf'), pts = contornoParaDentro(420, 0.6, -I.esp + 0.2).filter((_, k) => sorteio('vinha' + k)() < 0.35), im = new T.InstancedMesh(G3.cone, mat(0x283d22, { roughness: 0.95 }), pts.length), m4 = new T.Matrix4(), q = new T.Quaternion().setFromEuler(new T.Euler(Math.PI, 0, 0));
-    pts.forEach((pp, k) => { const h = 1.5 + Math.pow(s2(), 2.2) * 16; im.setMatrixAt(k, m4.compose(pp, q, new T.Vector3(0.12 + s2() * 0.22, h * 0.7, 0.12 + s2() * 0.22))); }); g.add(im); }
+  // ---- Megaestrutura: casco, fundo, módulos, reator e luzes de navegação (no lugar da rocha) ----
+  const MEGA = megaestrutura(g, cx, cz);
   // ---- Anéis de luz em volta da ilha (por baixo da borda) ----
-  const anel = new T.Mesh(new T.TorusGeometry(176, 0.32, 10, 260), luzMat(COR3D.laranja, 1.25)); anel.rotation.x = Math.PI / 2; anel.position.set(cx, -I.esp - 14, cz); g.add(anel);
-  const anel2 = new T.Mesh(new T.TorusGeometry(184, 0.16, 8, 260), luzMat(0x38d6f5, 1.2)); anel2.rotation.x = Math.PI / 2; anel2.position.set(cx, -I.esp - 18, cz); g.add(anel2);
+  const anel = new T.Mesh(new T.TorusGeometry(176, 0.32, 10, 260), luzMat(COR3D.laranja, 1.25)); anel.rotation.x = Math.PI / 2; anel.position.set(cx, -30, cz); g.add(anel);
+  const anel2 = new T.Mesh(new T.TorusGeometry(184, 0.16, 8, 260), luzMat(0x38d6f5, 1.2)); anel2.rotation.x = Math.PI / 2; anel2.position.set(cx, -34, cz); g.add(anel2);
   { const K = novoLote(), mm = mat(0x3a414c, { roughness: 0.4, metalness: 0.7 });   // braços que seguram o anel
-    for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + Math.PI / 8, r0 = raioDaRocha(a, 0.15), x = cx + Math.cos(a) * (r0 + 176) / 2, z = cz + Math.sin(a) * (r0 + 176) / 2; K.add(G3.caixaC, mm, x, -I.esp - 14, z, 176 - r0 + 2, 0.7, 0.9, 0, -a, 0, false); }
+    for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + Math.PI / 8, r0 = 112, x = cx + Math.cos(a) * (r0 + 176) / 2, z = cz + Math.sin(a) * (r0 + 176) / 2; K.add(G3.caixaC, mm, x, -30, z, 176 - r0 + 2, 0.7, 0.9, 0, -a, 0, false); }
     K.montar(g, []); }
   // ---- Propulsores: quatro nos cantos e um grande na ponta da rocha ----
   const chamas = [], geoChama = new T.ConeGeometry(1, 1, 24, 1, true).rotateX(Math.PI).translate(0, -0.5, 0);   // boca larga em cima, ponta para baixo
   const r45 = I.raio * (1 - Math.SQRT1_2);
-  [[I.x0 + r45 + 10, I.z0 + r45 + 10], [I.x1 - r45 - 10, I.z0 + r45 + 10], [I.x0 + r45 + 10, I.z1 - r45 - 10], [I.x1 - r45 - 10, I.z1 - r45 - 10], [cx, cz]].forEach(([x, z], k) => {
-    const grande = k === 4, e = grande ? 9 : 4.5, y0 = grande ? -I.esp - 96 : -I.esp - 5;
+  [[I.x0 + r45 + 24, I.z0 + r45 + 24], [I.x1 - r45 - 24, I.z0 + r45 + 24], [I.x0 + r45 + 24, I.z1 - r45 - 24], [I.x1 - r45 - 24, I.z1 - r45 - 24], [cx, cz]].forEach(([x, z], k) => {
+    const grande = k === 4, e = grande ? 9 : 4.5, y0 = grande ? -CASCO.fundo - 34 : -CASCO.fundo - 3;   /* o grande na ponta do reator, os outros embaixo do fundo */
     const base = new T.Mesh(G3.cil, mat(0x3a414c, { roughness: 0.4, metalness: 0.7 })); base.scale.set(e, grande ? 8 : 5, e); base.position.set(x, y0, z); g.add(base);
     const ar = new T.Mesh(new T.TorusGeometry(e * 1.08, 0.45, 8, 40), luzMat(COR3D.laranja, 1.8)); ar.rotation.x = Math.PI / 2; ar.position.set(x, y0 - 0.2, z); g.add(ar);
     const chama = new T.Mesh(geoChama, new T.MeshBasicMaterial({ color: 0x7fd8ff, transparent: true, opacity: 0.55, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide, fog: false }));
@@ -5043,9 +5032,9 @@ function montarEspaco() {
   const cachoeiras = [];
   [[75, I.z1, 0], [-85, I.z0, Math.PI], [I.x1, 90, Math.PI / 2], [I.x0, 95, -Math.PI / 2], [I.x1, -105, Math.PI / 2]].forEach(([x, z, rot], k) => {
     const tx = texAgua.clone(); tx.needsUpdate = true; tx.repeat.set(1, 0.6);
-    const m = new T.MeshBasicMaterial({ map: tx, alphaMap: texSome, transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide, fog: false, toneMapped: false });
+    const m = new T.MeshBasicMaterial({ map: tx, alphaMap: texSome, color: 0x8fdcff, transparent: true, opacity: 0.6, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide, fog: false, toneMapped: false });   /* cascata de energia */
     const w = 5 + (k % 2) * 3, h = 80, ox = Math.sin(rot), oz = Math.cos(rot);
-    const cq = new T.Mesh(G3.placa, m); cq.scale.set(w, h, 1); cq.rotation.y = rot; cq.position.set(x + ox * 1.4, -h / 2 + 0.1, z + oz * 1.4); g.add(cq); cachoeiras.push(tx);
+    const cq = new T.Mesh(G3.placa, m); cq.scale.set(w, h, 1); cq.rotation.y = rot; cq.position.set(x + ox * 2.1, -h / 2 + 0.1, z + oz * 2.1); g.add(cq); cachoeiras.push(tx);
     const nevoa = new T.Sprite(new T.SpriteMaterial({ map: brilhoTex, color: 0xcfeaff, transparent: true, opacity: 0.35, depthWrite: false, fog: false })); nevoa.scale.set(w * 3, w * 2, 1); nevoa.position.set(x + ox * 2, -I.esp - 6, z + oz * 2); g.add(nevoa);
     // canal de água que corre no gramado até a borda
     const canal = new T.Mesh(G3.caixa, MP.agua); canal.scale.set(w, 0.06, 6); canal.rotation.y = rot; canal.position.set(x - ox * 2.6, -0.02, z - oz * 2.6); g.add(canal);
@@ -5085,12 +5074,9 @@ function montarEspaco() {
   // ---- Ilhotas flutuantes e o cinturão de asteroides ----
   const ilhotas = [];
   { const s4 = sorteio('ilhotas-rf');
-    for (let k = 0; k < 8; k++) {
-      const gg = new T.Group(), a = k / 8 * Math.PI * 2 + 0.3, rr = 205 + s4() * 45; gg.position.set(Math.cos(a) * rr, -10 + s4() * 34, cz + Math.sin(a) * rr); g.add(gg);
-      const e = 5 + s4() * 7, ro = new T.Mesh(geoR, matRocha); ro.scale.set(e / 1.2, e * 1.5, e / 1.2); ro.position.y = -e * 0.75; gg.add(ro);
-      const tp = new T.Mesh(G3.cil, mat(0x7fae6a, { roughness: 0.9 })); tp.scale.set(e * 0.8, 0.3, e * 0.8); tp.position.y = -0.3; gg.add(tp);
-      if (k % 2) { const tr = new T.Mesh(G3.cil, MP.tronco); tr.scale.set(0.3, 3, 0.3); gg.add(tr); const cp = new T.Mesh(G3.copa, MP.copa); cp.scale.set(2.4, 2.6, 2.4); cp.position.y = 4; gg.add(cp); }
-      else { const cr = new T.Mesh(new T.OctahedronGeometry(1, 0), luzMat(k % 4 ? 0x38d6f5 : 0xb478ff, 1.7)); cr.scale.set(1.2, 3.4, 1.2); cr.position.y = 3; gg.add(cr); }
+    for (let k = 0; k < 6; k++) {   // estações secundárias (cenário, não são empresas)
+      const gg = new T.Group(), a = k / 6 * Math.PI * 2 + 0.3, rr = 225 + s4() * 45; gg.position.set(Math.cos(a) * rr, -16 + s4() * 40, cz + Math.sin(a) * rr); g.add(gg);
+      estacaoSecundaria(gg, 7 + s4() * 5, s4, k);
       ilhotas.push({ gg, y0: gg.position.y, f: s4() * 6 });
     }
     const n = 480, im = new T.InstancedMesh(geometriaDePedra(), materialDeRocha({ topo: 0, altura: 30, relevo: 0.5 }), n), m4 = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler();
@@ -5106,13 +5092,13 @@ function montarEspaco() {
     for (let k = 0; k < n; k++) {
       let u = s5() * 2 - 1; const a = s5() * Math.PI * 2; if (k % 3 === 0) u *= 0.12;   // um terço das estrelas na faixa da via láctea
       const sq = Math.sqrt(1 - u * u), v = new T.Vector3(Math.cos(a) * sq, u, Math.sin(a) * sq).applyAxisAngle(new T.Vector3(1, 0, 0), 0.5).multiplyScalar(560);
-      if (v.y < -0.2 * 560) v.y = -v.y;   /* abaixo do horizonte fica o planeta: a estrela vai para o céu */
+      if (estaNoPlaneta(v)) v.negate();   /* atrás do planeta não aparece estrela: vai para o outro lado do céu */
       pos.set([v.x, v.y, v.z], k * 3);
       c.setHSL(0.55 + s5() * 0.12, 0.45, 0.72 + s5() * 0.28); if (s5() < 0.1) c.setHSL(0.08, 0.8, 0.82); cor.set([c.r, c.g, c.b], k * 3);
     }
     const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.BufferAttribute(pos, 3)); geo.setAttribute('color', new T.BufferAttribute(cor, 3));
     const est = new T.Points(geo, fundo(new T.PointsMaterial({ size: 1.7, sizeAttenuation: false, vertexColors: true, transparent: true, opacity: 0.95 }))); est.renderOrder = -10; ceu.add(est);
-    const p2 = new Float32Array(320 * 3); for (let k = 0; k < 320; k++) { const u = s5() * 1.2 - 0.2, a = s5() * Math.PI * 2, sq = Math.sqrt(1 - u * u); p2.set([Math.cos(a) * sq * 555, u * 555, Math.sin(a) * sq * 555], k * 3); }
+    const p2 = new Float32Array(320 * 3); for (let k = 0; k < 320; k++) { const u = s5() * 2 - 1, a = s5() * Math.PI * 2, sq = Math.sqrt(1 - u * u), vv = new T.Vector3(Math.cos(a) * sq * 555, u * 555, Math.sin(a) * sq * 555); if (estaNoPlaneta(vv)) vv.negate(); p2.set([vv.x, vv.y, vv.z], k * 3); }
     const geo2 = new T.BufferGeometry(); geo2.setAttribute('position', new T.BufferAttribute(p2, 3));
     const grandes = new T.Points(geo2, fundo(new T.PointsMaterial({ size: 3.4, sizeAttenuation: false, color: 0xffffff, transparent: true, opacity: 0.9 }))); grandes.renderOrder = -10; ceu.add(grandes); CAMPO.estrelasGrandes = grandes; }
   // nebulosas coloridas
@@ -5121,7 +5107,7 @@ function montarEspaco() {
     const sp = new T.Sprite(fundo(new T.SpriteMaterial({ map: brilhoTex, color: cor, transparent: true, opacity: op * 0.35, blending: T.AdditiveBlending }))); sp.scale.set(s, s * 0.6, 1); sp.position.set(x, y, z).setLength(540); sp.renderOrder = -9; ceu.add(sp); });
   // planeta gigante com anel
   const texGas = texturaCanvas(512, 256, (q, w, h) => { for (let y = 0; y < h; y++) { const t = y / h, b = Math.sin(t * 40) * 0.5 + Math.sin(t * 13 + 1) * 0.5; q.fillStyle = `hsl(${26 + b * 10}, ${55 + b * 15}%, ${46 + b * 14}%)`; q.fillRect(0, y, w, 1); } q.fillStyle = 'rgba(170,60,30,0.6)'; q.beginPath(); q.ellipse(w * 0.62, h * 0.62, 40, 16, 0, 0, Math.PI * 2); q.fill(); });
-  const gigante = new T.Group(); gigante.position.set(-330, 160, -380).setLength(470); ceu.add(gigante);
+  const gigante = new T.Group(); gigante.position.set(200, 150, -420).setLength(470); ceu.add(gigante);
   const pg = new T.Mesh(new T.SphereGeometry(80, 64, 32), new T.MeshStandardMaterial({ map: texGas, roughness: 0.9, fog: false, emissive: 0x2a1406, emissiveIntensity: 0.6 })); gigante.add(pg);
   const texAnel = texturaCanvas(512, 8, (q, w) => { for (let x = 0; x < w; x++) { const a = (0.15 + 0.6 * Math.abs(Math.sin(x * 0.09))) * (x > 60 ? 1 : 0); q.fillStyle = `rgba(230,200,160,${a})`; q.fillRect(x, 0, 1, 8); } });
   const anelG = new T.Mesh(new T.RingGeometry(105, 165, 128, 1), new T.MeshBasicMaterial({ map: texAnel, transparent: true, side: T.DoubleSide, toneMapped: false, fog: false, depthWrite: false }));
@@ -5135,7 +5121,7 @@ function montarEspaco() {
   const lua = new T.Mesh(new T.SphereGeometry(13, 32, 16), new T.MeshStandardMaterial({ color: 0xbab6ae, roughness: 1, fog: false, emissive: 0x222222 })); lua.position.set(300, 140, 400).setLength(500); ceu.add(lua);
   azul.visible = false;   /* o planeta azul agora é o grande, lá embaixo (shader do céu) */
   montarCeuDeCinema(ceu);
-  nuvensDaIlha(g, cx, cz);
+  CAMPO.universo = universoExtra(g, ceu, cz, ilhotas); CAMPO.universo.nav = MEGA.nav;   /* galáxia, naves, satélites e rotas de energia */
   // estação espacial em anel (gira devagar)
   const estacao = new T.Group(); estacao.position.set(240, 260, -330).setLength(500); ceu.add(estacao);
   { const mm = new T.MeshStandardMaterial({ color: 0xd9dde2, roughness: 0.4, metalness: 0.6, fog: false }); estacao.add(new T.Mesh(new T.TorusGeometry(24, 2.0, 10, 64), mm));
@@ -5192,12 +5178,12 @@ function hologramaDaTorre(g, x, z) {
 function passoEspaco(t) {
   const A = CAMPO.espacoAnim; if (!A) return;
   if (CAMPO.ceuEspaco && CAMPO.camera) CAMPO.ceuEspaco.position.copy(CAMPO.camera.position);
-  passoCeuDeCinema(t); passoNuvensDaIlha(t);
+  passoCeuDeCinema(t); passoNuvensDaIlha(t); passoUniverso(t);
   if (CAMPO.luzes && CAMPO.luzes.chao && CAMPO.luzes.chao.visible) CAMPO.luzes.chao.visible = false;   /* no espaço não há chão embaixo da ilha */
   A.chamas.forEach((c, k) => { const s = 1 + Math.sin(t * 9 + k) * 0.06 + Math.sin(t * 23 + k * 2) * 0.04; c.chama.scale.y = c.alto * s; c.miolo.scale.y = c.alto * 0.45 * (2 - s); c.chama.material.opacity = 0.45 + Math.sin(t * 13 + k) * 0.08; });
   A.cachoeiras.forEach((tx, k) => { tx.offset.y = (t * (0.5 + k * 0.05)) % 1; });
   A.portais.forEach((p, k) => { p.ar.rotation.z = t * 0.6 + k; p.ar2.rotation.z = -t * 0.45 + k; p.veu.material.opacity = 0.18 + Math.sin(t * 2 + k) * 0.08; });
-  A.ilhotas.forEach((i) => { i.gg.position.y = i.y0 + Math.sin(t * 0.4 + i.f) * 2.2; i.gg.rotation.y = t * 0.05 + i.f; });
+  A.ilhotas.forEach((i) => { i.gg.position.y = i.y0 + Math.sin(t * 0.4 + i.f) * 0.5; i.gg.rotation.y = t * 0.03 + i.f; });
   A.anel.rotation.z = t * 0.02; A.anel2.rotation.z = -t * 0.03;
   if (CAMPO.cinturao) CAMPO.cinturao.rotation.y = t * 0.004;
   if (CAMPO.planetaGigante) CAMPO.planetaGigante.rotation.y = t * 0.01;
@@ -5215,7 +5201,7 @@ function passoEspaco(t) {
   // holograma da torre: gira, flutua, varre e pisca de leve
   const Hg = PLANO.holograma; if (Hg) {
     Hg.H.rotation.y = t * 0.25; Hg.H.position.y = Hg.y0 + Math.sin(t * 0.8) * 0.35;
-    Hg.varre.position.y = (t * 3) % Hg.ALT; Hg.part.rotation.y = -t * 0.4; Hg.halo.position.y = (Math.sin(t * 0.6) * 0.5 + 0.5) * Hg.ALT; Hg.halo2.rotation.z = t * 0.8;
+    Hg.varre.position.y = (t * 3) % Hg.ALT; (Hg.aneis || []).forEach((pv, k) => { pv.rotation.y = k * 0.9 + t * (0.3 + k * 0.15) * (k % 2 ? -1 : 1); }); Hg.part.rotation.y = -t * 0.4; Hg.halo.position.y = (Math.sin(t * 0.6) * 0.5 + 0.5) * Hg.ALT; Hg.halo2.rotation.z = t * 0.8;
     const fl = 0.92 + Math.sin(t * 31) * 0.04 + (Math.sin(t * 3.7) > 0.985 ? -0.35 : 0); Hg.linhaM.opacity = 0.75 * fl; Hg.faceM.opacity = 0.05 * fl;
   }
 }
@@ -5835,12 +5821,13 @@ function ligarControles(palco) {
   CAMPO.rotulos.addEventListener('click', (ev) => { const a = ev.target.closest('.pq'); if (!a) return; ev.preventDefault(); abrirIlha(a.dataset.ilha); });
   // Botões na tela: aproximar, afastar, girar e ir até a torre
   const botoes = document.createElement('div'); botoes.className = 'campo-zoom';
-  botoes.innerHTML = '<button data-z="+" title="Aproximar" aria-label="Aproximar">+</button><button data-z="-" title="Afastar" aria-label="Afastar">−</button><button data-z="ge" title="Girar para a esquerda" aria-label="Girar para a esquerda">⟲</button><button data-z="gd" title="Girar para a direita" aria-label="Girar para a direita">⟳</button><button class="txt" data-z="torre" title="Ir até a torre Real Forte">Torre RF</button>';
+  botoes.innerHTML = '<button data-z="+" title="Aproximar" aria-label="Aproximar">+</button><button data-z="-" title="Afastar" aria-label="Afastar">−</button><button data-z="ge" title="Girar para a esquerda" aria-label="Girar para a esquerda">⟲</button><button data-z="gd" title="Girar para a direita" aria-label="Girar para a direita">⟳</button><button class="txt" data-z="orbita" title="Ver a plataforma inteira flutuando no espaço">Órbita</button><button class="txt" data-z="torre" title="Ir até a torre Real Forte">Torre RF</button>';
   botoes.addEventListener('click', (ev) => {
     const b = ev.target.closest('button'); if (!b) return; const z = b.dataset.z; CAM.parada = performance.now();
     if (z === '+') zoom(0.6); else if (z === '-') zoom(1.6);
     else if (z === 'ge' || z === 'gd') animarCamera({ alvo: CAM.alvo.clone(), raio: CAM.raio, theta: CAM.theta + (z === 'ge' ? -Math.PI / 4 : Math.PI / 4), phi: CAM.phi }, 450);
     else if (z === 'torre') animarCamera(visaoDaTorre(), 900);
+    else if (z === 'orbita') animarCamera({ alvo: new THREE.Vector3(0, 0, 6), raio: 360, theta: CAM.theta, phi: 1.32 }, 1600);   // visão orbital
   });
   palco.appendChild(botoes); CAMPO.botoesCamera = botoes;
   // Rótulo do centro (aparece ao passar o mouse)
@@ -6593,6 +6580,270 @@ function texturaFachadaVidro(cols, linhas, cor) {
   return { mapa: tMapa, aspereza: tAsp };
 }
 
+/* ---------- 11. Megaestrutura da plataforma (Orbital Consulting City) ----------
+   A base da cidade é uma obra de engenharia espacial, não uma rocha:
+   - casco grosso que segue o contorno da ilha: chanfro de cima com o filete laranja, casco principal
+     com painéis, janelas acesas, hangares e faixas de luz azul e laranja, chanfro de baixo com LED azul;
+   - fundo de chapa com módulos mecânicos, tanques, dutos, o reator central em degraus com anéis de
+     energia, propulsores com facho azul e luzes de navegação piscando;
+   - painel iluminado REAL FORTE CONSULTORIA nos quatro lados;
+   - mirantes de vidro no meio de cada lado.
+   Tudo em lote (peças iguais desenhadas de uma vez) e parado: a cidade não balança. */
+const CASCO = { aro: 2.5, base: 12, chanfro: 16, fundo: 19, saida: 1.5, recuoFundo: 14 };   // alturas (para baixo) e recuos, em metros
+// Faixa que acompanha o contorno da ilha, do recuo d0 na altura y0 até o recuo d1 na altura y1 (recuo negativo = para fora)
+function faixaDoCasco(n, d0, y0, d1, y1, metrosPorRepeticao) {
+  const A = contornoParaDentro(n, d0, y0), B = contornoParaDentro(n, d1, y1), pos = [], uv = [], idx = [];
+  let u = 0;
+  for (let i = 0; i < A.length; i++) {
+    if (i) u += A[i].distanceTo(A[i - 1]);
+    pos.push(A[i].x, A[i].y, A[i].z, B[i].x, B[i].y, B[i].z);
+    uv.push(u / metrosPorRepeticao, 1, u / metrosPorRepeticao, 0);
+    if (i) { const a = 2 * (i - 1), b = a + 1, c = a + 2, d = a + 3; idx.push(a, b, c, b, d, c); }
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+  geo.computeVertexNormals();
+  // a face tem de olhar para fora: se a primeira normal aponta para dentro, inverte a ordem dos triângulos
+  const n0 = new THREE.Vector3().fromBufferAttribute(geo.attributes.normal, 0), fora = new THREE.Vector3(A[0].x, 0, A[0].z - 6).normalize();
+  if (n0.x * fora.x + n0.z * fora.z < 0) { for (let i = 0; i < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; } geo.setIndex(idx); geo.computeVertexNormals(); }
+  return geo;
+}
+// Desenha a cor (map) e a luz (emissiveMap) de uma faixa do casco
+function texturasDoCasco(w, h, pintar) {
+  const T = THREE, cLuz = document.createElement('canvas'); cLuz.width = w; cLuz.height = h;
+  const gl = cLuz.getContext('2d'); gl.fillStyle = '#000'; gl.fillRect(0, 0, w, h);
+  const cor = telaDe(w, h, (g) => pintar(g, gl, w, h, sorteio('casco' + w + 'x' + h)));
+  const map = texturaRepetida(cor), luz = texturaRepetida(cLuz);
+  map.wrapT = luz.wrapT = T.ClampToEdgeWrapping;
+  return { map, luz };
+}
+function matDoCasco(tx, forca) {
+  const m = new THREE.MeshStandardMaterial({ map: tx.map, emissive: 0xffffff, emissiveMap: tx.luz, emissiveIntensity: forca, metalness: 0.62, roughness: 0.4, envMap: CAMPO.ambiente, envMapIntensity: 0.9, toneMapped: false });
+  (CAMPO.matsTorre = CAMPO.matsTorre || []).push([m, forca]);   // à noite as luzes do casco ficam mais fortes
+  return m;
+}
+function pintarMetal(g, w, h, sorte, c1, c2) {
+  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, c1); gr.addColorStop(1, c2); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  for (let k = 0; k < w * h / 900; k++) { g.fillStyle = `rgba(${sorte() < 0.5 ? '255,255,255' : '0,0,0'},${sorte() * 0.035})`; g.fillRect(sorte() * w, sorte() * h, 2 + sorte() * 8, 1 + sorte() * 3); }
+}
+function megaestrutura(g, cx, cz) {
+  formasDaCidade();   // cilindro deitado e cúpula
+  const T = THREE, C = CASCO, N = 520, s = sorteio('mega-rf');
+  // Casco principal: 32 m por repetição, com um hangar em cada repetição
+  const principal = matDoCasco(texturasDoCasco(2048, 608, (q, luz, w, h, so) => {
+    pintarMetal(q, w, h, so, '#2b333f', '#161b23');
+    for (let x = 0; x < w; x += 256) { q.fillStyle = '#0f141a'; q.fillRect(x, 0, 3, h); q.fillStyle = '#3c4654'; q.fillRect(x + 3, 0, 1, h); }
+    [0.3, 0.7].forEach((v) => { q.fillStyle = '#0f141a'; q.fillRect(0, h * v, w, 3); q.fillStyle = '#3c4654'; q.fillRect(0, h * v + 3, w, 1); });
+    q.fillStyle = '#1b3550'; q.fillRect(0, h * 0.08, w, h * 0.02); luz.fillStyle = '#3fa9ff'; luz.fillRect(0, h * 0.08, w, h * 0.02);
+    for (let x = 6; x < w; x += 22) { if (x > 1260 && x < 1660) continue; q.fillStyle = '#0c1724'; q.fillRect(x, h * 0.4, 14, h * 0.1); const r = so(); luz.fillStyle = r < 0.55 ? '#ffcf8a' : r < 0.7 ? '#bfe3ff' : '#000'; luz.fillRect(x, h * 0.4, 14, h * 0.1); }
+    q.fillStyle = '#3c4654'; q.fillRect(1290, h * 0.58, 340, h * 0.36); q.fillStyle = '#080b10'; q.fillRect(1300, h * 0.6, 320, h * 0.34);   // hangar
+    luz.fillStyle = '#ff9a52'; luz.fillRect(1300, h * 0.6, 320, 5); for (let x = 1310; x < 1620; x += 40) { luz.fillStyle = '#ffd59a'; luz.fillRect(x, h * 0.92, 12, 4); }
+    q.fillStyle = '#1b2430'; for (let x = 1320; x < 1600; x += 60) q.fillRect(x, h * 0.66, 40, h * 0.22);
+    for (let x = 0; x < w; x += 240) { q.fillStyle = '#4a2a14'; q.fillRect(x, h * 0.955, 200, h * 0.012); luz.fillStyle = '#ff8a3d'; luz.fillRect(x, h * 0.955, 200, h * 0.012); }
+  }), 1.9);
+  const aro = matDoCasco(texturasDoCasco(1024, 128, (q, luz, w, h, so) => {
+    pintarMetal(q, w, h, so, '#38414e', '#232a34');
+    q.fillStyle = '#5a3a20'; q.fillRect(0, h * 0.22, w, h * 0.07); luz.fillStyle = '#ff8a3d'; luz.fillRect(0, h * 0.22, w, h * 0.07);
+    for (let x = 16; x < w; x += 64) { luz.fillStyle = '#7fd0ff'; luz.fillRect(x, h * 0.66, 10, h * 0.08); }
+  }), 1.8);
+  const chanfro = matDoCasco(texturasDoCasco(1024, 128, (q, luz, w, h, so) => {
+    pintarMetal(q, w, h, so, '#1e242d', '#12161c');
+    for (let x = 0; x < w; x += 128) { q.fillStyle = '#0b0e12'; q.fillRect(x, 0, 2, h); }
+    q.fillStyle = '#163048'; q.fillRect(0, h * 0.35, w, h * 0.08); luz.fillStyle = '#38b6ff'; luz.fillRect(0, h * 0.35, w, h * 0.08);
+  }), 1.8);
+  const chapa = revestir(new T.MeshStandardMaterial({ color: 0x272e38, roughness: 0.48, metalness: 0.6, envMap: CAMPO.ambiente, envMapIntensity: 0.7 }), 'chapa');
+  const chapaClara = revestido(mat(0x59626e, { roughness: 0.45, metalness: 0.55 }), 'chapa');
+  // Faixas do casco (de cima para baixo)
+  const faixa = (d0, y0, d1, y1, m, rep) => { const me = new T.Mesh(faixaDoCasco(N, d0, y0, d1, y1, rep), m); me.receiveShadow = true; g.add(me); return me; };
+  faixa(0, 0.02, -C.saida, -C.aro, aro, 32);
+  faixa(-C.saida, -C.aro, -C.saida, -C.base, principal, 32);
+  faixa(-C.saida, -C.base, 4, -C.chanfro, chanfro, 32);
+  faixa(4, -C.chanfro, C.recuoFundo, -C.fundo, chapa, 32);
+  // Fundo: chapa com painéis
+  { const pts = contornoParaDentro(160, C.recuoFundo, 0).slice(0, -1).map((p) => new T.Vector2(p.x, p.z)), forma = new T.Shape(pts);
+    const fundo = new T.Mesh(new T.ShapeGeometry(forma).rotateX(Math.PI / 2).translate(0, -C.fundo, 0), chapa); g.add(fundo); }
+  // Módulos mecânicos, tanques e dutos embaixo (em grade, com simetria)
+  const K = novoLote(), y = -C.fundo, luzQ = luzMat(0xffc27a, 1.3), luzA = luzMat(0x38b6ff, 1.4), luzL = luzMat(COR3D.laranja, 1.5);
+  for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
+    const x = cx + i * 26, z = cz + j * 26, r = Math.hypot(i * 26, j * 26);
+    if (r < 62 || !dentroDaIlha(x, z, 26)) continue;
+    const tipo = (Math.abs(i) + Math.abs(j) * 2) % 4, w = 12 + (Math.abs(i * 3 + j) % 3) * 3, d = 12 + (Math.abs(j * 3 + i) % 3) * 3, h = 3 + (Math.abs(i + j) % 3) * 2;
+    if (tipo === 3) {   // tanque deitado com cintas
+      K.add(G3.cilDeitado, chapaClara, x, y - 3.2, z, w + 2, 3, 3, 0, (i + j) % 2 ? 0 : Math.PI / 2, 0);
+      K.add(G3.caixa, chapa, x, y - 1.4, z, 2, 1.4, 2, 0, 0, 0);
+    } else {
+      K.add(G3.caixa, tipo === 1 ? chapaClara : chapa, x, y - h, z, w, h, d);
+      K.add(G3.caixa, tipo === 2 ? luzA : luzQ, x, y - h * 0.55, z + d / 2 + 0.05, w * 0.7, 0.35, 0.1, 0, 0, 0, false);   // janela acesa do módulo
+      K.add(G3.caixa, chapaClara, x - w * 0.25, y - h - 1.2, z, 2.4, 1.2, 2.4);   // respiro
+    }
+  }
+  [-70, 70].forEach((o) => { K.add(G3.cilDeitado, chapaClara, cx, y - 1.6, cz + o, 220, 1.3, 1.3, 0, 0, 0); K.add(G3.cilDeitado, chapaClara, cx + o, y - 1.6, cz, 210, 1.3, 1.3, 0, Math.PI / 2, 0); });   // dutos
+  // Reator central em degraus, com anéis de energia
+  const degraus = [[50, 6], [38, 8], [26, 10], [13, 9]];
+  let yy = y;
+  const cil64 = G3.cil64 || (G3.cil64 = new T.CylinderGeometry(1, 1, 1, 72).translate(0, 0.5, 0)), toro = G3.toroFino || (G3.toroFino = new T.TorusGeometry(1, 0.012, 8, 120).rotateX(Math.PI / 2));
+  degraus.forEach(([r, h], k) => {
+    yy -= h; K.add(cil64, k % 2 ? chapaClara : chapa, cx, yy, cz, r, h, r);
+    K.add(toro, k % 2 ? luzA : luzL, cx, yy + 0.4, cz, r * 1.01, 40, r * 1.01, 0, 0, 0, false);
+    for (let a = 0; a < 12; a++) { const an = a / 12 * Math.PI * 2; K.add(G3.caixa, luzQ, cx + Math.cos(an) * r * 1.002, yy + h * 0.45, cz + Math.sin(an) * r * 1.002, 1.6, 0.5, 1.6, 0, -an, 0, false); }
+  });
+  // Mirantes de vidro no meio de cada lado (para olhar os planetas)
+  const vidro = new T.MeshStandardMaterial({ color: 0x9fc6ea, transparent: true, opacity: 0.32, roughness: 0.05, metalness: 0.6, envMap: CAMPO.ambiente, envMapIntensity: 1.2, depthWrite: false });
+  [[cx, ILHA.z1 + 1.5, 0], [cx, ILHA.z0 - 1.5, Math.PI], [ILHA.x1 + 1.5, cz + 30, Math.PI / 2], [ILHA.x0 - 1.5, cz + 30, -Math.PI / 2]].forEach(([x, z, giro]) => {
+    const pod = new T.Group(); pod.position.set(x, -C.base + 1, z); pod.rotation.y = giro; g.add(pod);
+    caixa(pod, 14, 0.6, 5, chapa, 0, -0.6, 2.4); caixa(pod, 14, 0.25, 5, luzL, 0, -0.85, 2.4).castShadow = false;
+    const cup = new T.Mesh(G3.cupula || new T.SphereGeometry(1, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), vidro); cup.scale.set(7, 3.2, 2.5); cup.position.set(0, 0, 2.4); pod.add(cup);
+  });
+  K.montar(g, []);
+  // Luzes de navegação (vermelha, verde e branca) piscando nos cantos
+  const nav = [];
+  [[ILHA.x0, ILHA.z0, 0xff3b30], [ILHA.x1, ILHA.z0, 0x2fbf71], [ILHA.x0, ILHA.z1, 0xff3b30], [ILHA.x1, ILHA.z1, 0x2fbf71]].forEach(([x, z, cor], k) => {
+    const px = x + (x < cx ? 4 : -4), pz = z + (z < cz ? 4 : -4);   // na curva do canto, por fora do casco
+    nav.push({ s: brilho(g, cor, 5, px, -C.aro - 0.5, pz, 0.9), f: k * 0.4 }); nav.push({ s: brilho(g, 0xffffff, 3, px, -C.chanfro + 1, pz, 0.9), f: k * 0.4 + 0.7 });
+  });
+  return { nav };
+}
+// Painel REAL FORTE CONSULTORIA (com a logo, quando ela existe)
+function texturaDoPainelRF() {
+  const T = THREE, c = document.createElement('canvas'); c.width = 2048; c.height = 256;
+  const q = c.getContext('2d');
+  const desenhar = (img) => {
+    const w = c.width, h = c.height, gr = q.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, '#0a1630'); gr.addColorStop(0.5, '#10264d'); gr.addColorStop(1, '#0a1630');
+    q.fillStyle = gr; q.fillRect(0, 0, w, h);
+    q.strokeStyle = '#46b4ff'; q.lineWidth = 8; q.strokeRect(10, 10, w - 20, h - 20); q.strokeStyle = 'rgba(70,180,255,.35)'; q.lineWidth = 2; q.strokeRect(26, 26, w - 52, h - 52);
+    let x = 120;
+    if (img) { const ih = 196, iw = ih * img.width / img.height; q.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih); return; }   // a logo já traz REAL FORTE CONSULTORIA
+    else { q.strokeStyle = '#ffffff'; q.lineWidth = 9; [[0, 110], [40, 150], [80, 90], [120, 130]].forEach(([dx, alt]) => q.strokeRect(x + dx, h - 60 - alt, 30, alt)); x += 200; }
+    q.textBaseline = 'middle'; q.fillStyle = '#ffffff'; q.font = '800 120px Arial, sans-serif'; q.fillText('REAL FORTE', x, h * 0.42);
+    q.fillStyle = '#ff8a3d'; q.font = '500 64px Arial, sans-serif'; q.fillText('C O N S U L T O R I A', x + 6, h * 0.78);
+  };
+  desenhar(null);
+  const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 8;
+  if (typeof LOGO !== 'undefined' && LOGO.claro) { const img = new Image(); img.onload = () => { desenhar(img); t.needsUpdate = true; }; img.src = LOGO.claro; }
+  return t;
+}
+
+/* ---------- 12. O universo em volta ----------
+   Estações secundárias (cenário, não são empresas) ligadas à ilha por rotas de energia, naves que
+   cruzam o espaço de vez em quando, satélites e uma galáxia espiral ao fundo. */
+function estacaoSecundaria(gg, e, s, k) {
+  const T = THREE, chapa = revestido(mat(0x2c343f, { roughness: 0.45, metalness: 0.6 }), 'chapa'), deck = matTelhado(0x8e959e);
+  const base = new T.Mesh(G3.cil64 || new T.CylinderGeometry(1, 1, 1, 72).translate(0, 0.5, 0), chapa); base.scale.set(e, 1.6, e); base.position.y = -1.6; gg.add(base);
+  const topo = new T.Mesh(G3.cil64, deck); topo.scale.set(e * 0.94, 0.1, e * 0.94); gg.add(topo);
+  const fundo = new T.Mesh(new T.ConeGeometry(1, 1, 48).rotateX(Math.PI).translate(0, -0.5, 0), chapa); fundo.scale.set(e * 0.8, e * 0.7, e * 0.8); fundo.position.y = -1.6; gg.add(fundo);
+  const aro = new T.Mesh(new T.TorusGeometry(e * 1.01, 0.18, 8, 96), luzMat(k % 2 ? 0x38b6ff : COR3D.laranja, 1.6)); aro.rotation.x = Math.PI / 2; aro.position.y = -0.8; gg.add(aro);
+  brilho(gg, 0x7fd0ff, e * 1.2, 0, -1.6 - e * 0.7, 0, 0.8);
+  const fach = fachadaDe('setor').mat;
+  for (let i = 0; i < 4 + (k % 3); i++) { const a = s() * Math.PI * 2, r = s() * e * 0.55, h = 2 + s() * 6, w = 1.4 + s() * 1.6; const p = new T.Mesh(G3.caixa, fach); p.scale.set(w, h, w); p.position.set(Math.cos(a) * r, 0.1, Math.sin(a) * r); p.castShadow = true; gg.add(p); }
+  for (let i = 0; i < 5; i++) { const a = s() * Math.PI * 2, r = e * (0.6 + s() * 0.25); const cp = new T.Mesh(G3.copa, PLANO.mats.copa); cp.scale.setScalar(0.9 + s() * 0.6); cp.position.set(Math.cos(a) * r, 1, Math.sin(a) * r); gg.add(cp); }
+}
+function rotaDeEnergia(g, de, ate, cor) {
+  const T = THREE, meio = de.clone().lerp(ate, 0.5); meio.y += 22;
+  const tx = CAMPO.texFluxo.clone(); tx.needsUpdate = true; tx.repeat.set(6, 1);
+  const m = new T.MeshBasicMaterial({ map: tx, color: cor, transparent: true, opacity: 0.85, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false });
+  g.add(new T.Mesh(new T.TubeGeometry(new T.QuadraticBezierCurve3(de, meio, ate), 64, 0.35, 6, false), m));
+  return tx;
+}
+function galaxiaEspiral() {
+  const T = THREE, N = 512, c = telaDe(N, N, (q) => {
+    q.fillStyle = '#000'; q.fillRect(0, 0, N, N);
+    const s = sorteio('galaxia-rf'), cx = N / 2;
+    const gr = q.createRadialGradient(cx, cx, 0, cx, cx, 70); gr.addColorStop(0, 'rgba(255,240,220,1)'); gr.addColorStop(1, 'rgba(255,200,170,0)'); q.fillStyle = gr; q.fillRect(0, 0, N, N);
+    for (let k = 0; k < 9000; k++) {
+      const braco = k % 2, r = Math.pow(s(), 0.7) * 230, a = r * 0.032 + braco * Math.PI + (s() - 0.5) * 0.7;
+      const x = cx + Math.cos(a) * r, y = cx + Math.sin(a) * r * 0.55, t = r / 230;
+      q.fillStyle = `rgba(${Math.round(255 - t * 120)},${Math.round(200 - t * 90)},${Math.round(230 + t * 25)},${0.35 * (1 - t) + 0.05})`; q.fillRect(x, y, 1.6, 1.6);
+    }
+  });
+  const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding;
+  return new T.Sprite(new T.SpriteMaterial({ map: t, transparent: true, blending: T.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.85 }));
+}
+function naveEspacial(cor) {
+  const pecas = [
+    { geo: G3.caixaC, p: [0, 0, 0], esc: [4.2, 0.9, 1.3], cor: 0xd9dde3 }, { geo: G3.caixaC, p: [1.6, 0.35, 0], esc: [1.2, 0.5, 0.9], cor: 0x1d2b40 },
+    { geo: G3.caixaC, p: [-0.4, 0, 0], esc: [2.2, 0.18, 5.2], cor: cor }, { geo: G3.caixaC, p: [-1.9, 0.6, 0], esc: [0.9, 1.2, 0.15], cor: cor },
+    { geo: G3.cilDeitado, p: [-2.2, 0, 0.9], esc: [0.8, 0.35, 0.35], cor: 0x3a414c }, { geo: G3.cilDeitado, p: [-2.2, 0, -0.9], esc: [0.8, 0.35, 0.35], cor: 0x3a414c }
+  ];
+  return fundir(pecas, true);
+}
+function universoExtra(g, ceu, cz, ilhotas) {
+  const T = THREE, s = sorteio('universo-rf'), A = { naves: [], satelites: [], rotas: [] };
+  // galáxia espiral ao fundo
+  const gal = galaxiaEspiral(); gal.scale.set(150, 150, 1); gal.material.rotation = 0.5; gal.position.set(0.55, 0.42, -0.72).setLength(540); gal.renderOrder = -9; ceu.add(gal);
+  // rotas de energia ligando três estações à ilha
+  [0, 3, 5].forEach((k, i) => { const st = ilhotas[k]; if (!st) return; const de = st.gg.position.clone(); de.y -= 1; const dir = new T.Vector3(de.x, 0, de.z - cz).normalize(); const ate = new T.Vector3(dir.x * 150, -6, cz + dir.z * 150); A.rotas.push(rotaDeEnergia(g, de, ate, i % 2 ? 0x38b6ff : COR3D.laranja)); });
+  // naves cruzando o espaço (cada uma num corredor reto, longe da ilha)
+  const geoNave = naveEspacial(COR3D.laranja), geoNave2 = naveEspacial(0x2f5ea8), mNave = matDeVeiculo();
+  for (let k = 0; k < 4; k++) {
+    const nave = new T.Group(), corpo = new T.Mesh(k % 2 ? geoNave2 : geoNave, mNave); nave.add(corpo); nave.scale.setScalar(1.6 + s() * 1.2);
+    const rastro = new T.Mesh(G3.cilDeitado, new T.MeshBasicMaterial({ color: 0x7fd0ff, transparent: true, opacity: 0.55, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false })); rastro.scale.set(26, 0.22, 0.22); rastro.position.x = -15.5; nave.add(rastro);
+    brilho(nave, 0x9fe6ff, 3, -2.7, 0, 0, 1);
+    const a = s() * Math.PI * 2, raio = 280 + s() * 140, centro = new T.Vector3(Math.cos(a) * raio, -30 + s() * 110, cz + Math.sin(a) * raio), dir = new T.Vector3(-Math.sin(a), (s() - 0.5) * 0.12, Math.cos(a)).normalize();
+    nave.quaternion.setFromUnitVectors(new T.Vector3(1, 0, 0), dir); g.add(nave);
+    A.naves.push({ nave, centro, dir, vel: 9 + s() * 8, vao: 900, fase: s() * 900 });
+  }
+  // satélites (corpo, painéis solares e antena) em órbita lenta
+  for (let k = 0; k < 3; k++) {
+    const sat = new T.Group(); caixa(sat, 1.6, 1.6, 1.6, 0xd4a84a, 0, -0.8, 0);
+    [-1, 1].forEach((sd) => { const p = new T.Mesh(G3.caixaC, mat(0x1d3a7a, { roughness: 0.3, metalness: 0.7 })); p.scale.set(0.1, 1.4, 5); p.position.z = sd * 3.6; sat.add(p); });
+    cilindro(sat, 0.05, 2.2, 0x9aa2ad, 0, 0.8, 0); brilho(sat, 0xff3b30, 1.2, 0, 3, 0, 1);
+    sat.scale.setScalar(1.6); g.add(sat);
+    A.satelites.push({ sat, raio: 230 + k * 40, alt: 40 + k * 22, vel: 0.02 + k * 0.008, fase: k * 2.1 });
+  }
+  return A;
+}
+function passoUniverso(t) {
+  const A = CAMPO.universo; if (!A) return;
+  A.naves.forEach((n) => { const d = ((t * n.vel + n.fase) % n.vao) - n.vao / 2; n.nave.position.copy(n.centro).addScaledVector(n.dir, d); });
+  A.satelites.forEach((st) => { const a = t * st.vel + st.fase; st.sat.position.set(Math.cos(a) * st.raio, st.alt, 6 + Math.sin(a) * st.raio); st.sat.rotation.y = -a; });
+  A.rotas.forEach((tx, k) => { tx.offset.x = -(t * (0.35 + k * 0.05)) % 1; });
+  (A.nav || []).forEach((n) => { n.s.material.opacity = Math.sin(t * 2.6 + n.f * 6) > 0.6 ? 0.95 : 0.05; });
+}
+
+/* ---------- 13. Esfera holográfica da Praça Central ----------
+   O planeta da Real Forte em holograma: grade de latitude e longitude, continentes em pontos laranja
+   e ciano, anéis inclinados girando em volta e o feixe do projetor. Só contornos e pontos (placa cheia
+   somada estoura para branco). */
+function globoDaPraca(g, x, z) {
+  const T = THREE, H = new T.Group(); H.position.set(x, 4.4, z); g.add(H);
+  const R = 5.2, ALT = 2 * R + 1.2, ciano = 0x5fe0ff, aditivo = { transparent: true, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false };
+  const centro = new T.Group(); centro.position.y = R + 0.6; H.add(centro);
+  const linhaM = new T.LineBasicMaterial(Object.assign({ color: ciano, opacity: 0.6 }, aditivo));
+  const faceM = new T.MeshBasicMaterial(Object.assign({ color: 0x1f7fc0, opacity: 0.05, side: T.DoubleSide }, aditivo));
+  centro.add(new T.Mesh(new T.SphereGeometry(R, 48, 24), faceM));
+  const seg = [];
+  for (let la = -75; la <= 75; la += 15) { const y = R * Math.sin(la * Math.PI / 180), r = R * Math.cos(la * Math.PI / 180); for (let k = 0; k < 64; k++) { const a0 = k / 64 * Math.PI * 2, a1 = (k + 1) / 64 * Math.PI * 2; seg.push(Math.cos(a0) * r, y, Math.sin(a0) * r, Math.cos(a1) * r, y, Math.sin(a1) * r); } }
+  for (let lo = 0; lo < 12; lo++) { const a = lo / 12 * Math.PI * 2; for (let k = 0; k < 32; k++) { const b0 = -Math.PI / 2 + k / 32 * Math.PI, b1 = b0 + Math.PI / 32; seg.push(Math.cos(a) * Math.cos(b0) * R, Math.sin(b0) * R, Math.sin(a) * Math.cos(b0) * R, Math.cos(a) * Math.cos(b1) * R, Math.sin(b1) * R, Math.sin(a) * Math.cos(b1) * R); } }
+  const gl = new T.BufferGeometry(); gl.setAttribute('position', new T.Float32BufferAttribute(seg, 3)); centro.add(new T.LineSegments(gl, linhaM));
+  // continentes: pontos onde o ruído passa do limite
+  const pts = [], cores = [], c = new T.Color();
+  for (let k = 0; k < 9000 && pts.length < 2600 * 3; k++) {
+    const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, q = Math.sqrt(1 - u * u), px = Math.cos(a) * q, py = u, pz = Math.sin(a) * q;
+    if (fbm3(px * 2.2 + 5, py * 2.2 + 5, pz * 2.2 + 5, 4) < 0.53) continue;
+    pts.push(px * R * 1.005, py * R * 1.005, pz * R * 1.005); c.setHex(Math.random() < 0.35 ? 0xff9a52 : 0x7fe8ff); cores.push(c.r, c.g, c.b);
+  }
+  const gp = new T.BufferGeometry(); gp.setAttribute('position', new T.Float32BufferAttribute(pts, 3)); gp.setAttribute('color', new T.Float32BufferAttribute(cores, 3));
+  centro.add(new T.Points(gp, new T.PointsMaterial(Object.assign({ size: 0.13, vertexColors: true, opacity: 0.95 }, aditivo))));
+  // anéis inclinados (cada um gira no seu eixo) e a varredura
+  const laranjaM = new T.MeshBasicMaterial(Object.assign({ color: 0xff9a52, opacity: 0.85 }, aditivo)), cianoM = new T.MeshBasicMaterial(Object.assign({ color: ciano, opacity: 0.8 }, aditivo));
+  const aneis = [[R * 1.32, 0.05, laranjaM, 0.35, 0.0], [R * 1.48, 0.035, cianoM, -0.6, 0.9], [R * 1.62, 0.03, laranjaM, 1.1, 2.0]].map(([r, tubo, m, incl, giro]) => {
+    const piv = new T.Group(); piv.rotation.set(incl, giro, 0); centro.add(piv);
+    const an = new T.Mesh(new T.TorusGeometry(r, tubo, 8, 160), m); an.rotation.x = Math.PI / 2; piv.add(an);
+    const sat = new T.Mesh(G3.bola, m); sat.scale.setScalar(0.18); sat.position.x = r; piv.add(sat);
+    return piv;
+  });
+  const varre = new T.Mesh(new T.RingGeometry(R * 0.2, R * 1.08, 64).rotateX(-Math.PI / 2), new T.MeshBasicMaterial(Object.assign({ color: ciano, opacity: 0.12, side: T.DoubleSide }, aditivo))); H.add(varre);
+  const nP = 260, pp = new Float32Array(nP * 3), so = sorteio('globo-rf'); for (let k = 0; k < nP; k++) { const a = so() * Math.PI * 2, rr = R * 1.2 + so() * 3; pp.set([Math.cos(a) * rr, so() * ALT, Math.sin(a) * rr], k * 3); }
+  const gpp = new T.BufferGeometry(); gpp.setAttribute('position', new T.BufferAttribute(pp, 3)); const part = new T.Points(gpp, new T.PointsMaterial(Object.assign({ color: 0x9fefff, size: 0.12, opacity: 0.8 }, aditivo))); H.add(part);
+  const feixe = new T.Mesh(new T.CylinderGeometry(R * 0.7, 0.9, 4.0, 40, 1, true).translate(0, -2.0, 0), new T.MeshBasicMaterial(Object.assign({ color: 0x2fa8e0, opacity: 0.09, side: T.DoubleSide }, aditivo))); H.add(feixe);
+  const halo = new T.Mesh(new T.TorusGeometry(R * 1.1, 0.05, 8, 120), laranjaM); halo.rotation.x = Math.PI / 2; H.add(halo);
+  const halo2 = new T.Mesh(new T.TorusGeometry(R * 1.75, 0.04, 8, 120, Math.PI * 1.5), cianoM); halo2.rotation.x = Math.PI / 2; halo2.position.y = 0.4; H.add(halo2);
+  // projetor fixo no meio do espelho d'água
+  const proj = new T.Group(); proj.position.set(x, PLANO.ALT + 0.34, z); g.add(proj);
+  const disco = new T.Mesh(G3.cil, mat(0x2a313c, { metalness: 0.7, roughness: 0.3 })); disco.scale.set(1.8, 0.25, 1.8); proj.add(disco);
+  const lente = new T.Mesh(G3.cil, luzMat(ciano, 2)); lente.scale.set(1.2, 0.27, 1.2); proj.add(lente);
+  return { H, varre, part, halo, halo2, faceM, linhaM, ALT, y0: 4.4, centro, aneis };
+}
+
 /* ---------- 1. Pós-processamento ----------
    A cena é desenhada numa imagem de alta precisão (com antisserrilhado). Dela sai o brilho das
    luzes (só o que passa do branco: LEDs, telões, sol, propulsores), espalhado em 6 tamanhos.
@@ -6762,6 +7013,9 @@ function renderizarCinema() {
   }
 }
 
+// Direção do centro do planeta grande (embaixo, à esquerda de quem olha a ilha de frente)
+const CENTRO_PLANETA = [-0.82, -0.35, -0.45];
+const estaNoPlaneta = (v) => { const c = new THREE.Vector3().fromArray(CENTRO_PLANETA).normalize(); return v.clone().normalize().dot(c) > 0.77; };
 /* ---------- 2. Céu do espaço e o planeta lá embaixo ----------
    Uma esfera que acompanha a câmera. Para cada direção do olhar, o shader vê se ela bate no planeta
    (uma esfera grande abaixo da ilha: o horizonte dele fica uns 27° abaixo do olhar reto) ou se vai
@@ -6796,8 +7050,9 @@ void main() {
   cor += faixa * (0.010 + 0.034 * nuv * nuv) * mix(vec3(0.62, 0.7, 1.0), vec3(1.0, 0.82, 0.62), centro) * (1.0 - 0.85 * poeira);
   cor += centro * faixa * 0.03 * vec3(1.0, 0.78, 0.55) * (1.0 - poeira);
   float n1 = rfFbm(d * 2.1 + 11.0, 6), n2 = rfFbm(d * 3.7 - 5.0, 6);
-  cor += vec3(0.035, 0.010, 0.040) * pow(smoothstep(0.52, 0.86, n1), 2.0);
-  cor += vec3(0.006, 0.020, 0.036) * pow(smoothstep(0.55, 0.9, n2), 2.0);
+  cor += vec3(0.11, 0.03, 0.16) * pow(smoothstep(0.5, 0.86, n1), 2.0);
+  cor += vec3(0.015, 0.05, 0.12) * pow(smoothstep(0.52, 0.9, n2), 2.0);
+  cor += vec3(0.09, 0.015, 0.07) * pow(smoothstep(0.6, 0.9, rfFbm(d * 1.6 - 9.0, 6)), 2.0);
   // poeira de estrelas bem fina, que não dá para ver uma por uma
   cor += faixa * 0.02 * pow(rfFbm(d * 60.0, 3), 4.0);
   gl_FragColor = vec4(cor, 1.0);
@@ -6824,17 +7079,17 @@ ${GLSL_RUIDO2}
 void main() {
   float nv = rfFbm2p(vUv, 5.0, 9);
   float fiapos = rfFbm2p(vUv + 0.5, 24.0, 4);
-  float nuvem = smoothstep(0.5, 0.76, nv + (fiapos - 0.5) * 0.18);
+  float nuvem = smoothstep(0.5, 0.78, nv + (fiapos - 0.5) * 0.18);
   gl_FragColor = vec4(nuvem, fiapos, 0.0, 1.0);
 }`;
 const CEU_FRAG = `
-uniform sampler2D tFundo, tPlaneta, tNuvens; uniform vec2 uDeriva;
+uniform sampler2D tFundo, tPlaneta, tNuvens; uniform vec2 uDeriva; uniform vec3 uCentro;
 uniform vec3 uSol, uSolPlaneta; uniform float uForcaSol, uNoite;
 varying vec3 vDir;
 ${GLSL_RUIDO2}
 float rfH3(vec3 p) { p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419)); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-const float RP = 0.94;    // raio do planeta (a distância até o centro é 1): horizonte ~20° abaixo do olhar reto
-const float RA = 0.9525;  // topo da atmosfera
+const float RP = 0.6;     // raio do planeta (a distância até o centro é 1): ocupa ~37° do céu, de lado
+const float RA = 0.618;   // topo da atmosfera
 vec3 rfEstrelas(vec3 d, float escala, float limite, float brilho) {
   vec3 p = d * escala, i = floor(p), f = fract(p);
   float h = rfH3(i);
@@ -6845,39 +7100,40 @@ vec3 rfEstrelas(vec3 d, float escala, float limite, float brilho) {
 }
 void main() {
   vec3 d = normalize(vDir);
-  vec3 C = vec3(0.0, -1.0, 0.0);
-  float b = -d.y, m2 = 1.0 - b * b;
+  vec3 C = normalize(uCentro);
+  float b = dot(d, C), m2 = 1.0 - b * b;
+  vec3 T1 = normalize(cross(C, vec3(0.0, 1.0, 0.0))), T2 = cross(C, T1);
   vec3 cor; float noPlaneta = 0.0;
   vec3 sp = normalize(uSolPlaneta);
   if (b > 0.0 && m2 < RP * RP) {
     noPlaneta = 1.0;
     float t = b - sqrt(RP * RP - m2);
     vec3 n = normalize(d * t - C);
-    vec2 uv = n.xz * 1.45 + 0.5;
+    vec2 uv = vec2(dot(n, T1), dot(n, T2)) * 0.62 + 0.5;
     vec4 pl = texture2D(tPlaneta, uv + uDeriva * 0.35);
     vec4 plFino = texture2D(tPlaneta, uv * 7.0 + 0.31 + uDeriva * 2.45);   // a mesma imagem bem menor: detalhe de perto
-    pl.rgb *= 0.72 + 0.56 * plFino.a * pl.a + (1.0 - pl.a) * 0.28;
+    pl.rgb *= 0.85 + 0.3 * plFino.a * pl.a + (1.0 - pl.a) * 0.15;
     vec2 nn = texture2D(tNuvens, uv * 0.9 + uDeriva).rg;
     nn.r *= 0.75 + 0.5 * texture2D(tNuvens, uv * 5.3 + uDeriva * 5.0 + 0.17).g;
     // detalhe fino de perto (some de longe, sem chuvisco)
     vec2 pd = uv * 5200.0; float px = length(fwidth(pd));
-    float det = (rfR2p(pd, 1e6) * 0.6 + rfR2p(pd * 3.1, 1e6) * 0.4 - 0.5) * (1.0 - smoothstep(0.3, 1.2, px));
+    float det = (rfR2p(pd, 1e6) * 0.6 + rfR2p(pd * 3.1, 1e6) * 0.4 - 0.5) * (1.0 - smoothstep(0.3, 1.2, px)) * 0.5;
     vec3 sup = pl.rgb * (1.0 + det * 0.5 * (0.3 + pl.a));
     float terra = pl.a, nuvem = nn.r * (0.78 + 0.22 * nn.g);
     float lam = dot(n, sp), dif = max(lam, 0.0);
     vec3 luz = mix(vec3(1.0, 0.42, 0.18), vec3(1.0, 0.97, 0.93), smoothstep(0.0, 0.3, lam)) * uForcaSol;
-    cor = sup * dif * luz * 2.4;
+    cor = sup * dif * luz * 2.1;
     vec3 rf = reflect(d, n);
     float mar = pow(max(dot(rf, sp), 0.0), 90.0) * 2.2 + pow(max(dot(rf, sp), 0.0), 12.0) * 0.12;
     cor += luz * mar * (1.0 - terra) * (1.0 - nuvem) * smoothstep(-0.05, 0.1, lam);
-    cor = mix(cor, vec3(0.92, 0.94, 0.97) * (dif * 2.0 * luz + 0.003), nuvem * 0.95);
+    cor = mix(cor, vec3(0.92, 0.94, 0.97) * (dif * 1.15 * luz + 0.003), nuvem * 0.9);   // nuvens sem estourar
     // luzes das cidades no lado escuro
     float cid = terra * (1.0 - nuvem) * pow(smoothstep(0.55, 0.85, rfR2p(uv * 900.0, 1e6) * 0.6 + rfR2p(uv * 140.0, 1e6) * 0.4), 3.0);
     cor += vec3(1.0, 0.62, 0.28) * cid * 0.25 * smoothstep(0.05, -0.15, lam);
     // atmosfera: cobre a superfície perto do horizonte (azul do lado do sol, laranja no limite da noite)
     float cosv = max(dot(n, -d), 0.0), nevoa = pow(1.0 - cosv, 2.4);
     vec3 corAtm = mix(vec3(0.10, 0.28, 0.75), vec3(0.95, 0.45, 0.2), pow(1.0 - smoothstep(-0.1, 0.4, lam), 2.0) * smoothstep(-0.35, 0.0, lam));
-    cor = mix(cor, corAtm * (smoothstep(-0.25, 0.35, lam) * 0.55 * uForcaSol + 0.003), clamp(nevoa * 0.92 + 0.05, 0.0, 1.0));
+    cor = mix(cor, corAtm * (smoothstep(-0.25, 0.35, lam) * 0.42 * uForcaSol + 0.003), clamp(nevoa * 0.85 + 0.04, 0.0, 1.0));
   } else {
     vec2 eq = vec2(atan(d.z, d.x) / 6.2831853 + 0.5, asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5);
     cor = texture2D(tFundo, eq).rgb;
@@ -6921,7 +7177,7 @@ function montarCeuDeCinema(ceu) {
       tFundo: { value: assarTextura(CEU_ASSAR_FUNDO, pequeno ? 1024 : 2048, pequeno ? 512 : 1024, false) },
       tPlaneta: { value: assarTextura(CEU_ASSAR_PLANETA, pequeno ? 1024 : 2048, pequeno ? 1024 : 2048, true) },
       tNuvens: { value: assarTextura(CEU_ASSAR_NUVENS, 1024, 1024, true) },
-      uDeriva: { value: new T.Vector2() }, uSol: { value: new T.Vector3(0.6, 0.5, 0.4) }, uSolPlaneta: { value: new T.Vector3(0.6, 0.5, 0.4) }, uForcaSol: { value: 1 }, uNoite: { value: 0 }
+      uDeriva: { value: new T.Vector2() }, uCentro: { value: new T.Vector3().fromArray(CENTRO_PLANETA).normalize() }, uSol: { value: new T.Vector3(0.6, 0.5, 0.4) }, uSolPlaneta: { value: new T.Vector3(0.6, 0.5, 0.4) }, uForcaSol: { value: 1 }, uNoite: { value: 0 }
     },
     side: T.BackSide, depthWrite: false, depthTest: false, toneMapped: false, fog: false
   });
@@ -7096,8 +7352,8 @@ function nuvensDaIlha(g, cx, cz) {
   CAMPO.nuvensIlha = lista;
 }
 function passoNuvensDaIlha(t) {
-  const L = CAMPO.nuvensIlha, p = CAMPO.luzDoCeu; if (!L) return;
-  (CAMPO.nuvens || []).forEach((n) => { n.visible = false; });   /* as nuvens antigas, altas em cima da cidade, saem: agora as nuvens ficam em volta e embaixo da ilha */
+  (CAMPO.nuvens || []).forEach((n) => { n.visible = false; });
+  const L = CAMPO.nuvensIlha, p = CAMPO.luzDoCeu; if (!L) return;   /* as nuvens antigas, altas em cima da cidade, saem: agora as nuvens ficam em volta e embaixo da ilha */
   const noite = p ? p.postes : 0, tarde = p && p.sol ? Math.max(0, 1 - p.sol[3] / 40) * (1 - noite) : 0;
   const cor = CINEMA.corNuvem || (CINEMA.corNuvem = new THREE.Color());
   cor.setRGB(1, 1, 1).lerp(CINEMA.corTarde || (CINEMA.corTarde = new THREE.Color(1.0, 0.68, 0.5)), tarde * 0.8).lerp(CINEMA.corNoiteN || (CINEMA.corNoiteN = new THREE.Color(0.16, 0.2, 0.3)), noite * 0.85);
