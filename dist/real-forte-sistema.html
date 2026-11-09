@@ -3732,6 +3732,7 @@ function montarMundo(lista) {
   gentDaNoite(M, lista, sorte);
   // Centros, praças e estações; a equipe da Real Forte pela cidade, a obra e o trânsito
   prepararLugaresDaCidade(M); gentDaCidade(M, sorte); visitantesDaCidade(M, sorte); circulantesDaCidade(M, sorte); semearHub(M); semearNetworking(M); gentDaNoiteNaCidade(M, sorte); moradoresDasIlhas(M, lista, sorte); montarTransito(lista);
+  afastarPlacas(CAMPO.cena);   // telas e placas 4 cm na frente do que está atrás (no mesmo plano elas piscam)
 }
 
 /* ---------- Gráficos dos telões do hall (com os números do painel) ----------
@@ -5802,14 +5803,17 @@ function telaDeVideo(pai, video, w, h, capa, lista) {
 }
 // Tocar só o que está perto da câmera e visível (o resto fica pausado na última imagem)
 function passoTelas() {
+  /* Toca os vídeos que estão na tela (até 6, os mais perto); os outros ficam pausados na última imagem.
+     Antes só tocava a menos de 120 m: com a câmera na visão geral (bem mais longe), todos ficavam parados. */
   const agora = performance.now(); if (agora < (CAMPO.proxTelas || 0)) return; CAMPO.proxTelas = agora + 500;
-  const cam = CAMPO.camera.position, p = new THREE.Vector3();
+  const cam = CAMPO.camera, p = new THREE.Vector3(), fr = CINEMA.frustum || (CINEMA.frustum = new THREE.Frustum()), mv = CINEMA.mvTelas || (CINEMA.mvTelas = new THREE.Matrix4());
+  mv.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); fr.setFromProjectionMatrix(mv);
   const visivel = (o) => { for (let x = o; x; x = x.parent) if (!x.visible) return false; return true; };
-  (CAMPO.telasVideo || []).forEach((it) => {
-    if (it.erro) return;
-    it.tela.getWorldPosition(p);
-    const quer = !movimentoReduzido() && visivel(it.tela) && p.distanceTo(cam) < 120;
-    if (quer && !it.tocando) { it.tocando = true; const r = it.v.play(); if (r && r.catch) r.catch(() => { it.tocando = false; }); }
+  const lista = (CAMPO.telasVideo || []).filter((it) => !it.erro).map((it) => { it.tela.getWorldPosition(p); return { it, d: p.distanceTo(cam.position), ok: visivel(it.tela) && fr.containsPoint(p) }; });
+  const tocar = new Set(movimentoReduzido() ? [] : lista.filter((x) => x.ok && x.d < 700).sort((a, b) => a.d - b.d).slice(0, 6).map((x) => x.it));
+  lista.forEach(({ it }) => {
+    const quer = tocar.has(it);
+    if (quer && (!it.tocando || it.v.paused)) { it.tocando = true; const r = it.v.play(); if (r && r.catch) r.catch(() => { it.tocando = false; }); }
     else if (!quer && it.tocando) { it.tocando = false; it.v.pause(); }
   });
 }
@@ -7956,6 +7960,21 @@ function pararCampo() {
    direto na tela, como antes, só sem o pós-processamento.
 ===================================================================== */
 
+/* Telas e placas grandes em pé (planos com imagem, de 0,8 m para cima) andam 4 cm para a frente, uma vez só.
+   Com o buffer de profundidade logarítmico o "polygonOffset" não funciona, então o afastamento é físico.
+   Sem isso, placa encostada na parede ou na moldura briga com ela e aparece com faixas ou diagonal escura. */
+function afastarPlacas(raiz) {
+  const n = new THREE.Vector3(), w = new THREE.Vector3(), ws = new THREE.Vector3();
+  raiz.traverse((o) => {
+    if (!o.isMesh || o.isInstancedMesh || o.userData.afastada || !o.geometry || o.geometry.type !== 'PlaneGeometry' || !o.material || !o.material.map) return;
+    o.getWorldScale(w); if (Math.max(Math.abs(w.x), Math.abs(w.y)) < 0.8) return;
+    if (Math.abs(o.getWorldDirection(ws).y) > 0.7) return;   /* deitada no chão (faixa, marca): fica onde está */
+    o.userData.afastada = true;
+    n.set(0, 0, 1).applyQuaternion(o.quaternion);   // a frente da placa, no sistema do pai
+    const esc = o.parent ? Math.abs(o.parent.getWorldScale(ws).z) || 1 : 1;
+    o.position.addScaledVector(n, 0.04 / esc);
+  });
+}
 // Ruído em GLSL (valor 3D + soma de oitavas), usado pelo céu, pela rocha e pelo planeta
 const GLSL_RUIDO = `
 float rfH3(vec3 p) { p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419)); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -8582,7 +8601,7 @@ function predioFuturista(K, g, extras, x, z, w, d, h, s, MM, obst, giro) {
     const led = s() < 0.5 ? MM.ledL : MM.ledA, c = Math.cos(giro), sn = Math.sin(giro), pt = (ox, oz) => [x + ox * c + oz * sn, z - ox * sn + oz * c];
     [[0, d / 2 + 0.16, w + 0.34, 0.08], [0, -d / 2 - 0.16, w + 0.34, 0.08], [w / 2 + 0.16, 0, 0.08, d + 0.34], [-w / 2 - 0.16, 0, 0.08, d + 0.34]].forEach(([ox, oz, ww, dd]) => { const [px, pz] = pt(ox, oz); K.add(G3.caixa, led, px, h + 0.3, pz, ww, 0.1, dd, 0, giro, 0, false); });
     if (s() < 0.55) { const [px, pz] = pt(0, d / 2 + 0.06); const tl = new T.Mesh(G3.placa, MM.telas[Math.floor(s() * MM.telas.length)]); const tw = Math.min(w * 0.7, 9); tl.scale.set(tw, tw * 0.5625, 1); tl.position.set(px, Math.min(h * 0.55, h - tw * 0.4), pz); tl.rotation.y = giro; g.add(tl);
-      const [fx, fz] = pt(0, d / 2 + 0.03); K.add(G3.caixa, MM.escuro, fx, tl.position.y - tw * 0.3, fz, tw + 0.4, tw * 0.6, 0.06, 0, giro, 0, false); }
+      const [fx, fz] = pt(0, d / 2 + 0.015); K.add(G3.caixa, MM.escuro, fx, tl.position.y - tw * 0.3, fz, tw + 0.4, tw * 0.6, 0.03, 0, giro, 0, false); }   /* moldura atrás da tela */
   }
   corpo.position.set(x, 0, z); corpo.rotation.y = redondo ? 0 : giro; corpo.castShadow = corpo.receiveShadow = true; g.add(corpo); extras.push(corpo.geometry);
   // teto: jardim, heliponto ou máquinas
@@ -8673,8 +8692,8 @@ function caixaDeVidro(g, extras, m, x, y, z, w, h, d) {
   const me = new THREE.Mesh(caixaUV(w, h, d, 10.4, 12.8), m); me.position.set(x, y, z); me.castShadow = me.receiveShadow = true; g.add(me); extras.push(me.geometry); return me;
 }
 function telaoNaFachada(g, K, MM, k, x, y, z, w) {
-  const tl = new THREE.Mesh(G3.placa, MM.telas[k % MM.telas.length]); tl.scale.set(w, w * 0.5625, 1); tl.position.set(x, y, z + 0.08); g.add(tl);
-  K.add(G3.caixa, MM.escuro, x, y - w * 0.3, z + 0.04, w + 0.5, w * 0.6, 0.08, 0, 0, 0, false);
+  const tl = new THREE.Mesh(G3.placa, MM.telas[k % MM.telas.length]); tl.scale.set(w, w * 0.5625, 1); tl.position.set(x, y, z + 0.12); g.add(tl);
+  K.add(G3.caixa, MM.escuro, x, y - w * 0.3, z + 0.03, w + 0.5, w * 0.6, 0.06, 0, 0, 0, false);   /* moldura 3 cm atrás da tela (no mesmo plano elas brigam e a tela fica com uma diagonal escura) */
 }
 function edificioMarco(tipo, K, g, extras, cx, cz, W, D, s, MM, obst) {
   const T = THREE, MP = PLANO.mats, vidro = MM.vidros, R = Math.min(W, D) / 2 - 2.5;
@@ -8794,7 +8813,7 @@ function texturaPlacaRF(titulo, sub, icone, w, h, claro) {
 }
 // Placa de pé ou na fachada: plano com a placa dos dois lados e um fundo escuro
 function placaRF(g, m, x, y, z, w, h, giro, comFundo) {
-  const pl = new THREE.Mesh(G3.placa, m); pl.scale.set(w, h, 1); pl.position.set(x + Math.sin(giro || 0) * 0.08, y, z + Math.cos(giro || 0) * 0.08); pl.rotation.y = giro || 0; g.add(pl);
+  const pl = new THREE.Mesh(G3.placa, m); pl.scale.set(w, h, 1); pl.position.set(x + Math.sin(giro || 0) * 0.11, y, z + Math.cos(giro || 0) * 0.11);   /* 4 cm na frente do fundo */ pl.rotation.y = giro || 0; g.add(pl);
   if (comFundo) { const f = new THREE.Mesh(G3.caixaC, mat(0x101318, { roughness: 0.35, metalness: 0.6 })); f.scale.set(w + 0.3, h + 0.3, 0.14); f.position.set(x, y, z); f.rotation.y = giro || 0; g.add(f); }
   return pl;
 }
@@ -9564,7 +9583,7 @@ const CINEMA_AJUSTE = {
   vinheta: 0.32,       // escurecimento das bordas
   grao: 0.022,         // granulação de filme
   aberracao: 0.0010,   // separação de cor nas bordas (lente)
-  sombraContato: 0.9,  // força da sombra de contato (oclusão de ambiente): cantos, pés de prédio, embaixo de carro
+  sombraContato: 0,    // força da sombra de contato (oclusão de ambiente): cantos, pés de prédio, embaixo de carro
   verSombraContato: false,
   semSombraNoCelular: true,   // no celular a sombra de contato fica desligada  // true mostra só a sombra de contato, em preto e branco (para conferir)
   nevoa: 0.22          // névoa de distância: quanto o fundo clareia (dá escala de cidade grande)
