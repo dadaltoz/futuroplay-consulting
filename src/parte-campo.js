@@ -1831,7 +1831,8 @@ function escolherTarefa(M, a) {
     const p = alvo && livreDe(alvo.visitas || [], a);
     if (p && r < 0.5) { a.emCampo = true; a.ilVisita = alvo.id; return irAte(M, a, p.x, p.z, { tipo: 'visita', lugar: p }); }
     if (r < 0.58) { const q = irAoNetworking(M, a); if (q) return q; }   // consultor fazendo o matchmaking entre empresas
-    if (r < 0.66) { const q = irAoHub(M, a); if (q) return q; }   // consultor no Hub, conectando as empresas
+    if (r < 0.64) { const q = irAMesa(M, a); if (q) return q; }   // consultor na Mesa do Futuro, analisando a cidade
+    if (r < 0.7) { const q = irAoHub(M, a); if (q) return q; }   // consultor no Hub, conectando as empresas
     if (r < 0.82) { const q = irAoCentro(M, a, sortearChave([['diag', 3], ['estr', 2], ['apres', 2], ['ia', 1]])); if (q) return q; }
     if (r < 0.92) { const q = irAEstacao(M, a); if (q) return q; }
     return irAoHall(M, a);
@@ -2141,7 +2142,7 @@ function descartarMundo() {
   CAMPO.cena.remove(W.grupo);
   W.grupo.traverse((o) => { if (o.isMesh && !Object.values(G3).includes(o.geometry)) o.geometry.dispose(); });   // as formas básicas são de todos
   (W.extras || []).forEach((x) => { if (x && x.dispose) x.dispose(); });   // texturas e materiais feitos para este mundo
-  CAMPO.mundo = null;
+  CAMPO.mundo = null; CAMPO.mesa = null;
 }
 // Roupa da multidão a partir do uniforme
 const lookDe = (u, extra) => Object.assign({ roupa: u.roupa, detalhe: u.detalhe || u.roupa, calca: u.calca || 0x2b3446, pele: u.pele || PELES[0], cabelo: u.cabelo === 'careca' ? null : u.cabelo, capacete: u.capacete || null, logo: u.logo || null, proporcaoLogo: u.proporcaoLogo }, extra || {});
@@ -2186,6 +2187,7 @@ function montarMundo(lista) {
   W.extras = []; W.idsPorLote = lista.map((il) => il.id);
   cidadeRealForte(W);   // os quarteirões do centro viram a cidade da Real Forte
   lotesSat.forEach((L, k) => ilhaSatelite(W, L, pontes[k], lista[k] || null, daIlha));   // ilha de cada empresa (e a próxima, preparada)
+  mesaDoFuturo(W, lista, daIlha);   // a cidade em holograma na praça da torre, ao lado do Auditório
   pontosDeOnibus(lista, W);   // ponto do ônibus da Real Forte na frente de cada empresa
   outdoorsDasEmpresas(lista, W, daIlha);   // peça de cada empresa no gramado da frente (e os vídeos da Lança na Elson's)
   // Sombras do sol cobrindo o mundo todo
@@ -2252,7 +2254,7 @@ function montarMundo(lista) {
   // Vigias, manutenção e limpeza
   gentDaNoite(M, lista, sorte);
   // Centros, praças e estações; a equipe da Real Forte pela cidade, a obra e o trânsito
-  prepararLugaresDaCidade(M); gentDaCidade(M, sorte); visitantesDaCidade(M, sorte); circulantesDaCidade(M, sorte); semearHub(M); semearNetworking(M); gentDaNoiteNaCidade(M, sorte); moradoresDasIlhas(M, lista, sorte); montarTransito(lista);
+  prepararLugaresDaCidade(M); gentDaCidade(M, sorte); visitantesDaCidade(M, sorte); circulantesDaCidade(M, sorte); semearHub(M); semearNetworking(M); semearMesa(M); gentDaNoiteNaCidade(M, sorte); moradoresDasIlhas(M, lista, sorte); montarTransito(lista);
   afastarPlacas(CAMPO.cena);   // telas e placas 4 cm na frente do que está atrás (no mesmo plano elas piscam)
 }
 
@@ -4059,7 +4061,8 @@ function prepararLugaresDaCidade(M) {
   M.estacoes = P.estacoes.concat((CAMPO.mundo && CAMPO.mundo.estacoesOnibus) || []).map((e) => ({ id: e.id, linha: e.linha, il: e.il, saida: e.saida, espera: copiar(e.espera.map((p) => Object.assign({}, p, { dur: e.linha === 3 ? 90 : 45 }))).concat(e.id === 'central' ? M.centros.central || [] : e.id === 'terminal' ? M.centros.terminal || [] : e.id === 'station' ? (M.centros.stationBancos || []).concat(M.centros.station || []) : []) }));
   M.obras = (CAMPO.mundo && CAMPO.mundo.obras || []).map((o) => Object.assign({}, o, { pontos: copiar(o.pontos) }));
   M.centros.fachadas = copiar((CAMPO.mundo && CAMPO.mundo.pontosVisita) || []);
-  M.centros.networking = copiar((CAMPO.mundo && CAMPO.mundo.pontosNetworking) || []);   // Centro de Networking Corporativo
+  M.centros.networking = copiar((CAMPO.mundo && CAMPO.mundo.pontosNetworking) || []);
+  M.centros.mesa = copiar((CAMPO.mundo && CAMPO.mundo.pontosMesa) || []);   // Mesa do Futuro: consultores em volta do holograma   // Centro de Networking Corporativo
   M.centros.hub = copiar((CAMPO.mundo && CAMPO.mundo.pontosHub) || []);   // Hub de Conexões: encontros entre as empresas e a Real Forte
   M.centros.fotoMarcos = copiar((CAMPO.mundo && CAMPO.mundo.pontosFotoRF) || []);   // em frente ao Instituto, ao Terminal, à Academia...   // calçada em frente ao portão de cada empresa
 }
@@ -4153,8 +4156,9 @@ function destinoFora(M, a) {
 function tarefaEquipe(M, a) {
   const A = CAMPO.atividade == null ? 1 : CAMPO.atividade;
   if (a.limiar > A + 0.04) return irEmbora(M, a);
-  const k = sortearChave(comFase([['diag', 3], ['estr', 3], ['ia', 2], ['perf', 2], ['apres', 2], ['praca', 3], ['estacao', 2], ['hall', 2], ['sedeFora', 2], ['cafeIdeias', 3], ['station', 3], ['encontros', 3], ['hub', 6], ['networking', 5]]));
+  const k = sortearChave(comFase([['diag', 3], ['estr', 3], ['ia', 2], ['perf', 2], ['apres', 2], ['praca', 3], ['estacao', 2], ['hall', 2], ['sedeFora', 2], ['cafeIdeias', 3], ['station', 3], ['encontros', 3], ['hub', 6], ['networking', 5], ['mesa', 6]]));
   if (k === 'hub') { const q = irAoHub(M, a); if (q) return q; }
+  if (k === 'mesa') { const q = irAMesa(M, a); if (q) return q; }
   if (k === 'networking') { const q = irAoNetworking(M, a); if (q) return q; }
   const r = k === 'praca' ? irAPraca(M, a) : k === 'encontros' ? irAoEncontro(M, a) : k === 'estacao' ? irAEstacao(M, a) : k === 'station' ? irAEstacao(M, a, 'station') : k === 'hall' ? irAoHall(M, a) : irAoCentro(M, a, k);
   if (r) return r;
@@ -5380,6 +5384,7 @@ function passoMundo(t, dt) {
   const M = CAMPO.multidao;
   if (M) passoMultidao(M, t, dt);
   if (CAMPO.passoCobertura) CAMPO.passoCobertura(t, dt);
+  passoMesa(t, dt);   // holograma da Mesa do Futuro
   passoVida(t, dt); passoPlano(t, dt); passoTransito(t, dt);
   // Portas automáticas da sede: abrem quando alguém chega perto
   if (M && CAMPO.portasSede) CAMPO.portasSede.forEach((p) => {
@@ -8641,5 +8646,350 @@ function geometriaDePedra() {
   for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const k = 0.72 + fbm3(v.x * 1.8 + 7, v.y * 1.8 + 7, v.z * 1.8 + 7, 4) * 0.62; p.setXYZ(i, v.x * k, v.y * k * 0.85, v.z * k); }
   geo.computeVertexNormals();
   return geo;
+}
+/* ---------- 17. Mesa do Futuro ----------
+   Na praça em frente à torre de vidro, ao lado do Auditório (quarteirão 8): uma mesa redonda de vidro
+   com a cidade inteira em holograma, na mesma escala de verdade. No meio, a cidade da Real Forte
+   (quarteirões, edifícios e a torre); em volta, a ilha de cada empresa com a ponte. Em cada ilha, os
+   prédios são os setores: ALTURA = NOTA e COR = SAÚDE (a mesma regra do painel). Uma empresa de cada
+   vez fica "em análise": a ilha sobe, acende e o painel mostra os números dela (todos do painel, nada
+   inventado). No modo apresentação só aparece a empresa do cliente (ilha, nome e números).
+   Em volta: piso com mostrador aceso, consoles, bancos, placa "Mesa do Futuro", canteiros e consultores. */
+const MESA = { lote: 8, raioMesa: 3.1, raioPiso: 5.2, alturaTampo: 1.0, raioHolo: 2.5, foco: 12, exagero: 2.4 };   // foco: segundos de cada empresa em análise; exagero: altura da maquete (para ler de longe)
+// Material do holograma: luz somada (aditiva), sem escrever profundidade, fora do ajuste de tons
+function matHolo(cor, opacidade, linha, extras) {
+  const op = { color: cor, transparent: true, opacity: opacidade, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false };
+  const m = linha ? new THREE.LineBasicMaterial(op) : new THREE.MeshBasicMaterial(op); if (extras) extras.push(m); return m;
+}
+// Prisma (caixa ou cilindro) em listas de pontos: arestas (linhas) e faces (vidro tênue), com cor por vértice
+function prismaHolo(L, F, pol, y0, h, cor) {
+  const c = new THREE.Color(cor), n = pol.length, y1 = y0 + h;
+  const seg = (a, b) => { L.p.push(a[0], a[1], a[2], b[0], b[1], b[2]); L.c.push(c.r, c.g, c.b, c.r, c.g, c.b); };
+  const tri = (a, b, d) => { F.p.push(...a, ...b, ...d); for (let k = 0; k < 3; k++) F.c.push(c.r, c.g, c.b); };
+  for (let i = 0; i < n; i++) {
+    const [ax, az] = pol[i], [bx, bz] = pol[(i + 1) % n];
+    seg([ax, y0, az], [bx, y0, bz]); seg([ax, y1, az], [bx, y1, bz]);
+    if (n <= 6 || i % 3 === 0) seg([ax, y0, az], [ax, y1, az]);   /* cilindro: só algumas arestas em pé */
+    if (!F) continue;   /* só contorno */
+    tri([ax, y0, az], [bx, y0, bz], [bx, y1, bz]); tri([ax, y0, az], [bx, y1, bz], [ax, y1, az]);
+    tri([pol[0][0], y1, pol[0][1]], [bx, y1, bz], [ax, y1, az]);
+  }
+}
+const retHolo = (x, z, w, d) => [[x - w / 2, z - d / 2], [x + w / 2, z - d / 2], [x + w / 2, z + d / 2], [x - w / 2, z + d / 2]];
+const circHolo = (x, z, r, n) => Array.from({ length: n || 12 }, (_, i) => { const a = i / (n || 12) * Math.PI * 2; return [x + Math.cos(a) * r, z + Math.sin(a) * r]; });
+// Junta as listas num par linhas + faces (2 desenhos por grupo)
+function malhaHolo(L, F, opLinha, opFace, extras) {
+  const T = THREE, g = new T.Group();
+  const gl = new T.BufferGeometry(); gl.setAttribute('position', new T.Float32BufferAttribute(L.p, 3)); gl.setAttribute('color', new T.Float32BufferAttribute(L.c, 3)); extras.push(gl);
+  const ml = new T.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: opLinha, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false }); extras.push(ml);
+  const linhas = new T.LineSegments(gl, ml); linhas.frustumCulled = false; g.add(linhas);
+  if (F && F.p.length) {
+    const gf = new T.BufferGeometry(); gf.setAttribute('position', new T.Float32BufferAttribute(F.p, 3)); gf.setAttribute('color', new T.Float32BufferAttribute(F.c, 3)); extras.push(gf);
+    const mf = new T.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: opFace, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false, side: T.DoubleSide }); extras.push(mf);
+    const faces = new T.Mesh(gf, mf); faces.frustumCulled = false; g.add(faces); g.userData.faces = mf;
+  }
+  g.userData.linhas = ml; return g;
+}
+// Textura de gradiente vertical (cortina de luz da borda de vidro e o facho da ilha em análise)
+function texturaFacho(cor) {
+  const c = telaDe(4, 128, (q) => { const gr = q.createLinearGradient(0, 128, 0, 0); gr.addColorStop(0, cor); gr.addColorStop(0.35, cor.replace(/[\d.]+\)$/, '0.25)')); gr.addColorStop(1, 'rgba(0,0,0,0)'); q.fillStyle = gr; q.fillRect(0, 0, 4, 128); });
+  const t = new THREE.CanvasTexture(c); return t;
+}
+// Mostrador do piso: anéis, marcas de grau e o nome escrito em volta
+function texturaMostrador() {
+  const N = 1024, c = telaDe(N, N, (q) => {
+    const m = N / 2, R = m - 8; q.translate(m, m);
+    const anel = (r, cor, lw) => { q.strokeStyle = cor; q.lineWidth = lw; q.beginPath(); q.arc(0, 0, r, 0, Math.PI * 2); q.stroke(); };
+    anel(R, 'rgba(110,220,255,.95)', 7); anel(R * 0.93, 'rgba(110,220,255,.45)', 2); anel(R * 0.74, 'rgba(110,220,255,.6)', 3); anel(R * 0.62, 'rgba(255,150,70,.55)', 2);
+    for (let k = 0; k < 180; k++) { const a = k / 180 * Math.PI * 2, l = k % 10 === 0 ? 0.075 : k % 5 === 0 ? 0.05 : 0.028; q.strokeStyle = k % 10 === 0 ? 'rgba(255,160,80,.9)' : 'rgba(110,220,255,.7)'; q.lineWidth = k % 10 === 0 ? 4 : 2; q.beginPath(); q.moveTo(Math.cos(a) * R * 0.92, Math.sin(a) * R * 0.92); q.lineTo(Math.cos(a) * R * (0.92 - l), Math.sin(a) * R * (0.92 - l)); q.stroke(); }
+    [[0.2, 0.9], [2.3, 0.5], [3.9, 1.1], [5.4, 0.4]].forEach(([a0, da]) => { q.strokeStyle = 'rgba(255,140,60,.85)'; q.lineWidth = 10; q.beginPath(); q.arc(0, 0, R * 0.68, a0, a0 + da); q.stroke(); });
+    const texto = '  MESA DO FUTURO  ·  REAL FORTE  ·  CIDADE EM MINIATURA  ·  PROCESSOS E MELHORIAS  ·';
+    q.fillStyle = 'rgba(160,230,255,.9)'; q.font = '700 30px Arial, sans-serif'; q.textAlign = 'center'; q.textBaseline = 'middle';
+    const passo = (Math.PI * 2) / texto.length; [...texto].forEach((ch, i) => { q.save(); q.rotate(i * passo); q.translate(0, -R * 0.83); q.fillText(ch, 0, 0); q.restore(); });
+  });
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 8; return t;
+}
+// Base projetada no tampo: grade fina, círculos e o brilho do meio
+function texturaBaseHolo() {
+  const N = 1024, c = telaDe(N, N, (q) => {
+    const m = N / 2; q.translate(m, m);
+    const gr = q.createRadialGradient(0, 0, 0, 0, 0, m); gr.addColorStop(0, 'rgba(60,170,255,.35)'); gr.addColorStop(0.75, 'rgba(30,110,200,.18)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); q.fillStyle = gr; q.beginPath(); q.arc(0, 0, m, 0, 7); q.fill();
+    q.strokeStyle = 'rgba(120,220,255,.16)'; q.lineWidth = 1.5; for (let k = -m; k <= m; k += 32) { q.beginPath(); q.moveTo(k, -m); q.lineTo(k, m); q.stroke(); q.beginPath(); q.moveTo(-m, k); q.lineTo(m, k); q.stroke(); }
+    [0.98, 0.8, 0.45].forEach((f, i) => { q.strokeStyle = i ? 'rgba(120,220,255,.35)' : 'rgba(140,230,255,.9)'; q.lineWidth = i ? 2 : 5; q.beginPath(); q.arc(0, 0, m * f, 0, 7); q.stroke(); });
+    q.globalCompositeOperation = 'destination-in'; q.beginPath(); q.arc(0, 0, m - 2, 0, 7); q.fill();
+  });
+  return new THREE.CanvasTexture(c);
+}
+// Ponto redondo e macio (partículas e pulsos das pontes)
+function texturaPonto() {
+  if (CAMPO.texPonto) return CAMPO.texPonto;
+  const c = telaDe(64, 64, (q) => { const gr = q.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(160,230,255,.8)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); q.fillStyle = gr; q.fillRect(0, 0, 64, 64); });
+  return (CAMPO.texPonto = new THREE.CanvasTexture(c));
+}
+// Tela dos consoles: comandos de simulação (desenho de interface, sem número)
+function texturaConsole() {
+  const c = telaDe(512, 320, (q) => {
+    const gr = q.createLinearGradient(0, 0, 0, 320); gr.addColorStop(0, '#06162c'); gr.addColorStop(1, '#0b2a52'); q.fillStyle = gr; q.fillRect(0, 0, 512, 320);
+    q.strokeStyle = '#38b6ff'; q.lineWidth = 4; q.strokeRect(6, 6, 500, 308);
+    q.fillStyle = '#ff9a52'; q.font = '800 30px Arial, sans-serif'; q.fillText('SIMULAR MELHORIA', 24, 50);
+    ['Processo', 'Informação', 'Pessoas', 'Controle'].forEach((r, i) => { const y = 96 + i * 50; q.fillStyle = '#bcd2ee'; q.font = '500 22px Arial'; q.fillText(r, 24, y + 8); q.fillStyle = 'rgba(120,200,255,.25)'; q.fillRect(190, y - 6, 290, 12); q.fillStyle = i % 2 ? '#38b6ff' : '#7fe0ff'; q.fillRect(190, y - 6, 120 + i * 40, 12); q.beginPath(); q.arc(310 + i * 40, y, 13, 0, 7); q.fill(); });
+  });
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+}
+// Etiqueta flutuante com o nome da empresa e a nota (sempre virada para quem olha)
+function etiquetaHolo(nome, nota, saude, extras) {
+  const T = THREE, c = telaDe(512, 128, (q) => {
+    q.fillStyle = 'rgba(6,26,54,.82)'; q.beginPath(); q.roundRect ? q.roundRect(4, 4, 504, 120, 22) : q.rect(4, 4, 504, 120); q.fill();
+    q.strokeStyle = '#5fd8ff'; q.lineWidth = 4; q.stroke();
+    q.fillStyle = COR_SAUDE_CSS[saude] || '#8796ad'; q.beginPath(); q.arc(58, 64, 34, 0, 7); q.fill();
+    q.fillStyle = '#06162c'; q.font = '800 30px Arial, sans-serif'; q.textAlign = 'center'; q.textBaseline = 'middle'; q.fillText(nota == null ? '–' : String(nota), 58, 66);
+    q.fillStyle = '#ffffff'; q.textAlign = 'left'; let tam = 40; q.font = `800 ${tam}px Arial`; while (q.measureText(nome).width > 400 && tam > 18) { tam -= 2; q.font = `800 ${tam}px Arial`; } q.fillText(nome, 106, 66);
+  });
+  const tex = new T.CanvasTexture(c); tex.encoding = T.sRGBEncoding; extras.push(tex);
+  const m = new T.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }); extras.push(m);
+  const sp = new T.Sprite(m); sp.scale.set(0.95, 0.24, 1); return sp;
+}
+// Volumes da cidade central em miniatura (a forma de cada edifício-marco, aproximada)
+function volumesDoLote(tipo, cx, cz, LW, LD) {
+  const R = Math.min(LW, LD) / 2 - 2.5, v = [];
+  const caixa2 = (x, z, w, d, h, y0) => v.push({ pol: retHolo(x, z, w, d), y0: y0 || 0, h });
+  if (tipo === 'torre') { caixa2(cx, cz, 8.5, 8.5, 50); caixa2(cx, cz, 6, 6, 4, 50); }
+  else if (tipo === 'gemeas') { const sep = Math.min(LW, LD) / 2 - 5; caixa2(cx - sep, cz, 6.5, 6.5, 36); caixa2(cx + sep, cz, 6.5, 6.5, 42); caixa2(cx, cz, sep * 2 - 6.5, 3.2, 3, 26); }
+  else if (tipo === 'redondo') { let y = 0; [[R, 5], [R * 0.8, 5], [R * 0.6, 6]].forEach(([r, h]) => { v.push({ pol: circHolo(cx, cz, r, 18), y0: y, h }); y += h; }); }
+  else if (tipo === 'terracos') { let y = 0, w = LW - 7, d = LD - 7; for (let k = 0; k < 4; k++) { caixa2(cx, cz, w, d, 4.2, y); y += 4.2; w -= 3.2; d -= 3.2; } }
+  else if (tipo === 'hub') { caixa2(cx, cz - LD * 0.1, LW * 0.75, LD * 0.55, 11); }
+  else if (tipo === 'terminal') { caixa2(cx, cz, LW * 0.7, LD * 0.5, 9); }
+  else if (tipo) { const alt = { networking: 9, instituto: 15, academia: 11, pesquisa: 13, auditorio: 12, sinais: 17, galeria: 8, eventos: 11 }[tipo] || 10; caixa2(cx, cz - LD * 0.08, LW * 0.62, LD * 0.5, alt); }
+  return v;
+}
+function mesaDoFuturo(W, lista, daIlha) {
+  const T = THREE, P = PLANO, MP = P.mats, MM = materiaisDaMetropole(), K = novoLote(), obst = [], E = W.extras;
+  const b = loteDaEmpresa(MESA.lote).b, C = P.CALC + 0.4, x0 = b.x0 + C, x1 = b.x1 - C, z1 = b.z1 - C;
+  const cx = (x0 + x1) / 2, cz = z1 - 6.5;   // entre a torre e a calçada da frente
+  const g = new T.Group(); g.position.set(cx, 0, cz); W.grupo.add(g);
+  const pontos = W.pontosMesa = [];
+  // Piso: plataforma baixa de vidro escuro, mostrador aceso e varredura que gira
+  const vidroEscuro = new T.MeshStandardMaterial({ color: 0x0c1424, roughness: 0.22, metalness: 0.6, envMap: CAMPO.ambiente, envMapIntensity: 0.8 }); E.push(vidroEscuro);
+  K.add(G3.cil64, vidroEscuro, cx, 0.05, cz, MESA.raioPiso, 0.025, MESA.raioPiso, 0, 0, 0, false);
+  K.add(G3.toroFino, luzMat(0x5fd8ff, 2.2), cx, 0.078, cz, MESA.raioPiso, 2.5, MESA.raioPiso, 0, 0, 0, false);   /* escala y pequena: filete, não faixa */
+  const texM = texturaMostrador(); E.push(texM);
+  const mostrador = new T.Mesh(G3.placa, matHolo(0xffffff, 0.75, false, E)); mostrador.material.map = texM; mostrador.rotation.x = -Math.PI / 2; mostrador.scale.set(MESA.raioPiso * 2 - 0.2, MESA.raioPiso * 2 - 0.2, 1); mostrador.position.y = 0.092; mostrador.userData.afastada = true; g.add(mostrador);
+  // Mesa: pé de metal escuro com filete laranja, tampo de vidro, base projetada e cortina de luz na borda
+  const metal = new T.MeshStandardMaterial({ color: 0x151a22, roughness: 0.3, metalness: 0.8, envMap: CAMPO.ambiente, envMapIntensity: 0.9 }); E.push(metal);
+  const pe = new T.Mesh(new T.CylinderGeometry(MESA.raioMesa - 0.15, MESA.raioMesa - 0.55, 0.78, 72).translate(0, 0.39 + 0.09, 0), metal); pe.castShadow = pe.receiveShadow = true; g.add(pe); E.push(pe.geometry);
+  K.add(G3.cil64, metal, cx, 0.075, cz, MESA.raioMesa - 0.75, 0.05, MESA.raioMesa - 0.75);
+  const laranja = luzMat(COR3D.laranja, 2.4);
+  K.add(G3.toroFino, laranja, cx, 0.2, cz, MESA.raioMesa - 0.53, 3, MESA.raioMesa - 0.53, 0, 0, 0, false);
+  K.add(G3.toroFino, laranja, cx, 0.86, cz, MESA.raioMesa - 0.14, 3, MESA.raioMesa - 0.14, 0, 0, 0, false);
+  K.add(G3.cil64, metal, cx, 0.87, cz, MESA.raioMesa + 0.05, 0.06, MESA.raioMesa + 0.05);
+  const vidroTampo = new T.MeshStandardMaterial({ color: 0x8fd0ff, transparent: true, opacity: 0.3, roughness: 0.04, metalness: 0.6, envMap: CAMPO.ambiente, envMapIntensity: 1.2, depthWrite: false }); E.push(vidroTampo);
+  const tampo = new T.Mesh(new T.CylinderGeometry(MESA.raioMesa, MESA.raioMesa, 0.05, 72).translate(0, MESA.alturaTampo - 0.04, 0), vidroTampo); g.add(tampo); E.push(tampo.geometry);
+  const texB = texturaBaseHolo(); E.push(texB);
+  const base = new T.Mesh(G3.placa, matHolo(0xffffff, 0.9, false, E)); base.material.map = texB; base.rotation.x = -Math.PI / 2; base.scale.set(MESA.raioMesa * 1.85, MESA.raioMesa * 1.85, 1); base.position.y = MESA.alturaTampo + 0.012; base.userData.afastada = true; g.add(base);
+  const texF = texturaFacho('rgba(90,200,255,0.55)'); E.push(texF);
+  const cortina = new T.Mesh(new T.CylinderGeometry(MESA.raioMesa - 0.03, MESA.raioMesa - 0.03, 0.7, 72, 1, true).translate(0, MESA.alturaTampo + 0.35, 0), matHolo(0x9fdcff, 0.5, false, E)); cortina.material.map = texF;   /* só a parede da frente: as duas somadas estouram em branco */ g.add(cortina); E.push(cortina.geometry);
+  const aroLuz = new T.Mesh(G3.toroFino, luzMat(0x7fe6ff, 2.6)); aroLuz.scale.set(MESA.raioMesa - 0.03, 2, MESA.raioMesa - 0.03); aroLuz.position.y = MESA.alturaTampo + 0.7; g.add(aroLuz);
+  { const r = MESA.raioMesa + 0.2; [[r, r * 0.5], [r * 0.5, r], [r * 0.8, r * 0.8]].forEach(([a, c]) => obst.push([cx - a, cx + a, cz - c, cz + c])); }   /* círculo aproximado: os cantos ficam livres para pisar */
+
+  /* ---- O holograma: a cidade em miniatura, na mesma escala de verdade ---- */
+  const holo = new T.Group(); holo.position.y = MESA.alturaTampo + 0.02; g.add(holo);
+  const giro = new T.Group(); holo.add(giro);   // gira devagar
+  const lotes = lista.map((il) => il.lote).concat([loteSatelite(lista.length)]);
+  const Rmax = Math.max(SATELITE.raio, ...lotes.map((L) => Math.hypot(L.cx, L.cz - 6))) + SATELITE.ilha;
+  const s = MESA.raioHolo / Rmax, sy = s * MESA.exagero, mx = (x) => x * s, mz = (z) => (z - 6) * s;   // o meio da plataforma (0, 6) vai para o meio da mesa
+  const CIANO = 0x5fd8ff, LARANJA = 0xff9a52;
+  {   // cidade central: borda da plataforma, quarteirões, edifícios-marco e a torre
+    const L = { p: [], c: [] }, F = { p: [], c: [] };
+    const pl = retHolo(0, mz(6), mx(196), 196 * s); prismaHolo(L, F, pl, -0.03, 0.03, CIANO);
+    (P.quadras || []).forEach(([a0, a1, c0, c1]) => { const r = retHolo(mx((a0 + a1) / 2), mz((c0 + c1) / 2), (a1 - a0) * s, (c1 - c0) * s); for (let i = 0; i < 4; i++) { const p0 = r[i], p1 = r[(i + 1) % 4]; L.p.push(p0[0], 0.002, p0[1], p1[0], 0.002, p1[1]); L.c.push(0.2, 0.45, 0.6, 0.2, 0.45, 0.6); } });
+    for (let k = 0; k < P.ORDEM_LOTES.length; k++) {
+      const bb = loteDaEmpresa(k).b, a0 = bb.x0 + C, a1 = bb.x1 - C, c0 = bb.z0 + C, c1 = bb.z1 - C;
+      volumesDoLote(MARCOS_DOS_LOTES[k], (a0 + a1) / 2, (c0 + c1) / 2, a1 - a0, c1 - c0).forEach((vv) => prismaHolo(L, F, vv.pol.map(([x, z]) => [mx(x), mz(z)]), vv.y0 * sy, vv.h * sy, k === MESA.lote ? LARANJA : CIANO));
+    }
+    const topo = (CAMPO.topoTorre || 30) + 8, baseLaminas = Math.max(0, (CAMPO.alturaCobertura || 30) - 24.2);   // a torre da Real Forte, em laranja, com as lâminas (que nascem no topo do hall)
+    prismaHolo(L, F, retHolo(0, mz(0), 5 * s, 5 * s), 0, topo * sy, LARANJA);
+    [[1, 1, 46], [-1, 1, 40], [-1, -1, 50], [1, -1, 36]].forEach(([a, c, h]) => prismaHolo(L, F, retHolo(mx(a * 3.1), mz(c * 3.1), 1.6 * s, 1.6 * s), 0, (baseLaminas + h) * sy, LARANJA));
+    L.p.push(0, topo * sy, mz(0), 0, (topo + 22) * sy, mz(0)); L.c.push(1, 0.6, 0.3, 1, 0.6, 0.3);
+    giro.add(malhaHolo(L, F, 0.9, 0.11, E));
+  }
+  // Ilhas das empresas: casco, setores (altura = nota, cor = saúde), residencial, ponte e etiqueta
+  const ilhas = [], texP = texturaPonto();
+  lotes.forEach((Lt, k) => {
+    const il = lista[k] || null, D = il && il.dados, gi = new T.Group(); giro.add(gi);
+    const L = { p: [], c: [] }, F = { p: [], c: [] }, ox = mx(Lt.cx), oz = mz(Lt.cz), Ri = SATELITE.ilha * s;
+    const corIlha = D ? CIANO : 0x3a6a8a;
+    prismaHolo(L, F, circHolo(0, 0, Ri, 28), -0.04, 0.04, corIlha);
+    prismaHolo(L, null, circHolo(0, 0, Ri * 0.55, 20), 0, 0.001, corIlha);
+    if (D) {
+      const st = D.setores || [], n = Math.max(1, st.length);
+      st.forEach((x, i) => { const a = i / n * Math.PI * 2 + 0.3, r = n === 1 ? 0 : Ri * 0.38, nota = x.d && x.d.nota, h = 0.05 + (nota == null ? 0.03 : nota / 100 * 0.42);   /* altura = nota */
+        prismaHolo(L, F, retHolo(Math.cos(a) * r, Math.sin(a) * r, 0.07, 0.07), 0, h, COR_SAUDE[x.d && x.d.saude] || COR_SAUDE.sem); });
+      [[0.62, 0.4, 0.22], [0.75, -0.2, 0.15]].forEach(([f, a, h]) => prismaHolo(L, F, retHolo(Math.cos(a) * Ri * f, Math.sin(a) * Ri * f, 0.06, 0.05), 0, h * 1.6, 0x7fb8e0));   // residencial
+    }
+    const ponte = ponteDoSatelite(Lt);
+    const p0 = [mx(ponte.x0) - ox, mz(ponte.z0) - oz], p1 = [mx(ponte.x1) - ox, mz(ponte.z1) - oz];
+    L.p.push(p0[0], 0, p0[1], p1[0], 0, p1[1]); L.c.push(1, 0.6, 0.3, 1, 0.6, 0.3);
+    const corpo = malhaHolo(L, F, D ? 0.9 : 0.4, D ? 0.1 : 0.04, E); gi.add(corpo); gi.position.set(ox, 0, oz);
+    const it = { gi, corpo, il, D, p0, p1, sobe: 0 };
+    if (D) {
+      const et = etiquetaHolo(D.nome, D.nota, D.saude, E); et.position.set(0, 0.62, 0); gi.add(et); it.et = et;
+      const gp = new T.BufferGeometry(); gp.setAttribute('position', new T.Float32BufferAttribute(new Float32Array(9), 3)); E.push(gp);
+      const mp = new T.PointsMaterial({ size: 0.07, map: texP, color: LARANJA, transparent: true, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false }); E.push(mp);
+      it.pulsos = new T.Points(gp, mp); it.pulsos.frustumCulled = false; gi.add(it.pulsos);
+      daIlha(il.id, gi);   // modo apresentação: só a ilha do cliente
+    }
+    ilhas.push(it);
+  });
+  // Facho de luz sobre a ilha em análise e anel que varre a altura
+  const texF2 = texturaFacho('rgba(255,160,80,0.6)'); E.push(texF2);
+  const facho = new T.Mesh(new T.CylinderGeometry(1, 1, 1, 32, 1, true).translate(0, 0.5, 0), matHolo(0xffffff, 0.55, false, E)); facho.material.map = texF2; facho.material.side = T.DoubleSide; facho.visible = false; E.push(facho.geometry); giro.add(facho);
+  const varre = new T.Mesh(G3.toroFino, matHolo(0x7fe6ff, 0.9, false, E)); varre.scale.set(MESA.raioHolo + 0.15, 1.5, MESA.raioHolo + 0.15); holo.add(varre);
+  // Partículas subindo dentro da cortina de luz
+  const NP = 120, pp = new Float32Array(NP * 3); for (let i = 0; i < NP; i++) { const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * (MESA.raioMesa - 0.25); pp[i * 3] = Math.cos(a) * r; pp[i * 3 + 1] = Math.random() * 1.2; pp[i * 3 + 2] = Math.sin(a) * r; }
+  const gpart = new T.BufferGeometry(); gpart.setAttribute('position', new T.BufferAttribute(pp, 3)); E.push(gpart);
+  const particulas = new T.Points(gpart, new T.PointsMaterial({ size: 0.045, map: texP, color: 0x9fe8ff, transparent: true, opacity: 0.8, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false })); E.push(particulas.material); particulas.frustumCulled = false; holo.add(particulas);
+  // Painéis flutuantes curvos (de fora para dentro: frente, lados e fundo)
+  /* ficam no arco de trás (visto da frente, atrás da cidade) e viram para dentro: o lado de dentro do
+     cilindro mostra a imagem espelhada, então a textura é desvirada (repeat.x = -1) */
+  const paineis = [['saude', Math.PI - 1.5], ['cabecalho', Math.PI - 0.5], ['analise', Math.PI + 0.5], ['situacao', Math.PI + 1.5]].map(([tipo, a]) => {
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 360; const tex = new T.CanvasTexture(c); tex.encoding = T.sRGBEncoding; tex.anisotropy = 8; E.push(tex);
+    tex.wrapS = T.RepeatWrapping; tex.repeat.x = -1; tex.offset.x = 1;
+    const m = matHolo(0xffffff, 0.9, false, E); m.map = tex; m.side = T.BackSide;
+    const geo = new T.CylinderGeometry(3.4, 3.4, 1.05, 24, 1, true, a - 0.47, 0.94).translate(0, MESA.alturaTampo + 1.3, 0); E.push(geo);
+    const me = new T.Mesh(geo, m); me.frustumCulled = false; g.add(me);
+    return { tipo, c, tex, me, chave: '' };
+  });
+  // Consoles de simulação (viram para a mesa; quem opera fica do lado de fora)
+  const texC = texturaConsole(); E.push(texC);
+  const mTela = new T.MeshBasicMaterial({ map: texC, toneMapped: false }); E.push(mTela);
+  [0.72, 2.42, -2.42, -0.72].forEach((a) => {
+    const r = 4.35, x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r;   /* frente do console (+z local) virada para fora, para quem opera */
+    K.girado(G3.caixa, metal, x, z, a, 0, 0.09, 0, 0.62, 0.92, 0.36);
+    K.girado(G3.caixa, laranja, x, z, a, 0, 0.14, 0.185, 0.5, 0.04, 0.01, false);
+    const topo = new T.Group(); topo.position.set(x + Math.sin(a) * 0.05, 1.13, z + Math.cos(a) * 0.05); topo.rotation.order = 'YXZ'; topo.rotation.y = a; topo.rotation.x = -0.75; W.grupo.add(topo);   /* tampo inclinado */
+    const apoio = new T.Mesh(G3.caixaC, metal); apoio.scale.set(0.66, 0.44, 0.06); apoio.position.z = -0.045; apoio.castShadow = true; topo.add(apoio);
+    const tela = new T.Mesh(G3.placa, mTela); tela.scale.set(0.58, 0.37, 1); tela.userData.afastada = true; topo.add(tela);
+    obst.push([x - 0.4, x + 0.4, z - 0.4, z + 0.4]);
+    const ox2 = cx + Math.sin(a) * (r + 0.6), oz2 = cz + Math.cos(a) * (r + 0.6);
+    pontos.push(ponto(ox2, oz2, rotDe(cx - ox2, cz - oz2), 'operar', { dur: 90 }));
+  });
+  // Lugares em volta da mesa: consultores analisando, conversando e com tablet
+  [0, 0.34, -0.34, 1.32, 1.7, -1.32, -1.7, 2.9, 3.38, -2.9].forEach((a, i) => {
+    const r = MESA.raioMesa + 0.6, x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r;
+    pontos.push(ponto(x, z, rotDe(cx - x, cz - z), ['tablet', 'conversar', 'olhar', 'conversar', 'tablet'][i % 5], { dur: 70 + (i % 3) * 40 }));
+  });
+  // Bancos com luz por baixo, de frente para a mesa
+  const madeira = mat(0x8a6a48, { roughness: 0.7 });
+  [0.95, -0.95].forEach((a) => {
+    const r = MESA.raioPiso + 1.3, x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r;
+    K.girado(G3.caixa, MP.pedraBege, x, z, a, 0, 0, 0, 2.2, 0.42, 0.6); K.girado(G3.caixa, madeira, x, z, a, 0, 0.42, 0, 2.2, 0.06, 0.6); K.girado(G3.caixa, laranja, x, z, a, 0, 0.03, -0.31, 2.0, 0.03, 0.01, false);
+    obst.push([x - 1.2, x + 1.2, z - 1.2, z + 1.2].map((v, j) => (j < 2 ? x + (v - x) * 0.9 : z + (v - z) * 0.9)));
+    [-0.6, 0.6].forEach((o) => { const px = x + Math.cos(a) * o, pz = z - Math.sin(a) * o; pontos.push(ponto(px, pz, rotDe(cx - px, cz - pz), 'sentar', { dur: 120 })); });
+  });
+  // Placa "Real Forte · Mesa do Futuro" num canteiro com luz laranja (canto da frente)
+  {
+    const x = cx - 9.6, z = cz + 4.0, a = 0.5;
+    K.girado(G3.caixa, MP.pedraBege, x, z, a, 0, 0, 0, 4.6, 0.45, 1.5); K.girado(G3.caixa, laranja, x, z, a, 0, 0.45, 0.76, 4.6, 0.04, 0.02, false);
+    for (let q = 0; q < 6; q++) K.girado(G3.copa, q % 2 ? MP.copa : MP.copa2, x, z, a, -1.9 + q * 0.76, 0.6, 0.35, 0.36, 0.3, 0.36);
+    K.girado(G3.caixa, metal, x, z, a, 0, 0.45, -0.25, 3.4, 1.35, 0.3);
+    const pl = new T.Mesh(G3.placa, texturaPlacaRF('REAL FORTE', 'MESA DO FUTURO', 'predios', 1024, 384));   /* já devolve o material da placa (guardado) */
+    pl.scale.set(3.3, 1.24, 1); pl.position.set(x - Math.sin(a) * 0.05, 1.125, z - Math.cos(a) * 0.05); pl.rotation.y = a; pl.userData.afastada = true; W.grupo.add(pl);   /* 5 cm na frente da laje (a face fica em -0,1) */
+    obst.push([x - 2.4, x + 2.4, z - 1.4, z + 1.4]);
+  }
+  // Canteiros com árvore e luz quente (fundo, dos dois lados) e um de flores na frente
+  [[-9.6, -4.2], [9.6, -4.2], [9.6, 4.0]].forEach(([dx, dz], k) => {
+    const x = cx + dx, z = cz + dz;
+    K.add(G3.caixa, MP.pedraBege, x, 0, z, 2.4, 0.5, 2.4); K.add(G3.caixa, CAMPO.vida.grama, x, 0.5, z, 2.2, 0.04, 2.2, 0, 0, 0, false);
+    ledContorno(K, laranja, x, 0.06, z, 2.4, 2.4);
+    if (k < 2) { K.add(G3.cil, MP.tronco, x, 0.5, z, 0.09, 1.4, 0.09); K.add(G3.copa, k ? MP.copa : MP.copa2, x, 2.4, z, 1.1, 1.2, 1.1, 0, k, 0); brilho(g, 0xffb066, 2.2, dx, 1.1, dz, 0.35); }
+    else for (let q = 0; q < 5; q++) K.add(G3.copa, MP.flor || MP.copa, x - 0.8 + q * 0.4, 0.62, z + (q % 2 ? 0.4 : -0.4), 0.3, 0.26, 0.3, 0, q, 0);
+    obst.push([x - 1.3, x + 1.3, z - 1.3, z + 1.3]);
+  });
+  // Quem passa para e tira foto da mesa
+  const fotos = W.pontosFotoRF = W.pontosFotoRF || [];
+  [[-6.6, 6.2], [6.4, 6.4]].forEach(([dx, dz]) => { const x = cx + dx, z = cz + dz; fotos.push(ponto(x, z, rotDe(cx - x, cz - z), 'foto', { dur: 10 })); });
+  K.montar(W.grupo, E);
+  obst.forEach(([a0, a1, c0, c1]) => navBloquear(new T.Matrix4(), a0, a1, c0, c1));
+  CAMPO.mesa = { s, g, holo, giro, ilhas, facho, varre, particulas, paineis, foco: -1, tFoco: 0, centro: new T.Vector3(cx, 1.5, cz) };
+}
+// Números da mesa: só das empresas que podem aparecer agora (no modo apresentação, só o cliente)
+function dadosDaMesa() {
+  const M = CAMPO.mesa, ap = CAMPO.ap;
+  const vis = M.ilhas.filter((it) => it.D && (!ap || ap.id === it.il.id));
+  const D = vis.map((it) => it.D), foco = M.ilhas[M.foco] && M.ilhas[M.foco].D && vis.includes(M.ilhas[M.foco]) ? M.ilhas[M.foco].D : null;
+  const sit = SITUACOES.map((x) => [x, 0]);
+  try { const ids = new Set(D.map((d) => d.id)); S.gargalos.filter((g) => ids.has(g.empresaId) && !ehOport(g)).forEach((g) => { const k = SITUACOES.indexOf(situacaoDe(g)); if (k >= 0) sit[k][1]++; }); } catch (x) { /* sem dados do app: fica tudo zero */ }
+  return { D, foco, sit, horas: D.reduce((t, d) => t + (d.horas || 0), 0) };
+}
+function desenharPainelMesa(p, X) {
+  const q = p.c.getContext('2d'), W = p.c.width, H = p.c.height;
+  q.clearRect(0, 0, W, H);
+  q.fillStyle = 'rgba(30,110,200,.22)'; q.fillRect(8, 8, W - 16, H - 16);
+  q.strokeStyle = 'rgba(120,220,255,.95)'; q.lineWidth = 5; q.strokeRect(8, 8, W - 16, H - 16);
+  q.fillStyle = 'rgba(255,150,70,.95)'; [[8, 8], [W - 68, 8], [8, H - 14], [W - 68, H - 14]].forEach(([x, y]) => q.fillRect(x, y, 60, 6));
+  const texto = (t, x, y, tam, cor, peso, al) => { q.fillStyle = cor || '#fff'; q.font = `${peso || 700} ${tam}px Arial, sans-serif`; q.textAlign = al || 'left'; q.textBaseline = 'middle'; q.fillText(String(t), x, y); };
+  const corta = (t, n) => (t.length > n ? t.slice(0, n - 1) + '…' : t);
+  const barra = (x, y, w, h, f, cor) => { q.fillStyle = 'rgba(120,200,255,.18)'; q.fillRect(x, y, w, h); q.fillStyle = cor; q.fillRect(x, y, w * Math.max(0, Math.min(1, f)), h); };
+  if (p.tipo === 'cabecalho') {
+    desenharIcone(q, 'predios', 150, H / 2, 150, '#ff9a52');
+    texto('REAL FORTE', 270, 120, 92, '#ff9a52', 900); texto('MESA DO FUTURO', 274, 210, 58, '#ffffff', 700);
+    texto(X.D.length ? `Cidade em miniatura · ${X.D.length === 1 ? '1 empresa' : X.D.length + ' empresas'}` : 'Cidade em miniatura', 276, 285, 32, '#bfeaff', 500);
+  } else if (p.tipo === 'saude') {
+    texto('SAÚDE DAS EMPRESAS', 40, 56, 40, '#ffffff', 800); texto('altura = nota · cor = saúde', W - 40, 56, 24, '#bfeaff', 500, 'right');
+    if (!X.D.length) texto('Nenhuma empresa cadastrada ainda', W / 2, H / 2 + 20, 34, '#bfeaff', 500, 'center');
+    X.D.slice(0, 5).forEach((d, i) => { const y = 112 + i * 50; texto(corta(d.nome, 22), 40, y, 28, '#ffffff', 600); barra(430, y - 12, 440, 24, (d.nota || 0) / 100, COR_SAUDE_CSS[d.saude] || '#8796ad'); texto(d.nota == null ? '–' : d.nota, W - 40, y, 30, '#ffffff', 800, 'right'); });
+  } else if (p.tipo === 'analise') {
+    const d = X.foco;
+    texto('EM ANÁLISE', 40, 56, 40, '#ff9a52', 800);
+    if (!d) { texto('A mesa mostra uma empresa de cada vez', W / 2, H / 2 + 20, 32, '#bfeaff', 500, 'center'); return; }
+    texto(corta(d.nome, 26), 300, 56, 40, '#ffffff', 800);
+    texto(d.nota == null ? '–' : d.nota, 130, 190, 120, COR_SAUDE_CSS[d.saude] || '#ffffff', 900, 'center'); texto('nota', 130, 268, 26, '#bfeaff', 500, 'center');
+    (d.setores || []).slice(0, 4).forEach((x, i) => { const y = 118 + i * 44, n = x.d && x.d.nota; texto(corta(x.nome, 16), 260, y, 26, '#ffffff', 600); barra(520, y - 10, 330, 20, (n || 0) / 100, COR_SAUDE_CSS[x.d && x.d.saude] || '#8796ad'); texto(n == null ? '–' : n, W - 40, y, 26, '#ffffff', 800, 'right'); });
+    texto(`${d.gargalos || 0} gargalos abertos · ${d.oportunidades || 0} oportunidades · ${fmtHoras(d.horas || 0)} h/mês devolvidas`, W / 2, H - 46, 26, '#bfeaff', 500, 'center');
+  } else {
+    texto('GARGALOS POR SITUAÇÃO', 40, 56, 40, '#ffffff', 800);
+    const max = Math.max(1, ...X.sit.map((x) => x[1])), cores = ['#8c98ad', '#ff8a3d', '#86a9e6', '#e3a847', '#46b582'];
+    X.sit.forEach(([rot, v], i) => { const bw = 120, x = 70 + i * 185, h = 170 * v / max; q.fillStyle = cores[i]; q.fillRect(x, 280 - h, bw, h); texto(v, x + bw / 2, 262 - h, 30, '#ffffff', 800, 'center'); texto(corta(rot, 14), x + bw / 2, 312, 22, '#bfeaff', 500, 'center'); });
+    texto(`${fmtHoras(X.horas)} h/mês devolvidas`, W - 40, 56, 28, '#bfeaff', 600, 'right');
+  }
+}
+// Quadro a quadro: gira, sobe a ilha em análise, pulsos nas pontes, partículas, anel que varre e painéis
+function passoMesa(t, dt) {
+  const M = CAMPO.mesa; if (!M || !CAMPO.camera) return;
+  const longe = CAMPO.camera.position.distanceTo(M.centro) > 320; M.g.visible = !longe; if (longe) return;
+  const ap = CAMPO.ap, vis = M.ilhas.map((it, k) => [it, k]).filter(([it]) => it.D && (!ap || ap.id === it.il.id));
+  M.giro.rotation.y += dt * 0.07;
+  // troca a empresa em análise a cada MESA.foco segundos (só entre as que podem aparecer)
+  if (t - M.tFoco > MESA.foco || !vis.some(([, k]) => k === M.foco)) { M.tFoco = t; const pos = vis.findIndex(([, k]) => k === M.foco); M.foco = vis.length ? vis[(pos + 1) % vis.length][1] : -1; }
+  const pisca = 0.92 + Math.sin(t * 23) * 0.03 + (Math.sin(t * 0.7) > 0.985 ? -0.35 : 0);   // tremidinha de holograma
+  M.ilhas.forEach((it, k) => {
+    const alvo = k === M.foco ? 0.14 : 0; it.sobe += (alvo - it.sobe) * Math.min(1, dt * 3); it.gi.position.y = it.sobe;
+    if (it.corpo.userData.linhas) it.corpo.userData.linhas.opacity = (it.D ? (k === M.foco ? 1 : 0.75) : 0.35) * pisca;
+    if (it.et) it.et.scale.set(k === M.foco ? 1.15 : 0.8, k === M.foco ? 0.29 : 0.2, 1);
+    if (it.pulsos) { const a = it.pulsos.geometry.attributes.position; for (let j = 0; j < 3; j++) { const f = (t * 0.25 + j / 3 + k * 0.17) % 1; a.setXYZ(j, it.p1[0] + (it.p0[0] - it.p1[0]) * f, 0.01, it.p1[1] + (it.p0[1] - it.p1[1]) * f); } a.needsUpdate = true; }
+  });
+  const F = M.ilhas[M.foco];
+  M.facho.visible = !!(F && F.D); if (F && F.D) { const r = SATELITE.ilha * M.s * 1.05; M.facho.position.set(F.gi.position.x, 0, F.gi.position.z); M.facho.scale.set(Math.max(0.3, r), 0.55 + F.sobe, Math.max(0.3, r)); M.facho.material.opacity = 0.45 + Math.sin(t * 3) * 0.1; }
+  const fv = (t * 0.35) % 1; M.varre.position.y = fv * 1.3; M.varre.material.opacity = 0.8 * (1 - fv);
+  const pa = M.particulas.geometry.attributes.position; for (let i = 0; i < pa.count; i++) { let y = pa.getY(i) + dt * 0.12; if (y > 1.5) y = 0; pa.setY(i, y); } pa.needsUpdate = true;
+  // painéis: redesenha só quando o que mostram muda (confere a cada 2 s)
+  if (t - (M.tPaineis || -9) > 2) { M.tPaineis = t; const X = dadosDaMesa();
+    M.paineis.forEach((p) => { const chave = p.tipo + JSON.stringify(p.tipo === 'analise' ? X.foco && [X.foco.id, X.foco.nota, X.foco.gargalos, X.foco.horas] : p.tipo === 'situacao' ? [X.sit, X.horas] : X.D.map((d) => [d.id, d.nota, d.saude])); if (chave !== p.chave) { p.chave = chave; desenharPainelMesa(p, X); p.tex.needsUpdate = true; } }); }
+}
+// Consultores da Real Forte em volta da mesa (prefere ficar perto de quem já está lá)
+function irAMesa(M, a) {
+  const L = (M.centros && M.centros.mesa) || []; if (!L.length || (CAMPO.atividade != null && CAMPO.atividade < 0.6)) return null;
+  const perto = L.filter((p) => !p.ocupado && L.some((q) => q !== p && q.ocupado && Math.hypot(q.x - p.x, q.z - p.z) < 2.2));
+  const p = (perto.length && Math.random() < 0.75 && livreDe(perto, a)) || livreDe(L, a);
+  return p ? irAte(M, a, p.x, p.z, { tipo: 'centro', lugar: p }) : null;
+}
+// Ao montar a cidade de dia, metade da mesa já está ocupada
+function semearMesa(M) {
+  const L = (M.centros && M.centros.mesa) || []; if (!L.length || (CAMPO.atividade != null && CAMPO.atividade < 0.6)) return;
+  const ocupados = new Set([].concat((M.centros && M.centros.hub) || [], (M.centros && M.centros.networking) || []));   /* quem já está no Hub ou no Networking fica onde está */
+  const quem = M.agentes.filter((a) => a.visivel && !a.semNav && !a.apresentador && !(a.lugar && ocupados.has(a.lugar)) && ['equipe', 'consultor', 'rf'].includes(a.tipo)).filter((_, i) => i % 3 === 0);
+  let n = 0;
+  for (const a of quem) { if (n >= Math.round(L.length * 0.55)) break; const p = L.find((q) => !q.ocupado && q.anim !== 'sentar' && podePisar(navI(q.x, q.z), a.dono)); if (!p) break;
+    soltarPonto(a); p.ocupado = a; a.lugar = p; a.tarefa = { tipo: 'centro', lugar: p }; a.x = p.x; a.z = p.z; a.y = alturaEm(a.x, a.z); a.rot = p.rot; a.anim = p.anim; a.estado = 'atividade'; a.t = 15 + Math.random() * (p.dur || 90); a.caminho = null; n++; }
 }
 </script>
