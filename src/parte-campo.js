@@ -2286,7 +2286,7 @@ function desenharGraficos(t, soAnimado) {
     const { c, g, tex, tipo } = q, w = c.width, h = c.height;
     if (soAnimado && tipo !== 'rfi') return;
     if (tipo === 'etapas') {
-      cabeca(g, w, 'GARGALOS POR ETAPA', D.ap ? 'Esta empresa' : 'Todas as empresas');
+      cabeca(g, w, 'GARGALOS POR ETAPA', D.ap ? (D.ap.fantasma ? 'Real Forte' : 'Esta empresa') : 'Todas as empresas');
       const cont = contagem(D.gargalos), max = Math.max(1, ...SITUACOES.map((s) => cont[s]));
       if (!D.gargalos.length) vazio(g, w, h);
       else SITUACOES.forEach((s, i) => {
@@ -6073,7 +6073,7 @@ function quadro(agora) {
   (CAMPO.pulsosAntena || []).forEach((m, i) => { const k = (t * 0.45 + i / 3) % 1; m.scale.setScalar(0.25 + k * 3.4); m.material.opacity = 0.55 * (1 - k) * (1 - k); });
   (CAMPO.nuvens || []).forEach((s) => { const u = s.userData; u.a += u.v * (dt || 0.016); s.position.set(Math.cos(u.a) * u.r, u.y, Math.sin(u.a) * u.r); });
   CAMPO.poeira.rotation.y = t * 0.01;
-  passoEfeitos(dt); passoApresentacao(dt, t); passoCeu(dt);
+  passoEfeitos(dt); passoApresentacao(dt, t); passoPasseio(dt); passoCeu(dt);
   renderizarCinema();   // desenho com o acabamento de cinema (ou direto, se o aparelho não suportar)
   posicionarRotulos(ativa);
 }
@@ -6098,7 +6098,7 @@ function posicionarRotulos(ativa) {
   });
   const rc = CAMPO.rotuloCentro;
   if (rc) { const c = !CAMPO.ap && CAMPO.hoverCentro; if (c && CENTROS[c]) { const tp = PLANO.topoCentro[c]; if (rc.dataset.c !== c) { rc.dataset.c = c; rc.textContent = CENTROS[c].nome + ' · clique para abrir'; } rc.style.display = ''; colocarRotulo(rc, tp.x, tp.y + 1.2, tp.z, 70); } else rc.style.display = 'none'; }
-  if (CAMPO.botoesCamera) CAMPO.botoesCamera.style.display = CAMPO.ap ? 'none' : '';
+  if (CAMPO.botoesCamera) CAMPO.botoesCamera.style.display = CAMPO.ap || CAMPO.passeio ? 'none' : '';
   if (CAMPO.ap && CAMPO.cartaoCentro) CAMPO.cartaoCentro.hidden = true;
   CAMPO.rotuloTorre.style.display = CAMPO.ap ? 'none' : '';
   // Com o holograma da logo no alto, o rótulo em texto sai (seria repetido)
@@ -6341,7 +6341,7 @@ function criarCamadaApresentacao() {
     + `<div class="ap-controles"><button data-ap="ant" aria-label="Passo anterior">${icone('voltar')}</button><button data-ap="pausa" aria-label="Pausar">${icone('parar')}</button>`
     + `<button data-ap="prox" aria-label="Próximo passo">${icone('seta')}</button><span class="ap-pontos"></span><button data-ap="sair" class="ap-sair">Sair</button></div>`;
   el.addEventListener('click', (ev) => {
-    const b = ev.target.closest('[data-ap]'); if (!b || !CAMPO.ap) return;
+    const b = ev.target.closest('[data-ap]'); if (!b || !CAMPO.ap || CAMPO.ap.fantasma) return;
     const ap = CAMPO.ap, k = b.dataset.ap;
     if (k === 'ant') irParaPasso(ap.i - 1);
     else if (k === 'prox') irParaPasso(ap.i + 1);
@@ -6351,7 +6351,7 @@ function criarCamadaApresentacao() {
   });
   CAMPO.el.appendChild(el); CAMPO.apEl = el;
   document.addEventListener('keydown', (ev) => {
-    if (!CAMPO.ap || !CAMPO.rodando) return;
+    if (!CAMPO.ap || CAMPO.ap.fantasma || !CAMPO.rodando) return;
     if (ev.key === ' ') { ev.preventDefault(); pausarApresentacao(!CAMPO.ap.pausado); }
     else if (ev.key === 'ArrowRight') irParaPasso(CAMPO.ap.i + 1);
     else if (ev.key === 'ArrowLeft') irParaPasso(CAMPO.ap.i - 1);
@@ -6368,7 +6368,7 @@ function iniciarApresentacao(id) {
   irParaPasso(0);
 }
 function irParaPasso(i) {
-  const ap = CAMPO.ap; if (!ap) return;
+  const ap = CAMPO.ap; if (!ap || ap.fantasma) return;
   ap.i = Math.max(0, Math.min(ap.passos.length - 1, i)); ap.tempo = 0;
   const p = ap.passos[ap.i];
   animarCamera(ajustarVistaComLegenda(p.vista()), movimentoReduzido() ? 10 : 2400);
@@ -6400,7 +6400,7 @@ function ajustarVistaComLegenda(v) {
   return v;
 }
 function pausarApresentacao(pausar) {
-  const ap = CAMPO.ap; if (!ap) return;
+  const ap = CAMPO.ap; if (!ap || ap.fantasma) return;
   ap.pausado = pausar;
   const b = CAMPO.apEl.querySelector('[data-ap="pausa"]');
   if (b) { b.innerHTML = icone(pausar ? 'seta' : 'parar'); b.setAttribute('aria-label', pausar ? 'Continuar' : 'Pausar'); b.classList.toggle('pausado', pausar); }
@@ -6413,7 +6413,7 @@ function pararApresentacao() {
   try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (x) { /* nada */ }
 }
 function passoApresentacao(dt, t) {
-  const ap = CAMPO.ap; if (!ap) return;
+  const ap = CAMPO.ap; if (!ap || ap.fantasma) return;   /* fantasma = passeio só da Real Forte: não tem passos */
   const p = ap.passos[ap.i];
   if (!ap.pausado && !CAM.anim) { ap.tempo += dt * 1000; if (ap.tempo >= p.dur) irParaPasso(ap.i + 1); }
   const barra = CAMPO.apEl.querySelector('.ap-progresso i');
@@ -6436,8 +6436,14 @@ function montarCampo(lugar) {
     if (CAMPO.el.parentNode !== lugar) lugar.prepend(CAMPO.el);
     ajustarTamanho();
     const voltando = !CAMPO.rodando;
-    const apresentar = lugar.dataset.apresentar || '';
+    const apresentar = lugar.dataset.apresentar || '', passeio = lugar.dataset.passeio || '';
     atualizarIlhas();
+    if (passeio) {   // passeio pela cidade: 'real' = só a Real Forte, 'empresas' = com as empresas
+      if (voltando) { CAMPO.jaAbriu = true; CAMPO.rodando = true; CAMPO.ultimo = 0; CAMPO.raf = requestAnimationFrame(quadro); }
+      if (!CAMPO.passeio || CAMPO.passeio.privado !== (passeio === 'real')) iniciarPasseio(passeio === 'real');
+      return;
+    }
+    if (CAMPO.passeio) pararPasseio();
     if (apresentar) {
       if (!CAMPO.ap || CAMPO.ap.id !== apresentar) {
         if (voltando) {
@@ -6466,6 +6472,7 @@ function montarCampo(lugar) {
   }
 }
 function pararCampo() {
+  if (CAMPO.passeio) pararPasseio();
   if (CAMPO.ap) pararApresentacao();
   if (!CAMPO.rodando) return;
   CAMPO.rodando = false; cancelAnimationFrame(CAMPO.raf);
@@ -7941,6 +7948,7 @@ function dadosDaApresentacao(id) {
 }
 // Desenha o telão no momento "u" da apresentação (segundos desde o começo)
 function desenharSlide(c, D, u, semApresentacao) {
+  if (CAMPO.ap && CAMPO.ap.fantasma && !(semApresentacao && typeof semApresentacao === 'object')) semApresentacao = semApresentacao || true;   /* passeio só da Real Forte: telão em espera */
   const q = c.getContext('2d'), W = c.width, H = c.height, A = APRESENTACOES;
   const gr = q.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#07152e'); gr.addColorStop(1, '#0d2a55'); q.fillStyle = gr; q.fillRect(0, 0, W, H);
   q.strokeStyle = 'rgba(120,180,255,.06)'; q.lineWidth = 1; for (let x = 0; x < W; x += 40) { q.beginPath(); q.moveTo(x, 0); q.lineTo(x, H); q.stroke(); } for (let y = 0; y < H; y += 40) { q.beginPath(); q.moveTo(0, y); q.lineTo(W, y); q.stroke(); }
@@ -8936,7 +8944,7 @@ function desenharPainelMesa(p, X) {
     texto(X.D.length ? `Cidade em miniatura · ${X.D.length === 1 ? '1 empresa' : X.D.length + ' empresas'}` : 'Cidade em miniatura', 276, 285, 32, '#bfeaff', 500);
   } else if (p.tipo === 'saude') {
     texto('SAÚDE DAS EMPRESAS', 40, 56, 40, '#ffffff', 800); texto('altura = nota · cor = saúde', W - 40, 56, 24, '#bfeaff', 500, 'right');
-    if (!X.D.length) texto('Nenhuma empresa cadastrada ainda', W / 2, H / 2 + 20, 34, '#bfeaff', 500, 'center');
+    if (!X.D.length) texto(CAMPO.ap && CAMPO.ap.fantasma ? 'As empresas ficam ocultas neste passeio' : 'Nenhuma empresa cadastrada ainda', W / 2, H / 2 + 20, 34, '#bfeaff', 500, 'center');
     X.D.slice(0, 5).forEach((d, i) => { const y = 112 + i * 50; texto(corta(d.nome, 22), 40, y, 28, '#ffffff', 600); barra(430, y - 12, 440, 24, (d.nota || 0) / 100, COR_SAUDE_CSS[d.saude] || '#8796ad'); texto(d.nota == null ? '–' : d.nota, W - 40, y, 30, '#ffffff', 800, 'right'); });
   } else if (p.tipo === 'analise') {
     const d = X.foco;
@@ -8991,5 +8999,128 @@ function semearMesa(M) {
   let n = 0;
   for (const a of quem) { if (n >= Math.round(L.length * 0.55)) break; const p = L.find((q) => !q.ocupado && q.anim !== 'sentar' && podePisar(navI(q.x, q.z), a.dono)); if (!p) break;
     soltarPonto(a); p.ocupado = a; a.lugar = p; a.tarefa = { tipo: 'centro', lugar: p }; a.x = p.x; a.z = p.z; a.y = alturaEm(a.x, a.z); a.rot = p.rot; a.anim = p.anim; a.estado = 'atividade'; a.t = 15 + Math.random() * (p.dur || 90); a.caminho = null; n++; }
+}
+/* ---------- 18. Passeio pela cidade ----------
+   Apresentação em tela cheia da cidade da Real Forte: a câmera visita cada ponto (torre, Hub, Networking,
+   Mesa do Futuro, Relógio, Terminal, edifícios da Real Forte, estação, ilhas e o espaço) com um cartão
+   explicando o que é. Dois jeitos (rota do app):
+   #passeio            só a Real Forte: nenhuma empresa aparece (para visitante ou cliente). Liga uma
+                       apresentação "fantasma" (CAMPO.ap com id de ninguém), e tudo que já esconde as outras
+                       empresas na apresentação passa a esconder todas.
+   #passeio-empresas   com as empresas (para a equipe): mostra as ilhas e passa em cada uma.
+   Setas, espaço e Esc funcionam como na apresentação. F5 recomeça o passeio do primeiro ponto. */
+const PASSEIO = { dur: 9500, voo: 2600, giro: 0.03 };   // ms em cada ponto, ms do voo entre pontos, giro lento (rad/s) parado no ponto
+const V3p = (x, y, z) => new THREE.Vector3(x, y, z);
+function pontosDoPasseio(privado) {
+  const lista = [...CAMPO.ilhas.values()].filter((il) => il.lote), n = lista.length;
+  const P = [
+    { olho: 'Passeio pela cidade', titulo: 'Cidade Real Forte', abertura: true,
+      texto: privado ? 'Uma plataforma flutuando no espaço. No centro, a cidade da Real Forte; em volta, uma ilha para cada empresa atendida, ligada por ponte.'
+        : `Uma plataforma flutuando no espaço. No centro, a cidade da Real Forte; em volta, ${n === 1 ? 'a ilha da empresa atendida' : `as ilhas das ${n} empresas atendidas`}, cada uma ligada por ponte.`,
+      vista: () => ({ alvo: V3p(0, 0, 6), raio: 470, theta: 0.42, phi: 1.12 }) },
+    { olho: 'O marco da cidade', titulo: 'Torre Real Forte', texto: 'Lâminas escuras, contorno laranja e o RF aceso no alto. Na cobertura de vidro trabalha a equipe da Real Forte.', vista: () => ({ alvo: V3p(0, 14, 3), raio: 60, theta: 0.55, phi: 1.22 }) },
+    { olho: 'Encontros e apresentações', titulo: 'Hub de Conexões', texto: privado ? 'Onde as empresas e a Real Forte se encontram. No auditório de vidro acontecem as apresentações de resultados, no horário do relógio da cidade. Em volta: quiosques, mesas altas, lounge e coworking.'
+        : 'Onde as empresas e a Real Forte se encontram. No auditório de vidro, cada empresa apresenta os resultados no telão, num rodízio que segue o relógio da cidade. Em volta: quiosques, mesas altas, lounge e coworking.',
+      vista: () => ({ alvo: V3p(0, 3, 82), raio: 46, theta: 0.32, phi: 1.08 }) },
+    { olho: 'Relacionamento entre empresas', titulo: 'Centro de Networking Corporativo', texto: 'Salão aberto, pergolado e três salas de reunião de vidro. A TV de cada sala mostra o mesmo slide do telão do Hub.', vista: () => ({ alvo: V3p(-41.5, 3, 82), raio: 40, theta: 0.3, phi: 1.08 }) },
+    { olho: 'A cidade em holograma', titulo: 'Mesa do Futuro', texto: privado ? 'Uma mesa de vidro com a cidade inteira em holograma, na escala de verdade, para os consultores analisarem processos e simularem melhorias. Neste passeio as empresas ficam ocultas.'
+        : 'A cidade inteira em holograma, na escala de verdade. Cada empresa é uma ilha e os prédios são os setores: altura é a nota, cor é a saúde. Uma empresa por vez fica em análise.',
+      vista: () => ({ alvo: V3p(-77.5, 1.4, 18.5), raio: 15, theta: 0.2, phi: 1.1 }) },
+    { olho: 'O coração da sede', titulo: 'Praça das Conexões', texto: 'A praça em frente à sede, com o Café das Ideias ao lado. É onde a equipe, os consultores e os visitantes se encontram.', vista: () => ({ alvo: V3p(4, 1, 46), raio: 42, theta: 0.4, phi: 1.05 }) },
+    { olho: 'O trabalho da consultoria', titulo: 'Os centros da Real Forte', texto: 'Diagnóstico Empresarial, Estratégia e Soluções, Inteligência Artificial, Performance e Resultados, Apresentações e Negócios: cada etapa do trabalho tem o seu prédio.', vista: () => ({ alvo: V3p(0, 4, 14), raio: 120, theta: 0.42, phi: 0.88 }) },
+    { olho: 'O tempo da cidade', titulo: 'Relógio da Cidade', texto: 'Painel de LED no centro da Praça da Estratégia. O dia da cidade e a agenda do Hub seguem este relógio.', vista: () => ({ alvo: V3p(-41.5, 4, -35.5), raio: 26, theta: 0.3, phi: 1.12 }) },
+    { olho: 'Transporte', titulo: 'Terminal da Real Forte', texto: 'A rodoviária da cidade, com a ala nova no quarteirão ao lado. Daqui saem os ônibus da Real Forte.', vista: () => ({ alvo: V3p(18, 4, -68), raio: 64, theta: 0.35, phi: 1.0 }) },
+    { olho: 'Liderança · gestão · inovação', titulo: 'Instituto Real Forte', texto: 'O edifício do conhecimento da consultoria, com o jardim e o totem na frente.', vista: () => ({ alvo: V3p(-41.5, 5, -71.5), raio: 42, theta: 0.3, phi: 1.06 }) },
+    { olho: 'Educação e debate', titulo: 'Academia RF e Auditório Real Forte', texto: 'A educação corporativa e o auditório onde as lideranças debatem, lado a lado.', vista: () => ({ alvo: V3p(-77.5, 4, -53.5), raio: 66, theta: 0.45, phi: 1.0 }) },
+    { olho: 'Laboratório e monitoramento', titulo: 'Pesquisa e Inovação · RF Sinais', texto: 'O laboratório da Real Forte e o centro de monitoramento e alertas.', vista: () => ({ alvo: V3p(77.5, 4, -53.5), raio: 66, theta: 0.25, phi: 1.0 }) },
+    { olho: 'Resultados que inspiram', titulo: 'Galeria dos Cases', texto: 'Onde ficam expostos os casos de sucesso da consultoria.', vista: () => ({ alvo: V3p(-77.5, 4, 83.5), raio: 40, theta: 0.3, phi: 1.06 }) },
+    { olho: 'Grandes encontros', titulo: 'Centro de Eventos', texto: 'O espaço dos eventos e encontros maiores da Real Forte.', vista: () => ({ alvo: V3p(77.5, 4, 83.5), raio: 40, theta: 0.3, phi: 1.06 }) },
+    { olho: 'Quem chega e quem vai', titulo: 'Estação Central', texto: 'Uma das estações da cidade: é por aqui que a equipe chega de manhã e vai embora à noite.', vista: () => ({ alvo: V3p(-6.5, 2, 35.5), raio: 28, theta: 0.5, phi: 1.12 }) }
+  ];
+  if (privado) {   // a ilha preparada (de ninguém) mostra como é a ilha de uma empresa, sem mostrar empresa nenhuma
+    const L = loteSatelite(n);
+    P.push({ olho: 'As ilhas das empresas', titulo: 'Uma ilha para cada empresa', texto: 'Cada empresa atendida ganha uma ilha ligada por ponte à cidade, com o campus do segmento, um prédio por setor e o bairro residencial em volta. Esta é a próxima, já preparada.',
+      vista: () => ({ alvo: V3p(L.cx, 2, L.cz), raio: 95, theta: L.giro + 0.3, phi: 0.95 }) });
+  } else if (n) {
+    P.push({ olho: 'As ilhas das empresas', titulo: n === 1 ? 'A ilha da empresa' : `As ${n} ilhas das empresas`, texto: 'Cada empresa tem a sua ilha, ligada por ponte à cidade: o campus do segmento, um prédio por setor e o bairro residencial em volta.', vista: () => ({ alvo: V3p(0, 0, 6), raio: 380, theta: 0.42, phi: 0.82 }) });
+    lista.forEach((il) => {
+      const D = il.dados || {}, sub = [D.segmento, D.cidade].filter(Boolean).join(' · ');
+      const nota = D.nota == null ? 'sem nota ainda' : `nota ${D.nota}`, setores = D.totalSetores === 1 ? '1 setor' : `${D.totalSetores || 0} setores`;
+      P.push({ olho: 'Ilha da empresa', titulo: D.nome || 'Empresa', ilha: il.id,
+        texto: `${sub ? sub + '. ' : ''}${setores}, ${nota}. Na chegada da ponte, o pórtico de boas-vindas com a logo; em volta, o bairro residencial com piscina.`,
+        vista: () => { const v = visaoDaIlha(il); v.raio = 62; v.phi = 0.95; return v; } });
+    });
+  }
+  P.push({ olho: 'Orbital Consulting City', titulo: 'A plataforma no espaço', texto: 'A megaestrutura que sustenta a cidade, com o casco aceso, os propulsores, o planeta ao lado e as naves em rota.', vista: () => ({ alvo: V3p(0, 0, 6), raio: 520, theta: 1.1, phi: 1.72 }) });
+  P.push({ olho: 'Fim do passeio', titulo: 'Cidade Real Forte', final: true, texto: 'Consultoria · desde 1982.', vista: () => ({ alvo: V3p(0, 0, 30), raio: 440, theta: 0.42, phi: 0.95 }) });
+  return P;
+}
+function cartaoDoPasseio(p, i, total) {
+  const contador = p.final || p.abertura ? '' : `<p class="ap-pe">${i} de ${total - 2}</p>`;
+  const logo = p.abertura || p.final ? `<img class="ap-logo" src="${LOGO.claro}" alt="Real Forte Consultoria">` : '';
+  const fim = p.final ? `<div class="ap-fim"><button class="ap-botao" data-ps="repetir">${icone('voltar')}Ver de novo</button><button class="ap-botao primario" data-ps="sair">Encerrar</button></div>` : '';
+  return `<div class="ap-card${p.abertura ? ' ap-abertura' : ''}">${logo}<p class="ap-olho">${esc(p.olho)}</p><h2 class="ap-titulo${p.abertura || p.final ? '' : ' menor'}">${esc(p.titulo)}</h2><p class="ap-sub">${esc(p.texto)}</p>${contador}${fim}</div>`;
+}
+function criarCamadaPasseio() {
+  const el = document.createElement('div'); el.className = 'ap-camada passeio';
+  el.innerHTML = `<div class="ap-progresso"><i></i></div><div class="ap-legenda"></div>`
+    + `<div class="ap-controles"><button data-ps="ant" aria-label="Ponto anterior">${icone('voltar')}</button><button data-ps="pausa" aria-label="Pausar">${icone('parar')}</button>`
+    + `<button data-ps="prox" aria-label="Próximo ponto">${icone('seta')}</button><span class="ap-pontos"></span><button data-ps="sair" class="ap-sair">Sair</button></div>`;
+  el.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-ps]'); if (!b || !CAMPO.passeio) return;
+    const k = b.dataset.ps, ps = CAMPO.passeio;
+    if (k === 'ant') irParaPonto(ps.i - 1); else if (k === 'prox') irParaPonto(ps.i + 1);
+    else if (k === 'pausa') pausarPasseio(!ps.pausado); else if (k === 'repetir') irParaPonto(0); else if (k === 'sair') sairDoPasseio();
+  });
+  CAMPO.el.appendChild(el); CAMPO.psEl = el;
+  document.addEventListener('keydown', (ev) => {
+    if (!CAMPO.passeio || !CAMPO.rodando) return;
+    if (ev.key === ' ') { ev.preventDefault(); pausarPasseio(!CAMPO.passeio.pausado); }
+    else if (ev.key === 'ArrowRight') irParaPonto(CAMPO.passeio.i + 1);
+    else if (ev.key === 'ArrowLeft') irParaPonto(CAMPO.passeio.i - 1);
+    else if (ev.key === 'Escape') sairDoPasseio();
+  });
+}
+function iniciarPasseio(privado) {
+  if (CAMPO.ap && !CAMPO.ap.fantasma) pararApresentacao();
+  if (!CAMPO.psEl) criarCamadaPasseio();
+  CAMPO.ap = privado ? { id: '__passeio__', fantasma: true, passos: [], i: 0, tempo: 0, pausado: true } : null;   // só a Real Forte: nenhuma empresa aparece
+  CAMPO.passeio = { privado, passos: pontosDoPasseio(privado), i: -1, tempo: 0, pausado: false };
+  CAMPO.psEl.classList.add('ligada'); CAMPO.escolhida = ''; CAMPO.hover = ''; CAMPO.festejando = '';
+  try { if (document.documentElement.requestFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); } catch (x) { /* sem tela cheia: o passeio ocupa a janela */ }
+  irParaPonto(0);
+}
+function irParaPonto(i) {
+  const ps = CAMPO.passeio; if (!ps) return;
+  ps.i = Math.max(0, Math.min(ps.passos.length - 1, i)); ps.tempo = 0;
+  const p = ps.passos[ps.i];
+  animarCamera(ajustarVistaComLegenda(p.vista()), movimentoReduzido() ? 10 : PASSEIO.voo);
+  if (p.ilha) CAMPO.escolhida = p.ilha; else CAMPO.escolhida = '';   // a plaquinha da empresa da vez fica aberta
+  const leg = CAMPO.psEl.querySelector('.ap-legenda');
+  leg.classList.remove('entra'); leg.innerHTML = cartaoDoPasseio(p, ps.i, ps.passos.length); void leg.offsetWidth; leg.classList.add('entra');
+  CAMPO.psEl.querySelector('.ap-pontos').innerHTML = ps.passos.map((x, k) => `<i class="${k === ps.i ? 'atual' : k < ps.i ? 'feito' : ''}"></i>`).join('');
+  CAMPO.psEl.classList.toggle('no-fim', !!p.final);
+  pausarPasseio(!!p.final);
+}
+function pausarPasseio(pausar) {
+  const ps = CAMPO.passeio; if (!ps) return;
+  ps.pausado = pausar;
+  const b = CAMPO.psEl.querySelector('[data-ps="pausa"]');
+  if (b) { b.innerHTML = icone(pausar ? 'seta' : 'parar'); b.setAttribute('aria-label', pausar ? 'Continuar' : 'Pausar'); b.classList.toggle('pausado', pausar); }
+}
+function sairDoPasseio() { pararPasseio(); location.hash = 'inicio'; }
+function pararPasseio() {
+  if (!CAMPO.passeio) return;
+  CAMPO.passeio = null; CAMPO.escolhida = '';
+  if (CAMPO.ap && CAMPO.ap.fantasma) CAMPO.ap = null;   // as empresas voltam a aparecer
+  if (CAMPO.psEl) CAMPO.psEl.classList.remove('ligada', 'no-fim');
+  try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (x) { /* nada */ }
+}
+function passoPasseio(dt) {
+  const ps = CAMPO.passeio; if (!ps) return;
+  if (!CAM.anim && !movimentoReduzido()) CAM.theta += PASSEIO.giro * dt;   // parado no ponto, a câmera gira devagar
+  if (!ps.pausado && !CAM.anim) { ps.tempo += dt * 1000; if (ps.tempo >= PASSEIO.dur) irParaPonto(ps.i + 1); }
+  const barra = CAMPO.psEl.querySelector('.ap-progresso i');
+  if (barra) barra.style.width = `${((ps.i + Math.min(1, ps.tempo / PASSEIO.dur)) / ps.passos.length * 100).toFixed(2)}%`;
 }
 </script>

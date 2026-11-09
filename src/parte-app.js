@@ -290,6 +290,7 @@ async function mudarSituacao(id, nova, opcoes) {
 /* ---------- 6. Navegação ---------- */
 function rotaAtual() {
   const h = decodeURIComponent((location.hash || '').slice(1));
+  if (h === 'passeio' || h === 'passeio-empresas') return { v: 'passeio', privado: h === 'passeio' };   // passeio pela cidade (só a Real Forte, ou com as empresas)
   if (h.startsWith('ap-')) return { v: 'apresentar', id: h.slice(3) };
   if (h.startsWith('ck-')) return { v: 'checkup', id: h.slice(3) };
   if (h.startsWith('q-')) return { v: 'questionario', id: h.slice(2) };
@@ -338,7 +339,7 @@ function trocarDeTela(r, fazer) {
   const origem = UI.origemTransicao && performance.now() - UI.origemTransicao.t < 2500 ? UI.origemTransicao : null; UI.origemTransicao = null;
   const tipo = origem ? 'circulo' : familiaDaRota(antes) === familiaDaRota(r) ? 'aba' : 'pagina';
   const raiz = document.documentElement;
-  if (reduzido || r.v === 'apresentar' || antes.v === 'apresentar') { fazer(); return; }
+  if (reduzido || ['apresentar', 'passeio'].includes(r.v) || ['apresentar', 'passeio'].includes(antes.v)) { fazer(); return; }
   if (!document.startViewTransition) { fazer(); const m = $('#principal .miolo'); if (m) { m.classList.add('entra-' + tipo); } return; }
   if (origem) { raiz.style.setProperty('--vt-x', origem.x + 'px'); raiz.style.setProperty('--vt-y', origem.y + 'px'); }
   raiz.classList.add('vt-' + tipo);
@@ -376,7 +377,7 @@ function render(forcar) {
   const rota = rotaAtual();
   contextoDaRota(rota);
   document.body.classList.toggle('so-leitura', !S.podeEditar);
-  document.body.classList.toggle('apresentando', rota.v === 'apresentar' && S.carregado && campoDisponivel());
+  document.body.classList.toggle('apresentando', (rota.v === 'apresentar' || rota.v === 'passeio') && S.carregado && campoDisponivel());
   renderLado(rota);
   if (!forcar && S.carregado && (UI.ocupado || digitando())) { UI.pendente = true; return; }
   UI.pendente = false;
@@ -388,6 +389,7 @@ function render(forcar) {
   else if (rota.v === 'setor') html = telaSetor(rota.id, rota.aba);
   else if (rota.v === 'ia') html = telaIA(rota);
   else if (rota.v === 'apresentar') html = telaApresentacao(rota.id);
+  else if (rota.v === 'passeio') html = telaPasseio(rota.privado);
   else if (rota.v === 'biblioteca') html = telaBiblioteca();
   else if (rota.v === 'sinais') html = telaSinais();
   else if (rota.v === 'ajustes') html = telaAjustes();
@@ -398,7 +400,7 @@ function render(forcar) {
   if (lugarCampo) montarCampo(lugarCampo); else pararCampo();
   const lugarGalaxia = document.getElementById('galaxia-lugar');
   if (lugarGalaxia) { const todos = itensBiblioteca(); montarGalaxia(lugarGalaxia, todos, listaDaBiblioteca(todos)); } else pararGalaxia();
-  if (CMD.botao) CMD.botao.hidden = rota.v === 'apresentar';
+  if (CMD.botao) CMD.botao.hidden = rota.v === 'apresentar' || rota.v === 'passeio';
   iniciarCanos();
   if (S.carregado && UI.animar) { UI.animar = false; animarNumeros(); }
   if (UI.festa) { const f = UI.festa; UI.festa = null; soltarFesta(f.id, f.texto); }
@@ -712,7 +714,7 @@ function telaCampo(ativas, hoje, nome, horas, resolvidos) {
       <div class="ch-topo">
         <div class="ch-titulo"><p class="olho">${esc(hoje.charAt(0).toUpperCase() + hoje.slice(1))}</p><h1>${saudacao()}${nome ? ', ' + esc(nome) : ''}</h1>
           <p class="sub">${ativas.length ? `${plural(ativas.length, 'empresa', 'empresas')} em diagnóstico` : 'Cadastre a primeira empresa para ela aparecer no campo'}</p></div>
-        <div class="ch-acoes">${horas ? `<span class="ch-chip" title="${esc(`${fmtHoras(horas * 12)} horas por ano, em ${plural(resolvidos, 'melhoria entregue', 'melhorias entregues')}`)}"><b data-contar="${horas}">${fmtHoras(horas)}</b> h/mês devolvidas</span>` : ''}${ativas.length ? `<details class="ch-apresentar"><summary class="btn">${icone('slides')}Apresentar</summary><div class="ch-lista"><span class="ch-lista-tit">Tour em tela cheia de uma empresa</span>${ativas.map((x) => `<a href="#ap-${esc(x.id)}">${esc(x.nome)}</a>`).join('')}</div></details>` : ''}<button class="btn primario so-editor" data-acao="novaEmpresa">${icone('mais')}Nova empresa</button></div>
+        <div class="ch-acoes">${horas ? `<span class="ch-chip" title="${esc(`${fmtHoras(horas * 12)} horas por ano, em ${plural(resolvidos, 'melhoria entregue', 'melhorias entregues')}`)}"><b data-contar="${horas}">${fmtHoras(horas)}</b> h/mês devolvidas</span>` : ''}<details class="ch-apresentar"><summary class="btn">${icone('slides')}Apresentar</summary><div class="ch-lista"><span class="ch-lista-tit">Passeio pela cidade</span><a href="#passeio">Só a Real Forte <small>para visitante ou cliente</small></a>${ativas.length ? `<a href="#passeio-empresas">Com as empresas <small>para a equipe</small></a><span class="ch-lista-tit">Tour em tela cheia de uma empresa</span>${ativas.map((x) => `<a href="#ap-${esc(x.id)}">${esc(x.nome)}</a>`).join('')}` : ''}</div></details><button class="btn primario so-editor" data-acao="novaEmpresa">${icone('mais')}Nova empresa</button></div>
       </div>
       ${ativas.length ? '' : `<div class="ch-vazio"><h3>O campo começa com a primeira empresa</h3><p>Cada empresa vira uma ilha com a cena do segmento dela, a logo e um prédio por setor.</p><button class="btn primario so-editor" data-acao="novaEmpresa">${icone('mais')}Cadastrar a primeira empresa</button></div>`}
       <div class="ch-rodape">
@@ -721,6 +723,11 @@ function telaCampo(ativas, hoje, nome, horas, resolvidos) {
       </div>
     </div>
   </section>`;
+}
+// Passeio pela cidade em tela cheia (o passeio é feito pelo campo 3D)
+function telaPasseio(privado) {
+  if (!campoDisponivel()) return `<a class="voltar" href="#inicio">${icone('voltar')}Início</a><div class="aviso">${icone('alerta')}<div>O passeio pela cidade precisa de 3D, e este aparelho não tem. Abra o painel num computador.</div></div>`;
+  return `<section class="campo3d apresentando" id="campo-lugar" data-passeio="${privado ? 'real' : 'empresas'}" aria-label="Passeio pela cidade da Real Forte"></section>`;
 }
 // Modo apresentação: o campo em tela cheia só com a ilha da empresa (o tour é feito pelo campo 3D)
 function telaApresentacao(id) {
