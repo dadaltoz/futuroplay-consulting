@@ -1086,6 +1086,13 @@ h1.com-logo{display:flex;align-items:center;gap:14px}
 .sinal-meta{margin:0;display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:13px}
 .sinal-meta span{display:inline-flex;align-items:center;gap:5px}
 .sinal-meta .ic svg{width:14px;height:14px}
+.sinal-meta .sinal-clipe{color:var(--ink);font-weight:600}
+.sinal-anexos{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.sinal-anexos a{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);text-decoration:none;font-size:13px}
+.sinal-anexos a:hover{border-color:var(--accent)}
+.sinal-anexos a span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.sinal-anexos small{color:var(--muted);font-size:11.5px}
+.sinal-anexos .ic svg{width:14px;height:14px}
 .sinal-aviso{margin:0;font-size:13px;color:var(--st-execucao)}
 .sinal-acoes{display:flex;gap:8px;flex-wrap:wrap}
 .como-funciona dl{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:8px 16px;margin:10px 0 0}
@@ -12663,7 +12670,9 @@ function abrirColarRespostas(empresaId) {
    A página grava numa planilha e avisa por e-mail. Aqui você traz os sinais (colando as linhas
    da planilha, o arquivo baixado ou o próprio e-mail) e decide: vira gargalo ou arquiva.
    Quem decide o que vira gargalo é o consultor responsável pela empresa; o painel não decide nada sozinho. */
-const COLUNAS_SINAIS = ['codigo', 'recebido_em', 'empresa_id', 'empresa', 'setor', 'o_que_trava', 'frequencia', 'quanto_atrapalha', 'nome', 'contato'];
+const COLUNAS_SINAIS = ['codigo', 'recebido_em', 'empresa_id', 'empresa', 'setor', 'o_que_trava', 'frequencia', 'quanto_atrapalha', 'nome', 'contato', 'anexos'];   // "anexos" veio depois, no fim
+// Endereço de anexo aceito: só arquivos do Google Drive (nada de link estranho virar botão no painel)
+const ENDERECO_ANEXO = /^https:\/\/(drive|docs)\.google\.com\/[^\s"'<>()|]+$/;
 const CODIGO_SINAL = /^S-[0-9A-F]{8}$/i;
 const ENDERECO_SINAIS = /^https:\/\/script\.google\.com\/(a\/[^/\s]+\/)?macros\/s\/[\w-]+\/exec$/;
 const ESTADOS_SINAL = [['novo', 'Novos'], ['gargalo', 'Viraram gargalo'], ['arquivado', 'Arquivados']];
@@ -12698,6 +12707,15 @@ function lerTabela(texto, sep) {
   if (campo || linha.length) { linha.push(campo); linhas.push(linha); }
   return linhas;
 }
+/* Anexos de um sinal. Chegam de dois jeitos:
+   - da planilha: "link (nome do arquivo) | link (nome do arquivo)";
+   - do e-mail (linha RF-SINAL): lista de { nome, url }.
+   Devolve [{ nome, url }], só com links do Drive. */
+function lerAnexosSinal(v) {
+  const lista = Array.isArray(v) ? v.map((a) => ({ url: String((a && a.url) || '').trim(), nome: String((a && a.nome) || '').trim() }))
+    : String(v || '').split('|').map((p) => { const m = p.trim().match(/^(\S+)\s*(?:\((.*)\))?$/); return m ? { url: m[1], nome: String(m[2] || '').trim() } : null; }).filter(Boolean);
+  return lista.filter((a) => ENDERECO_ANEXO.test(a.url)).slice(0, 3).map((a, i) => ({ url: a.url, nome: a.nome || `Anexo ${i + 1}` }));
+}
 function lerSinais(bruto) {
   const texto = String(bruto || '').replace(/\r\n?/g, '\n');
   const achados = new Map();
@@ -12707,7 +12725,8 @@ function lerSinais(bruto) {
     achados.set(codigo, {
       id: codigo, codigo, recebidoEm: String(o.recebido_em || '').trim(), empresaId: String(o.empresa_id || '').trim(), empresa: String(o.empresa || '').trim(),
       setor: String(o.setor || '').trim(), texto: String(o.o_que_trava || '').trim(), frequencia: String(o.frequencia || '').trim(),
-      atrapalha: String(o.quanto_atrapalha || '').trim(), nome: String(o.nome || '').trim(), contato: String(o.contato || '').trim()
+      atrapalha: String(o.quanto_atrapalha || '').trim(), nome: String(o.nome || '').trim(), contato: String(o.contato || '').trim(),
+      anexos: lerAnexosSinal(o.anexos)
     });
   };
   // Do e-mail
@@ -12758,9 +12777,9 @@ function telaSinais() {
       <dt>O que faz</dt><dd>Recebe o que os setores das empresas contam que está travando e deixa você transformar em gargalo.</dd>
       <dt>O que colar</dt><dd>As linhas da planilha “RF Sinais”, o arquivo .csv baixado dela ou o próprio e-mail do aviso.</dd>
       <dt>De onde sai</dt><dd>Da página do Google que o setor preenche pelo link da empresa. Ela grava na planilha e manda o e-mail.</dd>
-      <dt>O que devolve</dt><dd>Um cartão por sinal. “Virar gargalo” já cria o gargalo no setor certo, com o texto em “o que eu vi”.</dd>
+      <dt>O que devolve</dt><dd>Um cartão por sinal, com o clipe e a lista quando o setor mandou foto, PDF ou planilha (abrem no Drive). “Virar gargalo” já cria o gargalo no setor certo, com o texto e os links dos anexos em “o que eu vi”.</dd>
       <dt>Quem responde pela regra</dt><dd>O que vira gargalo é decisão do consultor responsável pela empresa.</dd>
-      <dt>Quando der erro</dt><dd>Se nada for reconhecido, confira se a primeira coluna copiada é o código (começa com S-). Se o link não abrir, refaça a implantação no Google e guarde o endereço novo.</dd>
+      <dt>Quando der erro</dt><dd>Se nada for reconhecido, confira se a primeira coluna copiada é o código (começa com S-). Se o link não abrir, refaça a implantação no Google e guarde o endereço novo. Se o anexo pedir acesso no Drive, peça a quem instalou para compartilhar a pasta “RF Sinais — Anexos” (quem decide com quem compartilhar é o responsável pela Real Forte).</dd>
     </dl></div></section>`;
   return cab + (url ? links : ligar) + filtros
     + (lista.length ? `<div class="sinais-lista">${lista.map(cartaoSinal).join('')}</div>` : vazio) + como;
@@ -12773,7 +12792,8 @@ function cartaoSinal(x) {
   return `<article class="sinal-card ${estado}">
     <div class="sinal-topo"><span class="tag">${esc(e ? e.nome : x.empresa || 'Empresa não informada')}</span><span class="meta">${esc(x.setor || 'Setor não informado')}${quando ? ' · ' + esc(quando) : ''}</span>${nivel ? `<span class="sinal-nivel ${nivel}">Atrapalha ${esc(x.atrapalha.toLowerCase())}</span>` : ''}</div>
     <p class="sinal-texto">${esc(x.texto)}</p>
-    <p class="sinal-meta">${x.frequencia ? `<span>${icone('relogio')}${esc(x.frequencia)}</span>` : ''}<span>${icone('pessoa')}${esc(x.nome || 'Anônimo')}${x.contato ? ' · ' + esc(x.contato) : ''}</span><span class="meta">${esc(x.codigo)}</span></p>
+    <p class="sinal-meta">${(x.anexos || []).length ? `<span class="sinal-clipe">${icone('clipe')}${plural(x.anexos.length, 'anexo', 'anexos')}</span>` : ''}${x.frequencia ? `<span>${icone('relogio')}${esc(x.frequencia)}</span>` : ''}<span>${icone('pessoa')}${esc(x.nome || 'Anônimo')}${x.contato ? ' · ' + esc(x.contato) : ''}</span><span class="meta">${esc(x.codigo)}</span></p>
+    ${(x.anexos || []).length ? `<ul class="sinal-anexos" aria-label="Anexos do sinal">${x.anexos.map((a) => `<li><a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${icone('clipe')}<span>${esc(a.nome)}</span><small>abre no Drive</small></a></li>`).join('')}</ul>` : ''}
     ${!e ? '<p class="sinal-aviso">A empresa deste sinal não está no painel. Ao virar gargalo, escolha a empresa.</p>' : ''}
     <div class="sinal-acoes so-editor">
       ${estado === 'novo' ? `<button class="btn primario peq" data-acao="sinalVirar" data-id="${esc(x.id)}">${icone('seta')}Virar gargalo</button><button class="btn peq" data-acao="sinalArquivar" data-id="${esc(x.id)}">${icone('arquivo')}Arquivar</button>` : ''}
@@ -12843,7 +12863,7 @@ function abrirVirarGargalo(id) {
       <div class="campo"><label for="f-empresa">Empresa</label><select id="f-empresa">${ativas.map((e) => `<option value="${esc(e.id)}" ${e.id === e0.id ? 'selected' : ''}>${esc(e.nome)}</option>`).join('')}</select></div>
       <div class="campo"><label for="f-setor-destino">Setor</label><select id="f-setor-destino"></select></div>
       <div class="campo largo" id="campo-novo-setor" hidden><label for="f-novo-setor">Nome do setor novo</label><input type="text" id="f-novo-setor" value="${esc(x.setor)}"></div>
-      <div class="campo largo"><label for="f-obs">O que eu vi</label><textarea id="f-obs" rows="6">${esc(x.texto + '\n\n(' + rodape + ')')}</textarea></div>
+      <div class="campo largo"><label for="f-obs">O que eu vi</label><textarea id="f-obs" rows="6">${esc(x.texto + '\n\n(' + rodape + ')' + ((x.anexos || []).length ? '\n\nAnexos do sinal:\n' + x.anexos.map((a) => `- ${a.nome}: ${a.url}`).join('\n') : ''))}</textarea></div>
       <p class="erro-form" id="erro-form" hidden></p>
     </div>
     <div class="dlg-rodape"><div class="dir"><button type="button" class="btn" data-fechar>Cancelar</button><button type="submit" class="btn primario" id="botao-salvar">Criar gargalo</button></div></div>

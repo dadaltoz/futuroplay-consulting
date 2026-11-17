@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<!--
+  RF SINAIS · formulário que o setor preenche (Real Forte Consultoria)
+  Os textos ficam aqui; a gravação, os anexos no Drive e o e-mail ficam no Codigo.gs.
+  Empresa e setores chegam pelo link que o painel monta.
+  Anexo (opcional): até 3 arquivos (foto, PDF ou planilha), até 8 MB cada.
+  A foto é reduzida aqui no navegador (lado maior 1600 px, JPEG) antes de subir.
+-->
+<style>
+  :root { --navy: #0f2342; --navy2: #1b3561; --laranja: #e0701f; --texto: #1b2433; --suave: #5b6678; --linha: #dfe4ec; --fundo: #f4f6f9; --verde: #2f9e64; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--fundo); color: var(--texto); -webkit-font-smoothing: antialiased; }
+  .topo { background: radial-gradient(120% 140% at 0% 0%, #23457d 0%, var(--navy) 60%); color: #fff; padding: 22px 20px 54px; }
+  .marca { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .08em; font-size: 14px; }
+  .marca svg { width: 26px; height: 26px; fill: #fff; }
+  .marca small { display: block; font-weight: 600; letter-spacing: .2em; font-size: 10px; color: #ffb27a; }
+  h1 { margin: 22px 0 6px; font-size: 26px; line-height: 1.15; letter-spacing: -.01em; }
+  .topo p { margin: 0; color: #c9d6ea; font-size: 15px; line-height: 1.45; }
+  .empresa { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.12); font-size: 13px; font-weight: 600; }
+  .empresa i { width: 8px; height: 8px; border-radius: 50%; background: var(--laranja); box-shadow: 0 0 0 4px rgba(224,112,31,.25); }
+  main { max-width: 560px; margin: -36px auto 0; padding: 0 16px 40px; }
+  .cartao { background: #fff; border-radius: 18px; box-shadow: 0 10px 30px rgba(15,35,66,.10); padding: 22px 18px; }
+  .campo { margin-bottom: 20px; }
+  label, .rotulo { display: block; font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+  .ajuda { font-weight: 400; color: var(--suave); font-size: 13px; margin-top: -4px; margin-bottom: 8px; }
+  input[type=text], textarea { width: 100%; border: 1.5px solid var(--linha); border-radius: 12px; padding: 12px 14px; font: inherit; font-size: 16px; color: var(--texto); background: #fff; }
+  textarea { min-height: 120px; resize: vertical; line-height: 1.45; }
+  input:focus, textarea:focus { outline: none; border-color: var(--navy2); box-shadow: 0 0 0 3px rgba(35,69,125,.15); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1.5px solid var(--linha); background: #fff; border-radius: 999px; padding: 9px 14px; font: inherit; font-size: 15px; color: var(--texto); cursor: pointer; }
+  .chip[aria-pressed=true] { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .opcional { color: var(--suave); font-weight: 500; font-size: 13px; }
+  /* Anexos */
+  .anexar { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border: 1.5px dashed #b9c3d3; border-radius: 12px; padding: 13px; background: #f8fafc; font: inherit; font-size: 15px; font-weight: 600; color: var(--navy2); cursor: pointer; }
+  .anexar svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .anexar[aria-disabled=true] { opacity: .5; cursor: default; }
+  .anexos { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .anexos li { display: flex; align-items: center; gap: 10px; padding: 9px 10px 9px 12px; border: 1.5px solid var(--linha); border-radius: 12px; font-size: 14px; }
+  .anexos .nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .anexos .tam { color: var(--suave); font-size: 12.5px; white-space: nowrap; }
+  .anexos .tirar { width: 32px; height: 32px; border: 0; border-radius: 50%; background: #eef1f5; color: var(--texto); font-size: 16px; cursor: pointer; }
+  .anexos .preparando { color: var(--suave); font-style: italic; }
+  .enviar { width: 100%; border: 0; border-radius: 14px; padding: 15px; font: inherit; font-size: 17px; font-weight: 700; color: #fff; background: linear-gradient(135deg, #f08a3a, var(--laranja)); cursor: pointer; box-shadow: 0 8px 20px rgba(224,112,31,.3); }
+  .enviar:disabled { opacity: .6; cursor: default; }
+  .erro { color: #c0392b; font-size: 14px; margin: 0 0 14px; }
+  .falha { background: #fdecea; border-radius: 12px; padding: 12px; margin-bottom: 14px; }
+  .falha p { margin: 0 0 10px; color: #8e2a1e; font-size: 14.5px; font-weight: 600; }
+  .falha .botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .falha button { border: 1.5px solid #e2b4ad; background: #fff; border-radius: 10px; padding: 10px 14px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .aviso { background: #fff4e8; color: #8a4a14; border-radius: 12px; padding: 10px 12px; font-size: 14px; margin-bottom: 16px; }
+  .pronto { text-align: center; padding: 28px 8px 10px; }
+  .pronto .ok { width: 68px; height: 68px; border-radius: 50%; margin: 0 auto 16px; background: var(--verde); display: grid; place-items: center; animation: pulo .5s ease-out; }
+  .pronto .ok svg { width: 34px; height: 34px; stroke: #fff; stroke-width: 3; fill: none; }
+  .pronto h2 { margin: 0 0 8px; font-size: 22px; }
+  .pronto p { color: var(--suave); margin: 0 0 22px; line-height: 1.45; }
+  .outro { border: 1.5px solid var(--linha); background: #fff; border-radius: 12px; padding: 12px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+  .rodape { text-align: center; color: var(--suave); font-size: 12px; margin-top: 18px; }
+  @keyframes pulo { 0% { transform: scale(.4); opacity: 0; } 70% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <header class="topo">
+    <div class="marca">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 2.5h2.6v2.3h2.8V2.5h3.2v2.3h2.8V2.5H19v5l-1.7 2.1H6.7L5 7.5z"/><path d="M8.2 10.8h7.6v5.6H8.2z"/><path d="M7 17.4h10l1.2 1.6H5.8z"/><path d="M4.6 19.9h14.8v1.6H4.6z"/></svg>
+      <span>REAL FORTE<small>RF SINAIS</small></span>
+    </div>
+    <h1>Algo travando no seu setor?</h1>
+    <p>Conte para a Real Forte em menos de um minuto. A gente olha cada sinal e transforma em melhoria.</p>
+    <span class="empresa" id="empresa-chip" hidden><i></i><span id="empresa-nome"></span></span>
+  </header>
+
+  <main>
+    <div class="cartao">
+      <form id="form" novalidate>
+        <p class="aviso" id="sem-empresa" hidden>Este link está sem o nome da empresa. Dá para enviar, mas peça à Real Forte o link certo.</p>
+
+        <div class="campo">
+          <span class="rotulo" id="rot-setor">Qual é o seu setor?</span>
+          <div class="chips" id="chips-setor" role="group" aria-labelledby="rot-setor"></div>
+          <input type="text" id="setor" placeholder="Ex.: Logística" aria-labelledby="rot-setor" style="margin-top:8px">
+        </div>
+
+        <div class="campo">
+          <label for="texto">O que está travando?</label>
+          <p class="ajuda">Conte como acontece, do seu jeito.</p>
+          <textarea id="texto" placeholder="Ex.: a nota fiscal chega depois do caminhão e a carga fica parada esperando."></textarea>
+        </div>
+
+        <div class="campo">
+          <span class="rotulo" id="rot-freq">Com que frequência acontece?</span>
+          <div class="chips" id="chips-freq" role="group" aria-labelledby="rot-freq"></div>
+        </div>
+
+        <div class="campo">
+          <span class="rotulo" id="rot-imp">Quanto atrapalha o seu trabalho?</span>
+          <div class="chips" id="chips-imp" role="group" aria-labelledby="rot-imp"></div>
+        </div>
+
+        <div class="campo">
+          <span class="rotulo" id="rot-anexo">Arquivo ou foto do gargalo <span class="opcional">(opcional)</span></span>
+          <p class="ajuda">Até 3 arquivos: foto, PDF ou planilha, até 8 MB cada.</p>
+          <label class="anexar" id="anexar" for="arquivo" role="button" tabindex="0" aria-describedby="rot-anexo">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>
+            Escolher arquivo ou tirar foto
+          </label>
+          <input type="file" id="arquivo" multiple hidden accept="image/*,.pdf,.xlsx,.xls,.csv,.ods,application/pdf,text/csv">
+          <ul class="anexos" id="anexos"></ul>
+        </div>
+
+        <div class="campo">
+          <label for="nome">Seu nome <span class="opcional">(opcional)</span></label>
+          <p class="ajuda">Se deixar em branco, o sinal chega como anônimo.</p>
+          <input type="text" id="nome" autocomplete="name">
+        </div>
+
+        <div class="campo">
+          <label for="contato">WhatsApp ou e-mail <span class="opcional">(opcional, se quiser retorno)</span></label>
+          <input type="text" id="contato" inputmode="email">
+        </div>
+
+        <p class="erro" id="erro" role="alert" hidden></p>
+        <div class="falha" id="falha" role="alert" hidden>
+          <p>O anexo não subiu. Tente de novo ou envie sem anexo.</p>
+          <div class="botoes"><button type="button" id="tentar">Tentar de novo</button><button type="button" id="sem-anexo">Enviar sem anexo</button></div>
+        </div>
+        <button class="enviar" type="submit" id="enviar">Enviar sinal</button>
+      </form>
+
+      <div class="pronto" id="pronto" hidden>
+        <div class="ok"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+        <h2>Sinal enviado. Obrigado!</h2>
+        <p>A Real Forte recebeu e vai olhar com calma.<br>Código do seu sinal: <b id="codigo"></b><span id="pronto-anexos"></span></p>
+        <button class="outro" type="button" id="outro">Mandar outro sinal</button>
+      </div>
+    </div>
+    <p class="rodape">Real Forte Consultoria · Desde 1982</p>
+  </main>
+
+<script>
+  // Dados que vieram do link (o Codigo.gs preenche)
+  const EMPRESA_ID = <?!= empresaIdJson ?>;
+  const EMPRESA_NOME = <?!= empresaNomeJson ?>;
+  const SETORES = <?!= setoresJson ?>;
+  const FREQUENCIAS = <?!= frequenciasJson ?>;
+  const IMPACTOS = <?!= impactosJson ?>;
+  const ANEXOS = <?!= anexosJson ?>;   // { maximo: 3, bytes: 8 MB, tipos: ['jpg', 'pdf', ...] }
+  const FOTO_LADO = 1600;              // lado maior da foto depois de reduzir
+  const FOTO_QUALIDADE = 0.82;         // qualidade do JPEG (0 a 1)
+  const escolha = { setor: '', frequencia: '', impacto: '' };
+  const $ = (id) => document.getElementById(id);
+  let anexos = [];        // { chave, nome, tipo, tamanho, base64 } já prontos para subir (foto já reduzida)
+  let preparando = 0;     // quantos arquivos ainda estão sendo lidos ou reduzidos
+  let enviando = false;   // trava contra clique duplo e Enter repetido
+  let envio = novoEnvio();
+
+  // Código deste envio: o mesmo envio repetido não vira dois sinais
+  function novoEnvio() {
+    const b = new Uint8Array(12); (window.crypto || window.msCrypto).getRandomValues(b);
+    return Array.from(b, (x) => ('0' + x.toString(16)).slice(-2)).join('');
+  }
+
+  if (EMPRESA_NOME) { $('empresa-nome').textContent = EMPRESA_NOME; $('empresa-chip').hidden = false; } else { $('sem-empresa').hidden = false; }
+
+  // Botões de escolha (chips): um por vez em cada grupo
+  function chips(lugar, opcoes, chave, aoEscolher) {
+    lugar.innerHTML = '';
+    opcoes.forEach((texto) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = texto; b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', () => {
+        const ligado = escolha[chave] !== texto;
+        escolha[chave] = ligado ? texto : '';
+        lugar.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c === b && ligado)));
+        if (aoEscolher) aoEscolher(escolha[chave]);
+      });
+      lugar.appendChild(b);
+    });
+  }
+  // Setor: se o link trouxe a lista, mostra os nomes; o campo de texto serve para "outro"
+  if (SETORES.length) {
+    chips($('chips-setor'), SETORES, 'setor', (s) => { $('setor').value = s; });
+    $('setor').placeholder = 'Outro setor? Escreva aqui';
+  } else { $('chips-setor').hidden = true; }
+  $('setor').addEventListener('input', () => { escolha.setor = ''; $('chips-setor').querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c.textContent === $('setor').value))); });
+  chips($('chips-freq'), FREQUENCIAS, 'frequencia');
+  chips($('chips-imp'), IMPACTOS, 'impacto');
+
+  function mostrarErro(t) { $('erro').textContent = t; $('erro').hidden = !t; if (t) $('falha').hidden = true; }
+  // O aviso de erro some assim que a pessoa mexe no formulário
+  $('form').addEventListener('input', () => mostrarErro(''));
+  $('form').addEventListener('click', (ev) => { if (ev.target.closest('.chip')) mostrarErro(''); });
+
+  /* ---------- Anexos ---------- */
+  const extensao = (nome) => { const m = String(nome || '').toLowerCase().match(/\.([a-z0-9]+)$/); return m ? m[1] : ''; };
+  const tamanhoTexto = (b) => (b >= 1024 * 1024 ? (b / 1024 / 1024).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB');
+  const ehFoto = (arq) => /^image\//.test(arq.type) || ['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'].indexOf(extensao(arq.name)) >= 0;
+
+  // Botão "Escolher arquivo" também funciona com Enter e espaço (teclado)
+  $('anexar').addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); if (anexos.length + preparando < ANEXOS.maximo && !enviando) $('arquivo').click(); } });
+  $('anexar').addEventListener('click', (ev) => { if (anexos.length + preparando >= ANEXOS.maximo || enviando) ev.preventDefault(); });
+  $('arquivo').addEventListener('change', () => {
+    const lista = Array.from($('arquivo').files || []); $('arquivo').value = '';
+    mostrarErro('');
+    for (const arq of lista) {
+      if (anexos.length + preparando >= ANEXOS.maximo) { mostrarErro('Dá para mandar até 3 arquivos por vez.'); break; }
+      prepararAnexo(arq);
+    }
+  });
+
+  // Lê o arquivo; se for foto, reduz. Só entra na lista se passar nas regras.
+  function prepararAnexo(arq) {
+    const foto = ehFoto(arq);
+    if (!foto && ANEXOS.tipos.indexOf(extensao(arq.name)) < 0) { mostrarErro('Esse tipo de arquivo não dá. Mande foto, PDF ou planilha.'); return; }
+    if (!foto && arq.size > ANEXOS.bytes) { mostrarErro('Esse arquivo passou de 8 MB. Mande uma versão menor ou tire um print.'); return; }
+    preparando++; desenharAnexos();
+    const pronto = foto ? reduzirFoto(arq) : lerComoBase64(arq).then((base64) => ({ nome: arq.name, tipo: arq.type || '', tamanho: arq.size, base64 }));
+    pronto.then((a) => {
+      if (a.tamanho > ANEXOS.bytes) throw new Error('Esse arquivo passou de 8 MB. Mande uma versão menor ou tire um print.');
+      anexos.push(Object.assign({ chave: Math.random().toString(36).slice(2) }, a));
+    }).catch((erro) => {
+      mostrarErro((erro && erro.message) || 'Esse arquivo não abriu aqui. Escolha de novo.');
+    }).then(() => { preparando--; desenharAnexos(); });
+  }
+
+  // Foto: lado maior 1600 px, em JPEG (a foto do celular cai de vários MB para poucas centenas de KB)
+  function reduzirFoto(arq) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(arq), img = new Image();
+      img.onload = () => {
+        const escala = Math.min(1, FOTO_LADO / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * escala)), h = Math.max(1, Math.round(img.naturalHeight * escala));
+        const tela = document.createElement('canvas'); tela.width = w; tela.height = h;
+        const q = tela.getContext('2d'); q.fillStyle = '#fff'; q.fillRect(0, 0, w, h); q.drawImage(img, 0, 0, w, h);   // fundo branco: PNG transparente não fica preto
+        URL.revokeObjectURL(url);
+        const dados = tela.toDataURL('image/jpeg', FOTO_QUALIDADE), base64 = dados.slice(dados.indexOf(',') + 1);
+        const nome = (arq.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg';
+        resolve({ nome, tipo: 'image/jpeg', tamanho: Math.floor(base64.length * 3 / 4), base64 });
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Essa foto não abriu aqui. Tire um print dela ou mande em JPEG.')); };
+      img.src = url;
+    });
+  }
+  function lerComoBase64(arq) {
+    return new Promise((resolve, reject) => {
+      const leitor = new FileReader();
+      leitor.onload = () => { const t = String(leitor.result); resolve(t.slice(t.indexOf(',') + 1)); };
+      leitor.onerror = () => reject(new Error('Esse arquivo não abriu aqui. Escolha de novo.'));
+      leitor.readAsDataURL(arq);
+    });
+  }
+  function desenharAnexos() {
+    const ul = $('anexos'); ul.innerHTML = '';
+    anexos.forEach((a) => {
+      const li = document.createElement('li');
+      const nome = document.createElement('span'); nome.className = 'nome'; nome.textContent = a.nome;
+      const tam = document.createElement('span'); tam.className = 'tam'; tam.textContent = tamanhoTexto(a.tamanho);
+      const x = document.createElement('button'); x.type = 'button'; x.className = 'tirar'; x.textContent = '✕'; x.setAttribute('aria-label', 'Tirar ' + a.nome);
+      x.addEventListener('click', () => { if (enviando) return; anexos = anexos.filter((b) => b !== a); mostrarErro(''); desenharAnexos(); });
+      li.append(nome, tam, x); ul.appendChild(li);
+    });
+    for (let i = 0; i < preparando; i++) { const li = document.createElement('li'); li.innerHTML = '<span class="nome preparando">Preparando o arquivo…</span>'; ul.appendChild(li); }
+    $('anexar').setAttribute('aria-disabled', String(anexos.length + preparando >= ANEXOS.maximo));
+  }
+
+  /* ---------- Envio ---------- */
+  // google.script.run em forma de promessa (para ir passo a passo)
+  function chamar(funcao, ...args) {
+    return new Promise((resolve, reject) => { google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[funcao](...args); });
+  }
+  function botao(texto, travado) { $('enviar').textContent = texto; $('enviar').disabled = travado; }
+
+  async function enviar(semAnexo) {
+    if (enviando) return;   // clique duplo, Enter repetido: só o primeiro vale
+    const dados = { envio, empresaId: EMPRESA_ID, empresaNome: EMPRESA_NOME, setor: $('setor').value.trim(), texto: $('texto').value.trim(), frequencia: escolha.frequencia, impacto: escolha.impacto, nome: $('nome').value.trim(), contato: $('contato').value.trim(), anexos: [] };
+    if (!dados.setor) return mostrarErro('Escreva ou escolha o seu setor.');
+    if (dados.texto.length < 5) return mostrarErro('Conte o que está travando.');
+    if (preparando) return mostrarErro('Espere o arquivo terminar de preparar.');
+    if (semAnexo) { anexos = []; desenharAnexos(); }
+    enviando = true; mostrarErro(''); $('falha').hidden = true; botao('Enviando…', true);
+    let codigo = '', subidos = [];
+    try {
+      // 1) reserva o código do sinal
+      const r = await chamar('reservarSinal', envio);
+      codigo = r.codigo;
+      if (r.jaGravado) return terminar(codigo, anexos.length);   // esse envio já tinha chegado (internet caiu e voltou)
+      // 2) sobe os anexos, um por vez
+      for (let i = 0; i < anexos.length; i++) {
+        botao(`Enviando anexo ${i + 1} de ${anexos.length}…`, true);
+        try { subidos.push(await chamar('subirAnexo', envio, codigo, i + 1, anexos[i].nome, anexos[i].tipo, anexos[i].base64)); }
+        catch (erro) { await desfazer(codigo, subidos); return falhaNoAnexo(erro); }
+      }
+      // 3) grava a linha e manda o e-mail
+      botao('Enviando…', true);
+      dados.anexos = subidos;
+      const final = await chamar('enviarSinal', dados);
+      terminar(final, subidos.length);
+    } catch (erro) {
+      if (subidos.length) await desfazer(codigo, subidos);   // não grava pela metade
+      enviando = false; botao('Enviar sinal', false);
+      mostrarErro((erro && erro.message) || 'Não deu para enviar agora. Tente de novo em instantes.');
+    }
+  }
+  // Joga na lixeira o que subiu (se nem isso der, o Lucas tem a limpeza no editor do Google)
+  function desfazer(codigo, subidos) { return chamar('desfazerAnexos', codigo, subidos.map((a) => a.id)).catch(() => {}); }
+  function falhaNoAnexo(erro) {
+    enviando = false; botao('Enviar sinal', false);
+    const t = erro && erro.message;
+    // Regra que o próprio arquivo quebrou (tipo ou tamanho): diz qual; o resto é a mensagem padrão
+    if (t && /8 MB|tipo de arquivo|vazio/.test(t)) { $('falha').querySelector('p').textContent = t + ' Ou envie sem anexo.'; }
+    else $('falha').querySelector('p').textContent = 'O anexo não subiu. Tente de novo ou envie sem anexo.';
+    $('falha').hidden = false; $('erro').hidden = true;
+  }
+  function terminar(codigo, quantos) {
+    enviando = false;
+    $('codigo').textContent = codigo;
+    $('pronto-anexos').textContent = quantos ? ` · ${quantos === 1 ? '1 anexo' : quantos + ' anexos'}` : '';
+    $('form').hidden = true; $('pronto').hidden = false; window.scrollTo(0, 0);
+  }
+
+  $('form').addEventListener('submit', (ev) => { ev.preventDefault(); enviar(false); });
+  $('tentar').addEventListener('click', () => enviar(false));
+  $('sem-anexo').addEventListener('click', () => enviar(true));
+  // Mandar outro: limpa o texto e os anexos, mantém o setor; é um envio novo
+  $('outro').addEventListener('click', () => {
+    $('texto').value = ''; escolha.frequencia = ''; escolha.impacto = ''; anexos = []; desenharAnexos(); envio = novoEnvio();
+    document.querySelectorAll('#chips-freq .chip, #chips-imp .chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
+    botao('Enviar sinal', false); $('falha').hidden = true;
+    $('pronto').hidden = true; $('form').hidden = false; $('texto').focus();
+  });
+</script>
+</body>
+</html>
