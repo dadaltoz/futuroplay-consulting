@@ -3,7 +3,7 @@
 Painel em um arquivo HTML só, publicado como Artifact no claude.ai. Quem constrói é o Lucas Smarssaro Dadalto. A Real Forte é a consultoria do pai dele. O painel serve aos consultores: empresas, setores, check-up, "o que eu vi", gargalos e oportunidades, biblioteca de soluções, RF Intelligence, RF Sinais e a cidade 3D (cada empresa fica numa ilha-satélite ligada por ponte à plataforma central, que é a cidade da Real Forte, flutuando no espaço).
 
 - **Artifact publicado (sempre atualizar este, nunca criar outro):** https://claude.ai/artifact/6fryTDCEREKpMdKnRKihm8
-- Última versão publicada: **v87** (link da ferramenta direto no cartão da biblioteca).
+- Última versão publicada: **v88** (link da ferramenta direto no cartão da biblioteca).
 - Os DADOS do painel (empresas, anotações, gargalos, arquivos, fotos, áudios) ficam guardados NO artifact (capabilities `db` e `assets`). Publicar num artifact novo = painel vazio. Sempre publicar no mesmo link, passando a URL acima.
 - Capabilities em uso: `sample` (IA), `assets`, `db`, `downloads`, `user`. Na republicação, não passar `capabilities` (assim elas continuam).
 
@@ -37,6 +37,15 @@ Precisa de `python3` e `node`. Imprime `build ok` quando está tudo certo. O arq
 | `parte-galaxia.js` | galáxia de soluções da biblioteca |
 | `parte-app.js` | o app: estado `S`/`UI`, armazenamento, rotas (`#biblioteca`, `#sv-<setor>`, `#sg-<setor>`…), telas, check-up, IA, PowerPoint, PDF, RF Sinais, biblioteca, anotações com foto/áudio/arquivo, cliques |
 
+## Páginas do Google (fora do painel, coladas no script.google.com pelo Lucas)
+
+| Pasta | O que tem |
+|---|---|
+| `rf-sinais/` | `Codigo.gs` + `Formulario.html` do **RF Sinais** (o formulário que os setores das empresas abrem pelo link). Anexo opcional: até 3 arquivos (foto, PDF, planilha), 8 MB cada, foto reduzida no navegador (1600 px, JPEG). Envio em 3 passos: `reservarSinal` → `subirAnexo` (pasta "RF Sinais — Anexos", nome começa pelo código) → `enviarSinal`; se um anexo falha, `desfazerAnexos` e nada é gravado. Código de envio por página (`envio`) impede sinal duplicado. Coluna `anexos` no FIM da planilha (`link (nome) \| link (nome)`). `limparAnexosSemSinal()` roda à mão. A pasta nasce sem compartilhar: quem decide é o responsável pela Real Forte |
+| `feedback/` | `Codigo.gs` + `Formulario.html` do **Feedback do Lucas** (a página que as pessoas dos setores respondem). Setores, critérios e modo (anônima/identificada) vêm no link (`?s=…&c=…&m=…`), nada de regra no Google. Planilha "Feedback do Lucas", colunas `codigo` (F-…), `recebido_em`, `setor`, `notas` (`Critério: n \| …`), `o_que_funcionou`, `o_que_podia_melhorar`, `nome`, `envio` |
+
+No painel: RF Sinais em `lerSinais` / `lerAnexosSinal` / `cartaoSinal` (clipe e lista; só links do Drive viram botão). Feedback do Lucas na rota `#feedback` (`telaFeedback`, `configFeedback` em `S.config.feedback`, tudo nasce em branco; `faltaFeedback` diz o que falta e quem declara; `lerRespostasFeedback`, `resultadosFeedback`, `montarPDFFeedback`). Coleção `feedback` só é usada se o Lucas declarar que as respostas ficam guardadas ("Só quem tem a planilha" = nada guardado, `UI.feedbackColadas`). Na resposta anônima, setor abaixo do mínimo esconde média e comentários **e sai da média geral** (senão dá para descobrir a nota dele pela conta).
+
 Atenção: `parte-app.js` e `parte-campo.js` começam com `<script>` e terminam com `</script>`. Código novo vai DENTRO do script (depois do `'use strict';`), nunca antes nem depois da tag.
 
 ## Regras do Lucas (valem para tudo)
@@ -67,6 +76,7 @@ Atenção: `parte-app.js` e `parte-campo.js` começam com `<script>` e terminam 
 - Empresas em ilha-satélite usam lote com `i: 9`: por isso não entram nas rotas dos veículos da empresa nem no ponto de ônibus (`il_temLote` dá falso). Para voltar a ter caminhão e ônibus indo até elas, falta ligar o grafo de ruas às pontes.
 
 - `G3.toroFino` é um anel deitado de tubo 0,012: a escala `y` estica o tubo na vertical (`y = 30` vira uma faixa de 36 cm). Para filete de LED, usar `y` de 1,5 a 3. Com 50 o anel da Mesa do Futuro virou uma parede branca.
+- **`\u2028` dentro de regex** (`paraScript` dos `.gs`): ao reescrever o arquivo, o escape pode virar o caractere invisível de verdade e quebrar a linha ("Invalid regular expression: missing /"). Conferir com `node --check` (copiar o .gs para um .js) antes de entregar.
 - `K.add(geo, mat, x, y, z, sx, sy, sz)`: **sempre passar as três escalas**. Sem o `sz` a peça vira NaN (some ou fica gigante na conta). Já aconteceu em 11 lugares.
 
 ## Testes (Playwright + Chromium, sem placa de vídeo é lento)
@@ -79,6 +89,9 @@ python3 teste_novos.py ../dist/real-forte-sistema.html         # privacidade no 
 python3 teste_kits.py ../dist/real-forte-sistema.html geral    # fotos dos campus por segmento
 python3 teste_fotos.py ../dist/real-forte-sistema.html dia,noite   # fotos das câmeras de fotos.txt
 python3 teste_saude.py / teste_arquivo.py / teste_link.py      # telas do app (anotações, arquivos, biblioteca)
+python3 teste_rf_sinais.py          # formulário do RF Sinais com anexos (Codigo.gs de verdade num Google de mentira: google_falso.js)
+python3 teste_sinais_anexos.py      # painel lendo e mostrando os anexos dos sinais
+python3 teste_feedback.py           # página do Feedback + tela do Lucas (médias conferidas à mão, PDF)
 ```
 
 Os dados de teste ficam em `testes/dados/` (empresa "Distribuidora Exemplo"; nas fotos ela é renomeada para "Elson's"). Os testes simulam o `window.claude` (db, assets, downloads) em memória. O teste de "prompt de transformar" em `teste_saude.py` procura um texto antigo e dá False; não é erro do painel.

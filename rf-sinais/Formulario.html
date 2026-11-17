@@ -189,6 +189,8 @@
   chips($('chips-freq'), FREQUENCIAS, 'frequencia');
   chips($('chips-imp'), IMPACTOS, 'impacto');
 
+  // Mensagem que veio do Google: as nossas (em português, sem ":") vão para a tela; erro de rede vira a mensagem padrão
+  function mensagemDoGoogle(erro) { const t = erro && erro.message; return t && !/error|exception|:/i.test(t) ? t : ''; }
   function mostrarErro(t) { $('erro').textContent = t; $('erro').hidden = !t; if (t) $('falha').hidden = true; }
   // O aviso de erro some assim que a pessoa mexe no formulário
   $('form').addEventListener('input', () => mostrarErro(''));
@@ -301,14 +303,14 @@
     } catch (erro) {
       if (subidos.length) await desfazer(codigo, subidos);   // não grava pela metade
       enviando = false; botao('Enviar sinal', false);
-      mostrarErro((erro && erro.message) || 'Não deu para enviar agora. Tente de novo em instantes.');
+      mostrarErro(mensagemDoGoogle(erro) || 'Não deu para enviar agora. Tente de novo em instantes.');
     }
   }
   // Joga na lixeira o que subiu (se nem isso der, o Lucas tem a limpeza no editor do Google)
   function desfazer(codigo, subidos) { return chamar('desfazerAnexos', codigo, subidos.map((a) => a.id)).catch(() => {}); }
   function falhaNoAnexo(erro) {
     enviando = false; botao('Enviar sinal', false);
-    const t = erro && erro.message;
+    const t = mensagemDoGoogle(erro);
     // Regra que o próprio arquivo quebrou (tipo ou tamanho): diz qual; o resto é a mensagem padrão
     if (t && /8 MB|tipo de arquivo|vazio/.test(t)) { $('falha').querySelector('p').textContent = t + ' Ou envie sem anexo.'; }
     else $('falha').querySelector('p').textContent = 'O anexo não subiu. Tente de novo ou envie sem anexo.';

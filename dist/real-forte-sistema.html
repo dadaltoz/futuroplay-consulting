@@ -1093,6 +1093,38 @@ h1.com-logo{display:flex;align-items:center;gap:14px}
 .sinal-anexos a span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
 .sinal-anexos small{color:var(--muted);font-size:11.5px}
 .sinal-anexos .ic svg{width:14px;height:14px}
+/* Feedback do Lucas */
+.fb-falta .painel-corpo{border-left:4px solid var(--accent);border-radius:inherit}
+.fb-falta h2{display:flex;align-items:center;gap:8px}.fb-falta h2 .ic svg{width:18px;height:18px;color:var(--accent)}
+.fb-falta ul{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.fb-falta li{display:flex;flex-direction:column;gap:2px;font-size:14px}.fb-falta li span{color:var(--muted);font-size:12.5px}
+.fb-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:12px}
+.fb-config .largo,.fb-config fieldset,.fb-config .fb-botoes,.fb-config .erro-form{grid-column:1/-1}
+.fb-config fieldset{border:0;padding:0;margin:0}.fb-config legend{font-weight:600;font-size:13px;margin-bottom:6px}
+.fb-opcao{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;font-weight:400!important}
+.fb-opcao+.fb-opcao{margin-top:6px}.fb-opcao input{width:auto!important;margin-top:3px}
+.fb-opcao span{display:flex;flex-direction:column;gap:2px}.fb-opcao small{color:var(--muted);font-size:12.5px}
+.fb-opcao:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.fb-botoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.fb-link{margin:8px 0 0;padding:10px 12px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);overflow-wrap:anywhere;font-size:12.5px}
+.fb-aviso{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-radius:8px;background:var(--accent-soft);color:var(--accent-ink);font-size:13.5px}
+.fb-total{margin:6px 0 2px;font-size:15px}.fb-total b{font-size:22px}
+.fb-tabela-rolagem{overflow-x:auto;margin-top:12px;border:1px solid var(--line);border-radius:10px}
+.fb-tabela{border-collapse:collapse;width:100%;font-size:14px;min-width:420px}
+.fb-tabela th,.fb-tabela td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:center;vertical-align:middle}
+.fb-tabela th[scope=row]{text-align:left;font-weight:600}
+.fb-tabela thead th{background:var(--surface-2);font-size:13px}
+.fb-tabela small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+.fb-tabela .geral{background:var(--accent-soft);color:var(--ink)}
+.fb-tabela tbody tr:last-child th,.fb-tabela tbody tr:last-child td{border-bottom:0}
+.fb-sub{margin-top:22px}
+.fb-setor{padding:12px 0;border-top:1px solid var(--line)}.fb-setor h3{margin:0 0 8px;font-size:15px}
+.fb-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.fb-cols ul{margin:6px 0 0;padding-left:18px;display:grid;gap:6px;font-size:14px}
+.fb-cols li small{display:block;color:var(--muted);font-size:12px}
+.fb-rot{font:600 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase}
+.fb-rot.ok{color:var(--st-resolvido,#2f9e64)}.fb-rot.melhorar{color:var(--accent-ink)}
+@media (max-width:700px){.fb-config{grid-template-columns:1fr}}
 .sinal-aviso{margin:0;font-size:13px;color:var(--st-execucao)}
 .sinal-acoes{display:flex;gap:8px;flex-wrap:wrap}
 .como-funciona dl{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:8px 16px;margin:10px 0 0}
@@ -10843,12 +10875,12 @@ function pararGalaxia() { if (!GALAXIA.rodando) return; GALAXIA.rodando = false;
 /* ---------- 1. Constantes ---------- */
 const SITUACOES = ['Aberto', 'Proposta pronta', 'Apresentado', 'Em execução', 'Resolvido'];
 const CLASSE = { 'Aberto': 's-aberto', 'Proposta pronta': 's-proposta', 'Apresentado': 's-apresentado', 'Em execução': 's-execucao', 'Resolvido': 's-resolvido' };
-const COLECOES = ['empresas', 'setores', 'diario', 'gargalos', 'conversas', 'materiais', 'biblioteca', 'sinais'];
+const COLECOES = ['empresas', 'setores', 'diario', 'gargalos', 'conversas', 'materiais', 'biblioteca', 'sinais', 'feedback'];   // feedback: só se o Lucas declarar que as respostas ficam guardadas
 const QUESTIONARIO_URL = 'https://claude.ai/artifact/SkdjbZ5wJURYiG8xGubEdS';
 
 /* ---------- 2. Estado ---------- */
 const S = {
-  empresas: [], setores: [], diario: [], gargalos: [], conversas: [], materiais: [], biblioteca: [], sinais: [], config: {},
+  empresas: [], setores: [], diario: [], gargalos: [], conversas: [], materiais: [], biblioteca: [], sinais: [], feedback: [], config: {},
   recebidos: new Set(), carregado: false,
   modo: 'conectando',   // 'nuvem' = salvando no armazenamento; 'local' = nada fica salvo
   podeEditar: true, erroBanco: ''
@@ -11119,6 +11151,7 @@ function rotaAtual() {
   if (h === 'ia') return { v: 'ia' };
   if (h === 'biblioteca') return { v: 'biblioteca' };
   if (h === 'sinais') return { v: 'sinais' };
+  if (h === 'feedback') return { v: 'feedback' };
   if (h === 'ajustes') return { v: 'ajustes' };
   return { v: 'inicio' };
 }
@@ -11206,6 +11239,7 @@ function render(forcar) {
   else if (rota.v === 'passeio') html = telaPasseio(rota.privado);
   else if (rota.v === 'biblioteca') html = telaBiblioteca();
   else if (rota.v === 'sinais') html = telaSinais();
+  else if (rota.v === 'feedback') html = telaFeedback();
   else if (rota.v === 'ajustes') html = telaAjustes();
   else html = telaInicio();
   $('#principal').innerHTML = `<div class="miolo">${avisos()}${html}</div>`;
@@ -11266,6 +11300,7 @@ function renderLado(rota) {
       ${link('ia', '#ia', 'ia', 'RF Intelligence')}
       ${link('biblioteca', '#biblioteca', 'documento', 'Biblioteca de soluções')}
       ${link('sinais', '#sinais', 'sinal', 'RF Sinais').replace('</span></a>', `</span>${sinaisNovos() ? `<span class="lado-badge" aria-label="${plural(sinaisNovos(), 'sinal novo', 'sinais novos')}">${sinaisNovos()}</span>` : ''}</a>`)}
+      ${link('feedback', '#feedback', 'pessoa', 'Feedback do Lucas')}
     </nav>
     <div class="lado-rodape">
       ${link('ajustes', '#ajustes', 'ajustes', 'Ajustes')}
@@ -12915,6 +12950,280 @@ async function guardarEnderecoSinais() {
   catch (f) { toast(f.message, 'erro'); }
 }
 
+/* ---------- Feedback do Lucas ----------
+   As pessoas dos setores por onde o Lucas passou respondem por uma página do Google (fora do Claude),
+   com nota de 1 a 5 em cada critério e dois comentários. A página grava numa planilha. Aqui o Lucas
+   declara as regras (setores, critérios, anônima ou identificada, quem vê os resultados), copia o link
+   e traz as respostas colando as linhas da planilha. Nenhuma dessas regras vem pronta: tudo nasce em
+   branco e a tela diz o que falta e quem declara. */
+const COLUNAS_FEEDBACK = ['codigo', 'recebido_em', 'setor', 'notas', 'o_que_funcionou', 'o_que_podia_melhorar', 'nome', 'envio'];
+const CODIGO_FEEDBACK = /^F-[0-9A-F]{8}$/i;
+const MODOS_FEEDBACK = [['anonima', 'Anônima', 'A página não pede nome.'], ['identificada', 'Identificada', 'A página pede o nome de quem responde.']];
+const QUEM_VE_FEEDBACK = [
+  ['planilha', 'Só quem tem a planilha', 'Nada fica guardado no painel: você cola as respostas cada vez que for ver (o F5 limpa).'],
+  ['editores', 'Quem pode editar o painel', 'As respostas ficam guardadas no painel e só aparecem para quem tem acesso de edição.'],
+  ['todos', 'Todos que abrem o painel', 'As respostas ficam guardadas e aparecem para todo mundo que abre o painel.']
+];
+// A configuração guardada (tudo vazio até o Lucas declarar)
+const configFeedback = () => Object.assign({ url: '', setores: [], criterios: [], modo: '', quemVe: '', minimo: '' }, S.config.feedback || {});
+// O que ainda falta declarar. "para": o que fica parado enquanto falta (o link ou os resultados).
+function faltaFeedback(c) {
+  const f = [];
+  if (!c.url) f.push({ item: 'o endereço da página do Google (termina em /exec)', para: 'link' });
+  if (!c.setores.length) f.push({ item: 'a lista de setores', para: 'link' });
+  if (!c.criterios.length) f.push({ item: 'a lista de critérios', para: 'link' });
+  if (!c.modo) f.push({ item: 'se a resposta é anônima ou identificada', para: 'link' });
+  if (!c.quemVe) f.push({ item: 'quem pode ver os resultados', para: 'resultados' });
+  if (c.modo === 'anonima' && !(Number(c.minimo) >= 1)) f.push({ item: 'o mínimo de respostas de um setor para mostrar a média dele (na resposta anônima, setor com uma resposta só entrega quem respondeu)', para: 'resultados' });
+  return f;
+}
+// Link que vai para as pessoas: endereço da página + setores, critérios e modo (o "|" separa os itens)
+function linkFeedback(c) {
+  const lista = (l) => encodeURIComponent(l.map((x) => String(x).replace(/\|/g, '/')).join('|'));
+  return `${c.url}?s=${lista(c.setores)}&c=${lista(c.criterios)}&m=${c.modo}`;
+}
+function conviteFeedback(c) {
+  return `Oi! Aqui é o Lucas. Passei pelo setor de vocês e queria saber como foi o meu trabalho, para eu melhorar. Leva uns 2 minutos:\n${linkFeedback(c)}\n\n${c.modo === 'anonima' ? 'A resposta é anônima: a página não pede o seu nome.' : 'A página pede o seu nome.'} Obrigado!`;
+}
+// De onde vêm as respostas: guardadas no painel ou só as coladas agora (quando nada pode ficar guardado)
+const respostasFeedback = (c) => (c.quemVe === 'planilha' ? UI.feedbackColadas || [] : S.feedback);
+
+/* Lê o que foi colado: linhas da planilha (tabulação) ou o arquivo .csv.
+   Devolve as respostas reconhecidas e quantas linhas foram ignoradas. */
+function lerRespostasFeedback(bruto) {
+  const texto = String(bruto || '').replace(/\r\n?/g, '\n');
+  const achadas = new Map(); let ignoradas = 0, ordem = COLUNAS_FEEDBACK;
+  lerTabela(texto, texto.includes('\t') ? '\t' : ',').forEach((cel) => {
+    const limpo = cel.map((x) => String(x).replace(/^'/, '').trim());
+    if (!limpo.some(Boolean)) return;   // linha vazia
+    if (limpo[0] === 'codigo') { ordem = limpo; return; }   // cabeçalho
+    const o = {}; ordem.forEach((k, i) => { o[k] = limpo[i] || ''; });
+    const codigo = String(o.codigo).toUpperCase();
+    const notas = String(o.notas).split('|').map((p) => { const i = p.lastIndexOf(':'); return i > 0 ? { criterio: p.slice(0, i).trim(), nota: Number(p.slice(i + 1)) } : null; })
+      .filter((n) => n && n.criterio && Number.isInteger(n.nota) && n.nota >= 1 && n.nota <= 5);
+    if (!CODIGO_FEEDBACK.test(codigo) || !o.setor || !notas.length) { ignoradas++; return; }
+    achadas.set(codigo, { id: codigo, codigo, recebidoEm: o.recebido_em, setor: o.setor, notas, funcionou: o.o_que_funcionou, melhorar: o.o_que_podia_melhorar, nome: o.nome });
+  });
+  return { respostas: [...achadas.values()], ignoradas };
+}
+
+/* As contas: média de cada critério por setor e no geral (uma casa), respostas por setor e
+   comentários por setor. Setor ou critério que não está na lista atual entra marcado "fora da lista". */
+function resultadosFeedback(respostas, c) {
+  const nomes = (lista, extra) => { const base = lista.slice(); extra.forEach((x) => { if (!base.some((b) => normal(b) === normal(x))) base.push(x); }); return base; };
+  const setores = nomes(c.setores, respostas.map((r) => r.setor));
+  const criterios = nomes(c.criterios, [].concat(...respostas.map((r) => r.notas.map((n) => n.criterio))));
+  const media = (lista) => (lista.length ? lista.reduce((a, b) => a + b, 0) / lista.length : null);
+  const notasDe = (rs, crit) => [].concat(...rs.map((r) => r.notas.filter((n) => normal(n.criterio) === normal(crit)).map((n) => n.nota)));
+  const minimo = c.modo === 'anonima' ? Number(c.minimo) || 0 : 0;
+  const porSetor = setores.map((nome) => {
+    const rs = respostas.filter((r) => normal(r.setor) === normal(nome));
+    const oculto = minimo > 0 && rs.length > 0 && rs.length < minimo;   // anônima com poucas respostas: não mostra média nem comentário
+    return { nome, rs, fora: !c.setores.some((x) => normal(x) === normal(nome)), n: rs.length, oculto,
+      medias: Object.fromEntries(criterios.map((crit) => [crit, oculto ? null : media(notasDe(rs, crit))])),
+      comentarios: oculto ? [] : rs.filter((r) => r.funcionou || r.melhorar).map((r) => ({ funcionou: r.funcionou, melhorar: r.melhorar, nome: c.modo === 'identificada' ? r.nome : '' })) };
+  });
+  /* O geral também deixa de fora o setor escondido: senão, com a média geral e a dos outros setores,
+     dá para descobrir a nota dele fazendo a conta (e a regra do mínimo não protegeria ninguém). */
+  const contam = [].concat(...porSetor.filter((x) => !x.oculto).map((x) => x.rs));
+  return {
+    total: respostas.length, totalGeral: contam.length, temOculto: porSetor.some((x) => x.oculto),
+    criterios: criterios.map((nome) => ({ nome, fora: !c.criterios.some((x) => normal(x) === normal(nome)), geral: media(notasDe(contam, nome)) })),
+    setores: porSetor
+  };
+}
+const fmtMedia = (v) => (v == null ? '–' : v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+
+/* ---------- Tela ---------- */
+function telaFeedback() {
+  const c = configFeedback(), falta = faltaFeedback(c);
+  const faltaLink = falta.filter((f) => f.para === 'link'), faltaResultado = falta.filter((f) => f.para === 'resultados');
+  const respostas = respostasFeedback(c);
+  const podeVer = c.quemVe && !faltaResultado.length && (c.quemVe !== 'editores' || S.podeEditar);
+  const cab = `<header class="cab"><div><p class="olho">${esc(nomeFrente())}</p><h1>Feedback do Lucas</h1><p class="sub">O que as pessoas dos setores por onde você passou acharam do seu trabalho.</p></div>
+    <div class="acoes so-editor"><button class="btn" data-acao="feedbackPDF" id="botao-feedback-pdf" ${podeVer && respostas.length && downloads ? '' : 'disabled'}>${icone('pdf')}Relatório para imprimir (PDF)</button><button class="btn primario" data-acao="feedbackTrazer" ${podeVer ? '' : 'disabled'}>${icone('baixar')}Trazer respostas</button></div></header>`;
+  // O que falta declarar (fica no alto enquanto houver)
+  const avisoFalta = falta.length ? `<section class="painel fb-falta" aria-label="O que falta declarar"><div class="painel-corpo"><h2>${icone('alerta')}Falta declarar</h2><ul>${falta.map((f) => `<li><b>${esc(f.item)}</b><span>Quem declara: Lucas · sem isso, ${f.para === 'link' ? 'o link não fica pronto' : 'os resultados não aparecem'}</span></li>`).join('')}</ul></div></section>` : '';
+  const config = telaConfigFeedback(c);
+  const link = faltaLink.length ? '' : `<section class="painel"><div class="painel-corpo"><h2>Link para mandar</h2>
+      <p class="fb-link"><code>${esc(linkFeedback(c))}</code></p>
+      <div class="fb-botoes"><button class="btn peq" data-acao="feedbackConvite">${icone('copiar')}Copiar convite</button><button class="btn peq" data-acao="feedbackLink">${icone('copiar')}Só o link</button></div>
+      <p class="meta">Mudou setores ou critérios? O link muda junto: mande o novo. Quem já respondeu pelo link antigo continua contando.</p></div></section>`;
+  return cab + avisoFalta + link + telaResultadosFeedback(c, respostas, podeVer) + config + comoFuncionaFeedback();
+}
+function telaConfigFeedback(c) {
+  const radios = (nome, lista, atual) => lista.map(([v, rot, ajuda]) => `<label class="fb-opcao"><input type="radio" name="${nome}" value="${v}" ${atual === v ? 'checked' : ''}><span><b>${rot}</b><small>${ajuda}</small></span></label>`).join('');
+  return `<section class="painel so-editor" aria-labelledby="fb-config-tit"><div class="painel-corpo"><h2 id="fb-config-tit">Configuração</h2>
+    <p class="meta">Tudo aqui é declarado por você. Nada vem preenchido.</p>
+    <form class="fb-config" id="form-feedback" novalidate>
+      <div class="campo largo"><label for="fb-url">Endereço da página do Google</label><input type="url" id="fb-url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(c.url)}"><span class="meta">Instale a página seguindo o passo a passo no começo do arquivo feedback/Codigo.gs. No fim, o Google mostra o endereço que termina em /exec.</span></div>
+      <div class="campo"><label for="fb-setores">Setores <span class="meta">(um por linha)</span></label><textarea id="fb-setores" rows="6" placeholder="Em branco: você preenche">${esc(c.setores.join('\n'))}</textarea></div>
+      <div class="campo"><label for="fb-criterios">Critérios <span class="meta">(um por linha; cada um recebe nota de 1 a 5)</span></label><textarea id="fb-criterios" rows="6" placeholder="Em branco: você preenche">${esc(c.criterios.join('\n'))}</textarea></div>
+      <fieldset class="campo"><legend>A resposta é</legend>${radios('fb-modo', MODOS_FEEDBACK, c.modo)}</fieldset>
+      <fieldset class="campo"><legend>Quem pode ver os resultados</legend>${radios('fb-quem', QUEM_VE_FEEDBACK, c.quemVe)}</fieldset>
+      <div class="campo" id="fb-campo-minimo" ${c.modo === 'anonima' ? '' : 'hidden'}><label for="fb-minimo">Mínimo de respostas de um setor para mostrar a média</label><input type="number" id="fb-minimo" min="1" step="1" inputmode="numeric" placeholder="Em branco: você decide" value="${esc(c.minimo)}"><span class="meta">Só vale na resposta anônima. Abaixo desse número, o setor mostra só quantas respostas teve.</span></div>
+      <p class="erro-form" id="fb-erro" hidden></p>
+      <div class="fb-botoes"><button type="submit" class="btn primario" id="fb-guardar">Guardar configuração</button></div>
+    </form></div></section>`;
+}
+function telaResultadosFeedback(c, respostas, podeVer) {
+  const titulo = '<h2>Resultados</h2>';
+  if (!c.quemVe || faltaFeedback(c).some((f) => f.para === 'resultados')) return `<section class="painel"><div class="painel-corpo">${titulo}<p class="vazio-mini">Os resultados aparecem depois que estiver declarado quem pode vê-los${c.modo === 'anonima' ? ' e o mínimo de respostas por setor' : ''}.</p></div></section>`;
+  if (!podeVer) return `<section class="painel"><div class="painel-corpo">${titulo}<p class="vazio-mini">Os resultados deste feedback são só para quem pode editar o painel (regra declarada pelo Lucas).</p></div></section>`;
+  const guardadasSobrando = c.quemVe === 'planilha' && S.feedback.length ? `<p class="fb-aviso so-editor">${icone('alerta')}Há ${plural(S.feedback.length, 'resposta guardada', 'respostas guardadas')} no painel de quando a regra era outra. Pela regra atual, nada fica guardado. <button class="btn peq" data-acao="feedbackApagarGuardadas">Apagar do painel</button></p>` : '';
+  if (!respostas.length) return `<section class="painel"><div class="painel-corpo">${titulo}${guardadasSobrando}<div class="vazio"><h3>Nenhuma resposta ainda</h3><p>Mande o link. Quando as respostas chegarem na planilha “Feedback do Lucas”, use <b>Trazer respostas</b>.${c.quemVe === 'planilha' ? ' Pela regra, nada fica guardado aqui: depois do F5, cole de novo.' : ''}</p></div></div></section>`;
+  const R = resultadosFeedback(respostas, c);
+  const comResposta = R.setores.filter((s) => s.n);
+  const tabela = `<div class="fb-tabela-rolagem"><table class="fb-tabela"><thead><tr><th scope="col">Critério</th>${comResposta.map((s) => `<th scope="col">${esc(s.nome)}${s.fora ? ' <small>fora da lista</small>' : ''}<small>${plural(s.n, 'resposta', 'respostas')}</small></th>`).join('')}<th scope="col" class="geral">Geral<small>${plural(R.totalGeral, 'resposta', 'respostas')}${R.temOculto ? ' (sem os setores escondidos)' : ''}</small></th></tr></thead>
+    <tbody>${R.criterios.map((k) => `<tr><th scope="row">${esc(k.nome)}${k.fora ? ' <small>fora da lista atual</small>' : ''}</th>${comResposta.map((s) => `<td>${s.oculto ? '<small>poucas respostas</small>' : fmtMedia(s.medias[k.nome])}</td>`).join('')}<td class="geral"><b>${fmtMedia(k.geral)}</b></td></tr>`).join('')}</tbody></table></div>`;
+  const semResposta = R.setores.filter((s) => !s.n);
+  const contagem = `<p class="meta">${R.setores.map((s) => `${esc(s.nome)}: ${s.n}`).join(' · ')}${semResposta.length ? ` · ainda sem resposta: ${esc(semResposta.map((s) => s.nome).join(', '))}` : ''}</p>`;
+  const ocultos = comResposta.filter((s) => s.oculto);
+  const avisoOculto = ocultos.length ? `<p class="meta">Média e comentários escondidos em ${esc(ocultos.map((s) => s.nome).join(', '))}: menos de ${c.minimo} respostas (regra declarada pelo Lucas, para não entregar quem respondeu). Esses setores também ficam fora da média geral.</p>` : '';
+  const comentarios = comResposta.filter((s) => s.comentarios.length).map((s) => `<div class="fb-setor"><h3>${esc(s.nome)}</h3><div class="fb-cols">
+      <div><b class="fb-rot ok">O que funcionou</b><ul>${s.comentarios.filter((x) => x.funcionou).map((x) => `<li>${esc(x.funcionou)}${x.nome ? `<small>${esc(x.nome)}</small>` : ''}</li>`).join('') || '<li class="meta">Ninguém escreveu.</li>'}</ul></div>
+      <div><b class="fb-rot melhorar">O que eu podia ter feito melhor</b><ul>${s.comentarios.filter((x) => x.melhorar).map((x) => `<li>${esc(x.melhorar)}${x.nome ? `<small>${esc(x.nome)}</small>` : ''}</li>`).join('') || '<li class="meta">Ninguém escreveu.</li>'}</ul></div>
+    </div></div>`).join('');
+  return `<section class="painel"><div class="painel-corpo">${titulo}${guardadasSobrando}
+    <p class="fb-total"><b>${R.total}</b> ${R.total === 1 ? 'resposta' : 'respostas'} · média de 1 a 5, com uma casa</p>${contagem}${avisoOculto}${tabela}
+    ${comentarios ? `<h2 class="fb-sub">Comentários por setor</h2>${comentarios}` : ''}</div></section>`;
+}
+function comoFuncionaFeedback() {
+  return `<section class="painel como-funciona"><div class="painel-corpo"><h2>Como funciona</h2><dl>
+      <dt>O que faz</dt><dd>Recolhe a opinião das pessoas dos setores por onde você passou e mostra a média de cada critério por setor, quantas respostas cada setor deu e os comentários.</dd>
+      <dt>O que colar</dt><dd>As linhas da planilha “Feedback do Lucas” (pode ser tudo, com o cabeçalho) ou o arquivo .csv baixado dela.</dd>
+      <dt>De onde sai</dt><dd>Da página do Google que a pessoa preenche pelo link que você manda. Ela grava cada resposta como uma linha da planilha.</dd>
+      <dt>O que devolve</dt><dd>A tabela de médias (de 1 a 5, uma casa), as respostas por setor, os comentários agrupados e o relatório em PDF para imprimir.</dd>
+      <dt>Quem responde pela regra</dt><dd>Você, Lucas: setores, critérios, se a resposta é anônima ou identificada, quem vê os resultados e o mínimo de respostas por setor.</dd>
+      <dt>Quando der erro</dt><dd>Se nada for reconhecido, confira se a primeira coluna copiada é o código (começa com F-). Se o link não abrir, refaça a implantação no Google e guarde o endereço novo. Se o PDF não sair, abra o painel no Claude e confira a internet.</dd>
+    </dl></div></section>`;
+}
+
+/* ---------- Guardar a configuração ---------- */
+async function guardarConfigFeedback() {
+  const erro = $('#fb-erro'), botao = $('#fb-guardar');
+  const linhas = (id, max) => { const vistos = new Set(), out = []; $(id).value.split('\n').map((x) => x.trim().replace(/\s+/g, ' ').slice(0, 60)).forEach((x) => { if (x && !vistos.has(normal(x))) { vistos.add(normal(x)); out.push(x); } }); return out.slice(0, max); };
+  const marcado = (nome) => { const r = document.querySelector(`input[name="${nome}"]:checked`); return r ? r.value : ''; };
+  const url = $('#fb-url').value.trim(), minimoTexto = $('#fb-minimo').value.trim();
+  const mostrar = (t) => { erro.textContent = t; erro.hidden = !t; };
+  if (url && !ENDERECO_SINAIS.test(url)) { mostrar('Esse endereço não parece o da página do Google. Ele começa com https://script.google.com e termina em /exec.'); $('#fb-url').focus(); return; }
+  if (minimoTexto && !(Number.isInteger(Number(minimoTexto)) && Number(minimoTexto) >= 1)) { mostrar('O mínimo de respostas tem que ser um número inteiro, de 1 para cima (ou fique em branco).'); $('#fb-minimo').focus(); return; }
+  const nova = { url, setores: linhas('#fb-setores', 20), criterios: linhas('#fb-criterios', 15), modo: marcado('fb-modo'), quemVe: marcado('fb-quem'), minimo: minimoTexto ? Number(minimoTexto) : '' };
+  mostrar(''); botao.disabled = true; botao.textContent = 'Guardando…';
+  try { await gravar('config', 'geral', Object.assign({}, S.config, { feedback: nova })); toast(faltaFeedback(nova).length ? 'Configuração guardada. Ainda falta declarar algumas coisas (veja no alto).' : 'Configuração guardada. O link está pronto.'); render(true); }
+  catch (f) { mostrar(f.message); botao.disabled = false; botao.textContent = 'Guardar configuração'; }
+}
+document.addEventListener('submit', (ev) => { if (ev.target.id === 'form-feedback') { ev.preventDefault(); guardarConfigFeedback(); } });
+// O campo do mínimo só aparece na resposta anônima
+document.addEventListener('change', (ev) => { if (ev.target.name === 'fb-modo') { const m = $('#fb-campo-minimo'); if (m) m.hidden = ev.target.value !== 'anonima'; } });
+
+/* ---------- Trazer respostas ---------- */
+function abrirTrazerFeedback() {
+  const c = configFeedback();
+  dlg.className = 'dlg largo';
+  dlg.innerHTML = `<form class="dlg-form" id="form-trazer-feedback" novalidate>
+    <div class="dlg-cab"><div><h2 id="dlg-titulo">Trazer respostas</h2><p>Na planilha “Feedback do Lucas”, selecione as linhas (pode ser tudo, com o cabeçalho), copie e cole aqui. Também vale o arquivo .csv.${c.quemVe === 'planilha' ? ' Pela regra, as respostas não ficam guardadas no painel.' : ''}</p></div><button type="button" class="icone-btn" data-fechar aria-label="Fechar">${icone('x')}</button></div>
+    <div class="dlg-corpo">
+      <div class="campo largo"><label for="f-feedback">Linhas da planilha</label><textarea id="f-feedback" rows="9" placeholder="Cole aqui. As respostas que já estão no painel não entram de novo."></textarea></div>
+      <div class="campo largo"><label class="btn peq" for="f-feedback-arq">${icone('documento')}Subir arquivo .csv</label><input type="file" id="f-feedback-arq" accept=".csv,.tsv,.txt,text/csv" hidden></div>
+      <div class="previa-colar" id="previa-feedback" hidden></div>
+      <p class="erro-form" id="erro-form" hidden></p>
+    </div>
+    <div class="dlg-rodape"><div class="dir"><button type="button" class="btn" data-fechar>Cancelar</button><button type="submit" class="btn primario" id="botao-salvar" disabled>Trazer respostas</button></div></div>
+  </form>`;
+  const area = $('#f-feedback'), previa = $('#previa-feedback'), botao = $('#botao-salvar');
+  let novas = [];
+  function atualizar() {
+    const { respostas, ignoradas } = lerRespostasFeedback(area.value);
+    const ja = new Set(respostasFeedback(c).map((x) => x.id));
+    novas = respostas.filter((x) => !ja.has(x.id));
+    previa.hidden = !area.value.trim();
+    previa.innerHTML = `<span><b>${plural(novas.length, 'resposta nova', 'respostas novas')}</b></span>${respostas.length - novas.length ? `<span class="meta">${plural(respostas.length - novas.length, 'já estava', 'já estavam')} no painel</span>` : ''}${ignoradas ? `<span class="meta">${plural(ignoradas, 'linha ignorada', 'linhas ignoradas')} (não é resposta: sem código F-, sem setor ou sem nota)</span>` : ''}`;
+    botao.disabled = !novas.length;
+  }
+  area.addEventListener('input', atualizar);
+  $('#f-feedback-arq').addEventListener('change', async (ev) => { const a = ev.target.files[0]; if (!a) return; try { area.value = await a.text(); atualizar(); } catch (_) { toast('Não deu para ler esse arquivo. Copie e cole as linhas.', 'erro'); } });
+  $('#form-trazer-feedback').addEventListener('submit', async (ev) => {
+    ev.preventDefault(); if (botao.disabled || !novas.length) return;   // clique duplo: só o primeiro vale
+    botao.disabled = true; botao.textContent = 'Trazendo…';
+    try {
+      if (c.quemVe === 'planilha') UI.feedbackColadas = (UI.feedbackColadas || []).concat(novas);   // só nesta visita
+      else for (const r of novas) await gravar('feedback', r.id, r);
+      dlg.close(); toast(`${plural(novas.length, 'resposta trazida', 'respostas trazidas')}.`); render(true);
+    } catch (f) { const e = $('#erro-form'); e.textContent = f.message; e.hidden = false; botao.disabled = false; botao.textContent = 'Trazer respostas'; }
+  });
+  if (!dlg.open) dlg.showModal();
+  setTimeout(() => area.focus(), 30);
+}
+async function apagarFeedbackGuardado() {
+  const n = S.feedback.length; if (!n) return;
+  if (!confirm(`Apagar ${plural(n, 'resposta guardada', 'respostas guardadas')} do painel? A planilha continua com tudo.`)) return;
+  try { for (const r of S.feedback.slice()) await apagarRegistro('feedback', r.id); toast('Respostas apagadas do painel. A planilha continua com tudo.'); render(true); }
+  catch (f) { toast(f.message, 'erro'); }
+}
+
+/* ---------- Relatório em PDF (para imprimir ou mandar) ---------- */
+function montarPDFFeedback(JsPDF, c, R) {
+  const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+  const L = 210, A = 297, M = 18, BAIXO = A - M - 8, T = limparTextoPDF;
+  const COR = { navy: [15, 35, 66], laranja: [217, 104, 26], tinta: [14, 26, 44], cinza: [90, 101, 119], claro: [169, 183, 206], linha: [225, 229, 235], branco: [255, 255, 255] };
+  const cor = (k) => doc.setTextColor(...COR[k]);
+  const fonte = (f, e, t) => { doc.setFont(f, e); doc.setFontSize(t); };
+  let y = 0;
+  const garantir = (h) => { if (y + h > BAIXO) { doc.addPage(); y = M + 6; } };
+  const secao = (nome) => { garantir(22); y += 4; fonte('times', 'bold', 15); cor('navy'); doc.text(T(nome), M, y); y += 3; doc.setDrawColor(...COR.linha); doc.setLineWidth(0.3); doc.line(M, y, L - M, y); y += 7; };
+  // Capa
+  doc.setFillColor(...COR.navy); doc.rect(0, 0, L, 56, 'F'); doc.setFillColor(...COR.laranja); doc.rect(0, 56, L, 1.4, 'F');
+  fonte('helvetica', 'bold', 9); cor('branco'); doc.text('REAL FORTE', M, 16, { charSpace: 1.4 });
+  fonte('helvetica', 'normal', 8.5); cor('claro'); doc.text(T(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })), L - M, 16, { align: 'right' });
+  fonte('times', 'bold', 24); cor('branco'); doc.text('Feedback do Lucas', M, 34);
+  fonte('helvetica', 'normal', 10); cor('claro'); doc.text(T(`${R.total} ${R.total === 1 ? 'resposta' : 'respostas'} · resposta ${c.modo === 'anonima' ? 'anônima' : 'identificada'} · média de 1 a 5`), M, 43);
+  y = 70;
+  secao('Média por critério');
+  const comResposta = R.setores.filter((s) => s.n);
+  doc.autoTable({ startY: y, margin: { left: M, right: M }, theme: 'grid',
+    head: [['Critério'].concat(comResposta.map((s) => `${T(s.nome)} (${s.n})`), [`Geral (${R.totalGeral})`])],
+    body: R.criterios.map((k) => [T(k.nome + (k.fora ? ' (fora da lista atual)' : ''))].concat(comResposta.map((s) => (s.oculto ? 'poucas respostas' : fmtMedia(s.medias[k.nome]))), [fmtMedia(k.geral)])),
+    styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.4, textColor: COR.tinta, lineColor: COR.linha }, headStyles: { fillColor: COR.navy, textColor: COR.branco, fontStyle: 'bold' },
+    columnStyles: { 0: { fontStyle: 'bold' } } });
+  y = doc.lastAutoTable.finalY + 6;
+  const ocultos = comResposta.filter((s) => s.oculto);
+  if (ocultos.length) { fonte('helvetica', 'italic', 8.5); cor('cinza'); doc.splitTextToSize(T(`Média e comentários escondidos em ${ocultos.map((s) => s.nome).join(', ')}: menos de ${c.minimo} respostas, para não entregar quem respondeu. Esses setores também ficam fora da média geral.`), L - 2 * M).forEach((l) => { garantir(5); doc.text(l, M, y); y += 4.5; }); }
+  const sem = R.setores.filter((s) => !s.n);
+  if (sem.length) { fonte('helvetica', 'normal', 8.5); cor('cinza'); garantir(6); doc.text(T(`Ainda sem resposta: ${sem.map((s) => s.nome).join(', ')}.`), M, y); y += 6; }
+  const comComentario = comResposta.filter((s) => s.comentarios.length);
+  if (comComentario.length) secao('Comentários por setor');
+  comComentario.forEach((s) => {
+    garantir(14); fonte('helvetica', 'bold', 11); cor('tinta'); doc.text(T(s.nome), M, y); y += 6;
+    [['funcionou', 'O que funcionou'], ['melhorar', 'O que eu podia ter feito melhor']].forEach(([k, rot]) => {
+      const itens = s.comentarios.filter((x) => x[k]); if (!itens.length) return;
+      garantir(10); fonte('helvetica', 'bold', 8); cor('laranja'); doc.text(T(rot).toUpperCase(), M, y, { charSpace: 0.5 }); y += 5;
+      itens.forEach((x) => { fonte('helvetica', 'normal', 9.5); cor('tinta'); doc.splitTextToSize(T('• ' + x[k] + (x.nome ? ` (${x.nome})` : '')), L - 2 * M - 4).forEach((l) => { garantir(5); doc.text(l, M + 2, y); y += 4.6; }); y += 1.5; });
+      y += 2;
+    });
+    y += 3;
+  });
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) { doc.setPage(i); fonte('helvetica', 'normal', 7.5); cor('cinza'); doc.text(T(`Feedback do Lucas · Real Forte Lab · página ${i} de ${n}`), L / 2, A - 10, { align: 'center' }); }
+  return doc;
+}
+async function gerarPDFFeedback() {
+  const c = configFeedback(), respostas = respostasFeedback(c);
+  if (!respostas.length) { toast('Traga as respostas antes de gerar o relatório.'); return; }
+  if (!downloads) { toast('Baixar o PDF funciona com o painel aberto no Claude.', 'erro'); return; }
+  const Construtor = window.jspdf && window.jspdf.jsPDF;
+  if (!Construtor || !Construtor.API || typeof Construtor.API.autoTable !== 'function') { toast('O gerador de PDF não carregou. Confira a internet e recarregue a página.', 'erro'); return; }
+  const botao = $('#botao-feedback-pdf'); if (botao) { botao.disabled = true; botao.innerHTML = '<span class="girando"></span>Gerando…'; }
+  try {
+    const arquivo = montarPDFFeedback(Construtor, c, resultadosFeedback(respostas, c)).output('blob');
+    const r = await downloads.save({ filename: `Feedback do Lucas - ${hojeISO()}.pdf`, data: arquivo });
+    if (r && r.status === 'saved') toast('Relatório salvo. Abra o PDF para imprimir.');
+  } catch (x) {
+    const k = x && x.code;
+    toast(k === 'declined' ? 'Download cancelado.' : k === 'rate_limited' ? 'Já tem um download esperando confirmação.' : 'Não deu para gerar o PDF agora. Tente de novo.', k === 'declined' ? '' : 'erro');
+  } finally { const b = $('#botao-feedback-pdf'); if (b) { b.disabled = !downloads; b.innerHTML = icone('pdf') + 'Relatório para imprimir (PDF)'; } }
+}
+
 /* ---------- 15. PDF e cópia de segurança ---------- */
 function dadosRelatorio(e) {
   const setores = setoresDa(e.id);
@@ -13835,7 +14144,13 @@ const ACOES = {
   sinaisLink: (id) => { const e = empresaPorId(id); if (e) copiarTexto(linkSinais(e), 'Link copiado.'); },
   sinalVirar: (id) => abrirVirarGargalo(id),
   sinalArquivar: (id) => mudarEstadoSinal(id, 'arquivado', 'Sinal arquivado.'),
-  sinalReabrir: (id) => mudarEstadoSinal(id, 'novo', 'O sinal voltou para os novos.')
+  sinalReabrir: (id) => mudarEstadoSinal(id, 'novo', 'O sinal voltou para os novos.'),
+  // Feedback do Lucas
+  feedbackTrazer: () => abrirTrazerFeedback(),
+  feedbackPDF: () => gerarPDFFeedback(),
+  feedbackConvite: () => copiarTexto(conviteFeedback(configFeedback()), 'Convite copiado. É só colar no WhatsApp.'),
+  feedbackLink: () => copiarTexto(linkFeedback(configFeedback()), 'Link copiado.'),
+  feedbackApagarGuardadas: () => apagarFeedbackGuardado()
 };
 
 /* ---------- 17. Cliques e teclado ---------- */

@@ -52,6 +52,8 @@
   window.MailApp = { sendEmail: (m) => G.emails.push(m) };
   window.Session = { getEffectiveUser: () => ({ getEmail: () => 'dono@exemplo.com' }) };
   window.Logger = { log: () => {} };
+  // Página: guarda o que o doGet preencheu (o teste monta o HTML com esses valores)
+  window.HtmlService = { createTemplateFromFile: (nome) => { const t = { arquivo: nome }; t.evaluate = () => { const r = { vars: t, setTitle() { return r; }, addMetaTag() { return r; } }; return r; }; return t; } };
   // google.script.run: chama a função do Codigo.gs depois de um tempinho (como a internet)
   const falhas = {};
   function corredor(ok, erro) {
@@ -64,7 +66,7 @@
           setTimeout(() => {
             falhas[nome] = (falhas[nome] || 0) + 1;
             const f = window.__falhar && window.__falhar[nome];
-            if (f && falhas[nome] === f) { if (erro) erro(new Error('Falha de rede (simulada)')); return; }
+            if (f && falhas[nome] === f) { if (erro) erro(new Error('NetworkError: Connection failure due to HTTP 0')); return; }
             try { const r = window[nome](...JSON.parse(JSON.stringify(args))); if (ok) ok(r); } catch (e) { if (erro) erro(e); }
           }, 60);
         };
