@@ -190,7 +190,7 @@
   chips($('chips-imp'), IMPACTOS, 'impacto');
 
   // Mensagem que veio do Google: as nossas (em português, sem ":") vão para a tela; erro de rede vira a mensagem padrão
-  function mensagemDoGoogle(erro) { const t = erro && erro.message; return t && !/error|exception|:/i.test(t) ? t : ''; }
+  function mensagemDoGoogle(erro) { const t = erro && erro.message; return t && !/error|exception|function|undefined|null|[:\[\]]/i.test(t) ? t : ''; }
   function mostrarErro(t) { $('erro').textContent = t; $('erro').hidden = !t; if (t) $('falha').hidden = true; }
   // O aviso de erro some assim que a pessoa mexe no formulário
   $('form').addEventListener('input', () => mostrarErro(''));
@@ -271,8 +271,16 @@
   /* ---------- Envio ---------- */
   // google.script.run em forma de promessa (para ir passo a passo)
   function chamar(funcao, ...args) {
-    return new Promise((resolve, reject) => { google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[funcao](...args); });
+    return new Promise((resolve, reject) => {
+      const corredor = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      if (typeof corredor[funcao] !== 'function') { console.warn('RF Sinais: a função ' + funcao + ' não existe no Codigo.gs publicado'); return reject(new Error(DESATUALIZADO)); }
+      corredor[funcao](...args);
+    });
   }
+  /* O Google publicado ainda é o antigo (sem a parte dos anexos)? Acontece quando o Formulario novo foi
+     publicado sem o Codigo.gs novo. Aí: sem anexo, o sinal vai pelo caminho antigo; com anexo, a tela avisa. */
+  const DESATUALIZADO = 'Por enquanto não dá para mandar anexo por aqui. Envie sem anexo e avise a Real Forte.';
+  const googleNovo = () => typeof google.script.run.reservarSinal === 'function';
   function botao(texto, travado) { $('enviar').textContent = texto; $('enviar').disabled = travado; }
 
   async function enviar(semAnexo) {
@@ -284,6 +292,14 @@
     if (semAnexo) { anexos = []; desenharAnexos(); }
     enviando = true; mostrarErro(''); $('falha').hidden = true; botao('Enviando…', true);
     let codigo = '', subidos = [];
+    if (!googleNovo()) {   // Google antigo: sem anexo, envia como antes; com anexo, avisa e oferece enviar sem
+      console.warn('RF Sinais: o Codigo.gs publicado é o antigo. Cole o novo, salve e publique uma nova versão.');
+      if (anexos.length) return falhaNoAnexo(new Error(DESATUALIZADO));
+      delete dados.envio; delete dados.anexos;
+      try { terminar(await chamar('enviarSinal', dados), 0); }
+      catch (erro) { enviando = false; botao('Enviar sinal', false); mostrarErro(mensagemDoGoogle(erro) || 'Não deu para enviar agora. Tente de novo em instantes.'); }
+      return;
+    }
     try {
       // 1) reserva o código do sinal
       const r = await chamar('reservarSinal', envio);
@@ -312,7 +328,8 @@
     enviando = false; botao('Enviar sinal', false);
     const t = mensagemDoGoogle(erro);
     // Regra que o próprio arquivo quebrou (tipo ou tamanho): diz qual; o resto é a mensagem padrão
-    if (t && /8 MB|tipo de arquivo|vazio/.test(t)) { $('falha').querySelector('p').textContent = t + ' Ou envie sem anexo.'; }
+    if (t === DESATUALIZADO) $('falha').querySelector('p').textContent = t;
+    else if (t && /8 MB|tipo de arquivo|vazio/.test(t)) { $('falha').querySelector('p').textContent = t + ' Ou envie sem anexo.'; }
     else $('falha').querySelector('p').textContent = 'O anexo não subiu. Tente de novo ou envie sem anexo.';
     $('falha').hidden = false; $('erro').hidden = true;
   }

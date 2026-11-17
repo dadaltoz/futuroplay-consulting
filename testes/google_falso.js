@@ -59,6 +59,7 @@
   function corredor(ok, erro) {
     return new Proxy({}, {
       get(_, nome) {
+        if ((window.__semFuncoes || []).includes(nome)) return undefined;   // simula Codigo.gs antigo publicado
         if (nome === 'withSuccessHandler') return (f) => corredor(f, erro);
         if (nome === 'withFailureHandler') return (f) => corredor(ok, f);
         return (...args) => {

@@ -149,6 +149,23 @@ with sync_playwright() as p:
       const n = limparAnexosSemSinal(); return [n, velho.lixeira, novo.lixeira]; })()""")
     confere(r == [1, True, False], 'limpeza: apaga só o arquivo sem sinal com mais de 1 dia')
 
+    # 8b. Google publicado ainda é o antigo (Formulario novo, Codigo.gs velho): sem anexo vai; com anexo avisa em português
+    ANTIGO = "window.__semFuncoes = ['reservarSinal', 'subirAnexo', 'desfazerAnexos']"
+    pg = nova(); pg.evaluate(ANTIGO); preencher(pg); pg.click('#enviar'); pg.wait_for_selector('#pronto:not([hidden])', timeout=8000)
+    confere(G(pg, 'linhas.length') == 1 and 'reservarSinal' not in G(pg, 'chamadas'), 'Google antigo, sem anexo: o sinal vai pelo caminho antigo')
+    pg = nova(); pg.evaluate(ANTIGO); preencher(pg)
+    pg.set_input_files('#arquivo', [arq('nota.pdf', 'application/pdf', PDF)]); pg.wait_for_function('anexos.length === 1')
+    pg.click('#enviar'); pg.wait_for_selector('#falha:not([hidden])', timeout=8000)
+    t = pg.inner_text('#falha p')
+    confere('não dá para mandar anexo' in t and 'function' not in t and G(pg, 'linhas.length') == 0, 'Google antigo, com anexo: avisa em português e não grava')
+    pg.screenshot(path=str(OUT / '07-google-antigo.png'), full_page=True)
+    pg.click('#sem-anexo'); pg.wait_for_selector('#pronto:not([hidden])', timeout=8000)
+    confere(G(pg, 'linhas.length') == 1 and G(pg, 'linhas[0][10]') == '', 'Google antigo: "Enviar sem anexo" grava o sinal')
+    # mensagem técnica nunca vai para a tela
+    pg = nova(); preencher(pg); pg.evaluate("window.google.script.run = { withSuccessHandler() { return this; }, withFailureHandler(f) { this.f = f; return this; }, reservarSinal(e) { this.f(new TypeError('x[funcao] is not a function')); } }")
+    pg.click('#enviar'); pg.wait_for_timeout(400)
+    confere('Não deu para enviar agora' in pg.inner_text('#erro') and 'function' not in pg.inner_text('#erro'), 'erro técnico do Google vira mensagem em português')
+
     # 9. Tela de computador (aparência)
     pg = nova(1280, 900); preencher(pg)
     pg.set_input_files('#arquivo', [arq('IMG_0001.png', 'image/png', FOTO), arq('nota.pdf', 'application/pdf', PDF)]); pg.wait_for_function('anexos.length === 2 && preparando === 0', timeout=8000)

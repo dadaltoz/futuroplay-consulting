@@ -77,6 +77,11 @@ with sync_playwright() as p:
     pg.click('#enviar'); pg.wait_for_selector('#pronto:not([hidden])', timeout=6000)
     confere(G(pg, 'linhas.length') == 1 and G(pg, 'linhas[0][6]') == 'Marta', 'tentar de novo: grava 1 resposta com o nome')
     pg.screenshot(path=str(OUT / '04-identificada-enviada.png'))
+    pg = pagina(COMPLETO, 'google-antigo'); pg.evaluate("window.__semFuncoes = ['enviarResposta']")
+    pg.click('#setores .chip:has-text("Logística")')
+    for c in ['Pontualidade', 'Clareza na comunicação', 'Iniciativa']: pg.click(f'[aria-label="{c}: nota 3"]')
+    pg.click('#enviar'); pg.wait_for_timeout(300)
+    confere('Avise o Lucas' in pg.inner_text('#erro') and not pg.is_disabled('#enviar'), 'Codigo.gs errado publicado: avisa em português e o botão não trava')
 
     # ----- Tela do Lucas no painel -----
     SEM = {}

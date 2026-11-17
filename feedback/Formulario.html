@@ -192,7 +192,7 @@
   }
 
   // Mensagem que veio do Google: as nossas (em português, sem ":") vão para a tela; erro de rede vira a mensagem padrão
-  function mensagemDoGoogle(erro) { const t = erro && erro.message; return t && !/error|exception|:/i.test(t) ? t : ''; }
+  function mensagemDoGoogle(erro) { const t = erro && erro.message; return t && !/error|exception|function|undefined|null|[:\[\]]/i.test(t) ? t : ''; }
   function mostrarErro(t) { $('erro').textContent = t; $('erro').hidden = !t; }
   $('form').addEventListener('input', () => mostrarErro(''));
 
@@ -207,6 +207,11 @@
     const dados = { envio, modo: MODO, setor: escolha.setor, notas: CRITERIOS.map((c) => ({ criterio: c, nota: escolha.notas[c] })),
       funcionou: $('funcionou').value.trim(), melhorar: $('melhorar').value.trim(), nome: MODO === 'identificada' ? nome : '' };
     enviando = true; mostrarErro(''); $('enviar').disabled = true; $('enviar').textContent = 'Enviando…';
+    if (typeof google.script.run.enviarResposta !== 'function') {   // Codigo.gs publicado não é este: avisa e não trava
+      console.warn('Feedback: a função enviarResposta não existe no Codigo.gs publicado. Cole o Codigo.gs, salve e publique uma nova versão.');
+      enviando = false; $('enviar').disabled = false; $('enviar').textContent = 'Enviar resposta';
+      return mostrarErro('A página ainda não está pronta para receber respostas. Avise o Lucas.');
+    }
     google.script.run
       .withSuccessHandler((codigo) => { $('codigo').textContent = codigo; $('form').hidden = true; $('pronto').hidden = false; window.scrollTo(0, 0); })
       .withFailureHandler((erro) => {
