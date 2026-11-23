@@ -3,7 +3,7 @@
 Painel em um arquivo HTML só, publicado como Artifact no claude.ai. Quem constrói é o Lucas Smarssaro Dadalto. A Real Forte é a consultoria do pai dele. O painel serve aos consultores: empresas, setores, check-up, "o que eu vi", gargalos e oportunidades, biblioteca de soluções, RF Intelligence, RF Sinais e a cidade 3D (cada empresa fica numa ilha-satélite ligada por ponte à plataforma central, que é a cidade da Real Forte, flutuando no espaço).
 
 - **Artifact publicado (sempre atualizar este, nunca criar outro):** https://claude.ai/artifact/6fryTDCEREKpMdKnRKihm8
-- Última versão publicada: **v88** (link da ferramenta direto no cartão da biblioteca).
+- Última versão publicada: **v89** (link da ferramenta direto no cartão da biblioteca).
 - Os DADOS do painel (empresas, anotações, gargalos, arquivos, fotos, áudios) ficam guardados NO artifact (capabilities `db` e `assets`). Publicar num artifact novo = painel vazio. Sempre publicar no mesmo link, passando a URL acima.
 - Capabilities em uso: `sample` (IA), `assets`, `db`, `downloads`, `user`. Na republicação, não passar `capabilities` (assim elas continuam).
 
@@ -45,6 +45,8 @@ Precisa de `python3` e `node`. Imprime `build ok` quando está tudo certo. O arq
 | `feedback/` | `Codigo.gs` + `Formulario.html` do **Feedback do Lucas** (a página que as pessoas dos setores respondem). Setores, critérios e modo (anônima/identificada) vêm no link (`?s=…&c=…&m=…`), nada de regra no Google. Planilha "Feedback do Lucas", colunas `codigo` (F-…), `recebido_em`, `setor`, `notas` (`Critério: n \| …`), `o_que_funcionou`, `o_que_podia_melhorar`, `nome`, `envio` |
 
 No painel: RF Sinais em `lerSinais` / `lerAnexosSinal` / `cartaoSinal` (clipe e lista; só links do Drive viram botão). Feedback do Lucas na rota `#feedback` (`telaFeedback`, `configFeedback` em `S.config.feedback`, tudo nasce em branco; `faltaFeedback` diz o que falta e quem declara; `lerRespostasFeedback`, `resultadosFeedback`, `montarPDFFeedback`). Coleção `feedback` só é usada se o Lucas declarar que as respostas ficam guardadas ("Só quem tem a planilha" = nada guardado, `UI.feedbackColadas`). Na resposta anônima, setor abaixo do mínimo esconde média e comentários **e sai da média geral** (senão dá para descobrir a nota dele pela conta).
+
+**Relatório da passagem pelo setor** (aba "Relatório" de cada setor, rota `#sr-<setor>`): `abaRelatorio`, guardado em `s.passagem` (`inicio`, `fim`, `pessoas`, `leitura`); rascunho em `UI.passagem` (digitar não redesenha a tela). Período e "Pessoas e atividades" nascem em branco: só o Lucas escreve (a IA não recebe as pessoas). `promptPassagem` pede introdução, panorama, o que está ruim, o que pode melhorar, o que já melhorou e conclusão, sem próximos passos, sem nomes, sem número inventado; o Lucas revisa. `montarPDFPassagem`: página 1 = capa (logo da empresa num cartão + logo da Real Forte), introdução, números e gráficos (rosca das situações, check-up, antes e depois em horas); depois leitura, pessoas, o que foi aplicado (como era → o que foi feito), o que foi identificado, oportunidades; última página = conclusão com assinatura e as duas logos. O PDF não leva selo de IA nem próximos passos (pedido do Lucas). Teste: `teste_relatorio.py`.
 
 Atenção: `parte-app.js` e `parte-campo.js` começam com `<script>` e terminam com `</script>`. Código novo vai DENTRO do script (depois do `'use strict';`), nunca antes nem depois da tag.
 
@@ -92,6 +94,7 @@ python3 teste_saude.py / teste_arquivo.py / teste_link.py      # telas do app (a
 python3 teste_rf_sinais.py          # formulário do RF Sinais com anexos (Codigo.gs de verdade num Google de mentira: google_falso.js)
 python3 teste_sinais_anexos.py      # painel lendo e mostrando os anexos dos sinais
 python3 teste_feedback.py           # página do Feedback + tela do Lucas (médias conferidas à mão, PDF)
+python3 teste_relatorio.py          # relatório da passagem pelo setor (PDF conferido com pdftotext e pdftoppm)
 ```
 
 Os dados de teste ficam em `testes/dados/` (empresa "Distribuidora Exemplo"; nas fotos ela é renomeada para "Elson's"). Os testes simulam o `window.claude` (db, assets, downloads) em memória. O teste de "prompt de transformar" em `teste_saude.py` procura um texto antigo e dá False; não é erro do painel.

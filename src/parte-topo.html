@@ -1125,6 +1125,20 @@ h1.com-logo{display:flex;align-items:center;gap:14px}
 .fb-rot{font:600 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase}
 .fb-rot.ok{color:var(--st-resolvido,#2f9e64)}.fb-rot.melhorar{color:var(--accent-ink)}
 @media (max-width:700px){.fb-config{grid-template-columns:1fr}}
+/* Relatório da passagem pelo setor */
+.rel-ind{grid-template-columns:repeat(5,minmax(0,1fr))}
+.rel-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.rel-periodo{display:grid;grid-template-columns:repeat(2,minmax(0,220px));gap:14px;margin-top:10px}
+.rel-pessoa{border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:12px;background:var(--surface)}
+.rel-pessoa-cab{display:flex;align-items:center;gap:10px;margin-bottom:10px}.rel-pessoa-cab b{flex:1;font-size:15px}
+.rel-pessoa-cab .avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;font-size:12px;font-weight:700}
+.rel-campos,.rel-leitura{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.rel-campos .largo,.rel-leitura .largo{grid-column:1/-1}
+.rel-leitura{margin-top:12px}
+.rel-gerar .painel-corpo{display:flex;flex-direction:column;gap:10px;border-left:4px solid var(--accent);border-radius:inherit}
+.rel-falta{display:flex;align-items:center;gap:6px;margin:4px 0 0;color:var(--accent-ink);font-size:13.5px}.rel-falta .ic svg{width:16px;height:16px}
+.rel-nao-guardado{margin:0}
+@media (max-width:700px){.rel-ind{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-campos,.rel-leitura,.rel-periodo{grid-template-columns:1fr}}
 .sinal-aviso{margin:0;font-size:13px;color:var(--st-execucao)}
 .sinal-acoes{display:flex;gap:8px;flex-wrap:wrap}
 .como-funciona dl{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:8px 16px;margin:10px 0 0}

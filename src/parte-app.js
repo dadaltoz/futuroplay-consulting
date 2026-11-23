@@ -298,6 +298,7 @@ function rotaAtual() {
   if (h.startsWith('sv-')) return { v: 'setor', id: h.slice(3), aba: 'vi' };
   if (h.startsWith('sg-')) return { v: 'setor', id: h.slice(3), aba: 'gargalos' };
   if (h.startsWith('so-')) return { v: 'setor', id: h.slice(3), aba: 'oport' };
+  if (h.startsWith('sr-')) return { v: 'setor', id: h.slice(3), aba: 'relatorio' };   // relatório da passagem pelo setor
   if (h.startsWith('s-')) return { v: 'setor', id: h.slice(2), aba: 'diag' };
   if (h === 'ia-materiais') return { v: 'ia', aba: 'materiais' };
   if (h.startsWith('ia-g-')) return { v: 'ia', gargalo: h.slice(5) };
@@ -823,7 +824,7 @@ function cabSetor(s, e, aba) {
   return `<a class="voltar" href="#e-${esc(e.id)}">${icone('voltar')}${esc(e.nome)}</a>
     <header class="cab"><div class="cab-setor">${anelNota(d.nota, 64, classeNota(d))}<div><p class="olho">Setor · ${esc(e.nome)}</p><h1>${esc(s.nome)}</h1><p class="sub"><span class="pill ${SAUDE[d.saude].classe}">${SAUDE[d.saude].nome}</span> ${esc(s.responsavel ? 'Responsável: ' + s.responsavel : 'Sem responsável cadastrado')}</p></div></div>
       <div class="acoes so-editor"><button class="btn" data-acao="editarSetor" data-id="${esc(s.id)}">${icone('lapis')}Editar setor</button></div></header>
-    ${abas([['diag', 'Diagnóstico', `#s-${s.id}`, d.nota != null ? d.nota : ''], ['vi', 'O que eu vi', `#sv-${s.id}`, notasDo(s.id).length], ['gargalos', 'Gargalos', `#sg-${s.id}`, garg.length], ['oport', 'Oportunidades', `#so-${s.id}`, ops.length]], aba)}`;
+    ${abas([['diag', 'Diagnóstico', `#s-${s.id}`, d.nota != null ? d.nota : ''], ['vi', 'O que eu vi', `#sv-${s.id}`, notasDo(s.id).length], ['gargalos', 'Gargalos', `#sg-${s.id}`, garg.length], ['oport', 'Oportunidades', `#so-${s.id}`, ops.length], ['relatorio', 'Relatório', `#sr-${s.id}`, '']], aba)}`;
 }
 function telaSetor(id, aba) {
   const s = setorPorId(id); const e = s && empresaPorId(s.empresaId);
@@ -831,6 +832,7 @@ function telaSetor(id, aba) {
   if (aba === 'vi') return cabSetor(s, e, 'vi') + abaVi(s);
   if (aba === 'gargalos') return cabSetor(s, e, 'gargalos') + abaGargalos(s);
   if (aba === 'oport') return cabSetor(s, e, 'oport') + abaOportunidades(s);
+  if (aba === 'relatorio') return cabSetor(s, e, 'relatorio') + abaRelatorio(s);
   return cabSetor(s, e, 'diag') + abaDiagnostico(s);
 }
 function abaDiagnostico(s) {
@@ -2378,6 +2380,465 @@ async function gerarPDFFeedback() {
   } finally { const b = $('#botao-feedback-pdf'); if (b) { b.disabled = !downloads; b.innerHTML = icone('pdf') + 'Relatório para imprimir (PDF)'; } }
 }
 
+/* ---------- Relatório da passagem pelo setor ----------
+   Quando o Lucas encerra o ciclo num setor, o setor (ou o RH) pede um relatório: quem faz o quê, o que
+   está ruim, o que já foi aplicado e como era antes e como ficou. Aqui ele sai pronto do que já está no
+   painel (gargalos, oportunidades, anotações, check-up). O que o painel não tem nasce EM BRANCO e é o
+   Lucas quem preenche: o período da passagem e "Pessoas e atividades". A leitura do setor é escrita
+   pela IA a partir dos registros e o Lucas revisa antes de gerar o PDF. Fica guardado no próprio setor
+   (s.passagem), então dá para fechar e voltar depois. */
+const SIT_COR = { 'Aberto': [140, 152, 173], 'Proposta pronta': [232, 120, 40], 'Apresentado': [104, 145, 222], 'Em execução': [214, 158, 46], 'Resolvido': [47, 158, 100] };
+const CAMPOS_PESSOA = [['nome', 'Nome'], ['funcao', 'Função ou cargo'], ['atividades', 'O que faz (atividades e processos)'], ['melhorar', 'O que precisa melhorar'], ['proposta', 'Melhoria que propus'], ['antes', 'Como era antes'], ['depois', 'Como ficou']];
+const CAMPOS_LEITURA = [['introducao', 'Introdução', 'Abre o relatório: resume o período e o que foi feito. Três ou quatro frases.'], ['panorama', 'O que está acontecendo no setor', 'Duas ou três frases.'], ['ruim', 'O que está ruim', 'Um item por linha.'], ['melhorar', 'O que pode melhorar', 'Um item por linha.'], ['melhorou', 'O que já melhorou', 'Um item por linha.'], ['conclusao', 'Conclusão', 'Fecha o relatório: o que mudou e o que ainda pesa. Três ou quatro frases.']];
+const CAMPOS_LARGOS = ['introducao', 'panorama', 'conclusao'];   // ocupam a linha inteira na tela
+const passagemVazia = () => ({ inicio: '', fim: '', pessoas: [], leitura: null });
+// O que está na tela: o rascunho (se a pessoa está editando) ou o que está guardado no setor
+function passagemDe(s) {
+  UI.passagem = UI.passagem || {};
+  return UI.passagem[s.id] || Object.assign(passagemVazia(), JSON.parse(JSON.stringify(s.passagem || {})));
+}
+function rascunhoPassagem(s) { UI.passagem = UI.passagem || {}; if (!UI.passagem[s.id]) UI.passagem[s.id] = passagemDe(s); return UI.passagem[s.id]; }
+
+function abaRelatorio(s) {
+  const P = passagemDe(s), e = empresaPorId(s.empresaId), D = dadosPassagem(s, P);
+  const editando = !!(UI.passagem && UI.passagem[s.id]);
+  const trava = S.podeEditar ? '' : 'readonly';
+  // O que ainda falta (não impede de gerar, só avisa)
+  const falta = [];
+  if (!P.inicio || !P.fim) falta.push('o período da passagem (início e fim)');
+  if (!P.pessoas.some((p) => temTexto(p.nome))) falta.push('Pessoas e atividades');
+  if (!P.leitura) falta.push('os textos do relatório (introdução, leitura e conclusão)');
+  const resumo = `<div class="indicadores rel-ind">${[[D.kpi.identificados, 'gargalos identificados'], [D.kpi.resolvidos, 'resolvidos', 's-resolvido'], [D.kpi.andamento, 'em andamento'], [D.kpi.oportunidades, 'oportunidades'], [D.kpi.horas ? fmtHoras(D.kpi.horas) : '–', 'h/mês devolvidas', D.kpi.horas ? 's-resolvido' : '']].map(([n, t, c]) => `<div class="ind ${c || ''}"><b>${n}</b><span>${t}</span></div>`).join('')}</div>`;
+  const periodo = `<section class="painel"><div class="painel-corpo"><h2>Período da passagem</h2><p class="meta">Quem declara: você. Sai na capa do relatório.</p>
+    <div class="rel-periodo"><div class="campo"><label for="rel-inicio">Início</label><input type="date" id="rel-inicio" data-pass="inicio" data-id="${esc(s.id)}" value="${esc(P.inicio)}" ${trava}></div>
+    <div class="campo"><label for="rel-fim">Fim</label><input type="date" id="rel-fim" data-pass="fim" data-id="${esc(s.id)}" value="${esc(P.fim)}" ${trava}></div></div></div></section>`;
+  const pessoas = `<section class="painel"><div class="painel-corpo"><div class="rel-cab"><h2>Pessoas e atividades</h2><button class="btn peq so-editor" data-acao="relPessoa" data-id="${esc(s.id)}">${icone('mais')}Adicionar pessoa</button></div>
+    <p class="meta">Quem trabalha no setor, o que cada um faz, o que precisa melhorar e o que você propôs. Você escreve; nada aqui é preenchido sozinho.</p>
+    ${P.pessoas.length ? P.pessoas.map((p, i) => `<div class="rel-pessoa"><div class="rel-pessoa-cab"><span class="avatar">${esc(iniciais(p.nome) || String(i + 1))}</span><b>${esc(p.nome || 'Pessoa ' + (i + 1))}</b><button class="icone-btn so-editor" data-acao="relTirarPessoa" data-id="${esc(s.id)}" data-i="${i}" aria-label="Tirar ${esc(p.nome || 'pessoa')}" title="Tirar">${icone('lixo')}</button></div>
+      <div class="rel-campos">${CAMPOS_PESSOA.map(([k, rot]) => `<div class="campo ${['atividades', 'melhorar', 'proposta'].includes(k) ? 'largo' : ''}"><label for="rel-p${i}-${k}">${rot}</label>${k === 'nome' || k === 'funcao' ? `<input id="rel-p${i}-${k}" data-pass="pessoa.${i}.${k}" data-id="${esc(s.id)}" value="${esc(p[k] || '')}" ${trava}>` : `<textarea id="rel-p${i}-${k}" rows="${k === 'atividades' ? 4 : 2}" data-pass="pessoa.${i}.${k}" data-id="${esc(s.id)}" ${trava}>${esc(p[k] || '')}</textarea>`}</div>`).join('')}
+        <div class="campo"><label for="rel-p${i}-sit">Situação da melhoria</label><select id="rel-p${i}-sit" data-pass="pessoa.${i}.situacao" data-id="${esc(s.id)}" ${S.podeEditar ? '' : 'disabled'}><option value="">Sem melhoria proposta</option>${SITUACOES.map((x) => `<option ${p.situacao === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div></div></div>`).join('')
+      : '<p class="vazio-mini">Nenhuma pessoa ainda. Use “Adicionar pessoa”.</p>'}</div></section>`;
+  const L = P.leitura;
+  const leitura = `<section class="painel"><div class="painel-corpo"><div class="rel-cab"><h2>Textos do relatório</h2>${ia ? `<button class="btn peq acento so-editor" data-acao="relLeitura" data-id="${esc(s.id)}" ${UI.relLendo === s.id ? 'disabled' : ''}>${UI.relLendo === s.id ? '<span class="girando"></span>Lendo o setor…' : icone('ia') + (L ? 'Gerar de novo' : 'Gerar a leitura')}</button>` : ''}</div>
+    <p class="meta">Introdução, leitura do setor e conclusão, escritas a partir dos gargalos, oportunidades, anotações e check-up deste setor. Revise e ajuste antes de gerar o PDF.</p>
+    ${L ? `<div class="rel-leitura">${CAMPOS_LEITURA.map(([k, rot, ajuda]) => `<div class="campo ${CAMPOS_LARGOS.includes(k) ? 'largo' : ''}"><label for="rel-l-${k}">${rot} <span class="meta">${ajuda}</span></label><textarea id="rel-l-${k}" rows="${CAMPOS_LARGOS.includes(k) ? 4 : 4}" data-pass="leitura.${k}" data-id="${esc(s.id)}" ${trava}>${esc(L[k] || '')}</textarea></div>`).join('')}</div>`
+      : `<p class="vazio-mini">${ia ? 'Ainda não gerada. Aperte “Gerar a leitura”.' : 'A leitura usa a IA, que funciona com o painel aberto no Claude.'}</p>`}
+    ${UI.relErro && UI.relErro.id === s.id ? `<p class="erro-form">${esc(UI.relErro.texto)}</p>` : ''}</div></section>`;
+  const gerar = `<section class="painel rel-gerar"><div class="painel-corpo">
+    <div><h2>Relatório em PDF</h2>${falta.length ? `<p class="rel-falta">${icone('alerta')}Ainda falta: ${esc(falta.join(', '))}. Dá para gerar assim mesmo; o que faltar sai como “não preenchido”.</p>` : '<p class="meta">Tudo preenchido.</p>'}</div>
+    <div class="fb-botoes"><button class="btn so-editor" data-acao="relGuardar" data-id="${esc(s.id)}">${icone('ok')}Guardar</button><button class="btn primario" data-acao="relPDF" data-id="${esc(s.id)}" id="botao-rel-pdf" ${downloads ? '' : 'disabled'}>${icone('pdf')}Baixar relatório (PDF)</button></div>
+    <p class="meta rel-nao-guardado" ${editando ? '' : 'hidden'}>Há mudanças não guardadas. O PDF já sai com elas, e elas são guardadas ao gerar.</p></div></section>`;
+  const como = `<section class="painel como-funciona"><div class="painel-corpo"><h2>Como funciona</h2><dl>
+      <dt>O que faz</dt><dd>Monta o relatório de passagem por este setor, para entregar a quem pediu (o setor ou o RH), no fim do ciclo.</dd>
+      <dt>O que pôr</dt><dd>O período, as pessoas e o que cada uma faz. O resto sai do que já está no painel: gargalos, oportunidades, anotações e check-up.</dd>
+      <dt>De onde sai</dt><dd>Das abas deste setor. A leitura do setor é escrita pela IA com esses registros, e você revisa.</dd>
+      <dt>O que devolve</dt><dd>Um PDF com a logo da empresa e da Real Forte: números, gráficos, pessoas e atividades, a leitura, o que foi identificado, o que já foi aplicado (como era e como ficou) e as oportunidades.</dd>
+      <dt>Quem responde pela regra</dt><dd>Você: o período, o que vai em Pessoas e atividades e o texto final da leitura.</dd>
+      <dt>Quando der erro</dt><dd>Se a leitura não sair, tente de novo ou gere o PDF sem ela. Se o PDF não baixar, confira a internet e abra o painel no Claude. Sem logo da empresa, a capa sai com o nome dela.</dd>
+    </dl></div></section>`;
+  return `<div class="coluna-unica">${resumo}${periodo}${pessoas}${leitura}${gerar}${como}</div>`;
+}
+const iniciais = (nome) => String(nome || '').trim().split(/\s+/).slice(0, 2).map((p) => p[0] || '').join('').toUpperCase();
+
+// Digitar em qualquer campo do relatório só mexe no rascunho (a tela não perde o que foi escrito)
+document.addEventListener('input', (ev) => {
+  const c = ev.target.closest('[data-pass]'); if (!c) return;
+  const s = setorPorId(c.dataset.id); if (!s) return;
+  const R = rascunhoPassagem(s), [a, b, d] = c.dataset.pass.split('.');
+  if (a === 'inicio' || a === 'fim') R[a] = c.value;
+  else if (a === 'pessoa') { R.pessoas[Number(b)][d] = c.value; }
+  else if (a === 'leitura') { R.leitura = R.leitura || {}; R.leitura[b] = c.value; }
+  const aviso = document.querySelector('.rel-nao-guardado'); if (aviso) aviso.hidden = false;   /* acende o aviso sem redesenhar a tela (o cursor fica onde está) */
+});
+
+async function guardarPassagem(id, silencioso) {
+  const s = setorPorId(id); if (!s) return true;
+  if (!UI.passagem || !UI.passagem[id]) { if (!silencioso) toast('Nada novo para guardar.'); return true; }
+  const P = UI.passagem[id];
+  if (P.inicio && P.fim && P.fim < P.inicio) { toast('O fim do período está antes do início. Confira as datas.', 'erro'); return false; }
+  try {
+    await gravar('setores', s.id, Object.assign({}, s, { passagem: JSON.parse(JSON.stringify(P)) }));
+    delete UI.passagem[id]; if (!silencioso) toast('Relatório guardado.'); render(true); return true;
+  } catch (f) { toast(f.message, 'erro'); return false; }
+}
+
+/* ---------- Os números do setor (tudo do painel, nada estimado) ---------- */
+function dadosPassagem(s, P) {
+  const e = empresaPorId(s.empresaId) || {}, d = diagnosticoDe(s);
+  const garg = gargalosDo(s.id), ops = oportunidadesDo(s.id);
+  const sit = (g) => situacaoDe(g), horasDe = (g) => [numero(g.horasAntes), numero(g.horasDepois)];
+  const aplicados = garg.filter((g) => ['Resolvido', 'Em execução'].includes(sit(g)));
+  const periodo = P.inicio && P.fim ? `${dataBR(P.inicio)} a ${dataBR(P.fim)}` : P.inicio ? `desde ${dataBR(P.inicio)}` : '';
+  return {
+    empresa: e.nome || '', segmento: e.segmento || '', setor: s.nome || '', responsavel: s.responsavel || '', periodo, autor: nomeConsultor(),
+    data: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }), logo: logoDe(e),
+    nota: d.nota, saude: d.saude, eixos: Object.keys(EIXOS).map((k) => [EIXOS[k], d.eixos[k]]), respondidas: d.respondidas,
+    kpi: { identificados: garg.length, resolvidos: garg.filter((g) => sit(g) === 'Resolvido').length, andamento: emAndamento(garg), oportunidades: ops.length, horas: somaHoras(itensDo(s.id)) },
+    porSituacao: SITUACOES.map((x) => [x, garg.filter((g) => sit(g) === x).length]),
+    horas: itensDo(s.id).map((g) => [g.titulo || '', ...horasDe(g)]).filter((x) => x[1] != null && x[2] != null),
+    identificados: garg.filter((g) => !aplicados.includes(g)).map((g) => ({ titulo: g.titulo || '', vi: g.observacao || '', situacao: sit(g) })),
+    aplicados: aplicados.map((g) => ({ titulo: g.titulo || '', era: g.observacao || '', feito: String(g.proposta || '').trim(), situacao: sit(g), antes: horasDe(g)[0], depois: horasDe(g)[1] })),
+    oportunidades: ops.map((g) => ({ titulo: g.titulo || '', vi: g.observacao || '', situacao: sit(g) })),
+    pessoas: P.pessoas.filter((p) => CAMPOS_PESSOA.some(([k]) => temTexto(p[k]))),
+    leitura: P.leitura
+  };
+}
+
+/* ---------- Leitura do setor (IA) ---------- */
+function promptPassagem(s) {
+  const e = empresaPorId(s.empresaId) || {}, d = diagnosticoDe(s);
+  const item = (g) => ({ titulo: g.titulo, o_que_foi_visto: g.observacao || '', proposta: g.proposta || '', situacao: situacaoDe(g), horas_por_mes_antes: g.horasAntes || '', horas_por_mes_depois: g.horasDepois || '' });
+  const P = passagemDe(s), D = dadosPassagem(s, P);
+  const dados = {
+    empresa: e.nome, segmento: e.segmento || '', setor: s.nome, periodo: D.periodo || 'não informado',
+    numeros: { gargalos_identificados: D.kpi.identificados, resolvidos: D.kpi.resolvidos, em_andamento: D.kpi.andamento, oportunidades: D.kpi.oportunidades, horas_por_mes_devolvidas: D.kpi.horas || 0, nota_do_checkup_de_0_a_100: D.nota },
+    gargalos: gargalosDo(s.id).map(item), oportunidades: oportunidadesDo(s.id).map(item),
+    anotacoes: notasDo(s.id).map((n) => ({ data: n.data, texto: n.texto })).filter((n) => temTexto(n.texto)).slice(0, 40),
+    pontos_fracos_do_checkup: d.itens.filter((x) => x.r && x.r !== 'sim').map((x) => ({ pergunta: x.texto, resposta: x.r === 'nao' ? 'Não' : 'Em parte', o_que_foi_visto: x.ev || '' }))
+  };
+  return `Você escreve a "leitura do setor" de um relatório de passagem por um setor de empresa, feito por quem passou pelo setor mapeando processos.
+Use SÓ os dados abaixo (gargalos, oportunidades, anotações de campo e pontos fracos do check-up).
+
+Regras:
+- Nada inventado: nenhum número, nome, sistema, prazo ou fato que não esteja nos dados.
+- Fale de processos e do trabalho do setor. Não cite nomes de pessoas e não avalie pessoas.
+- Não escreva próximos passos, prazos nem recomendações de quem deve fazer o quê.
+- "introducao": 3 ou 4 frases que abrem o relatório. Diga o período (se houver), que foi feito o mapeamento dos processos do setor, o tema principal que apareceu e os números de "numeros" (gargalos, resolvidos, em andamento, horas devolvidas só se for maior que zero). Tom profissional, direto, sem exagero.
+- "panorama": 2 ou 3 frases sobre o que está acontecendo no setor.
+- "ruim": até 4 itens, o que está travando ou gerando erro (o que se repete primeiro).
+- "melhorar": até 4 itens, o que pode melhorar, tirado das propostas e oportunidades.
+- "melhorou": até 4 itens, só do que tem situação "Resolvido" ou "Em execução", dizendo como era e como ficou. Use as horas só se estiverem nos dados. Se não houver nada, lista vazia.
+- "conclusao": 3 ou 4 frases que fecham o relatório: o que mudou no setor com o que foi aplicado e o que ainda pesa. Sem lista de tarefas, sem prazos e sem dizer quem deve fazer o quê.
+- Cada item das listas: uma frase curta, até 20 palavras, direto ao ponto.
+- Português do Brasil, sem jargão e sem inglês.
+
+Responda só com um objeto JSON: {"introducao": "...", "panorama": "...", "ruim": ["..."], "melhorar": ["..."], "melhorou": ["..."], "conclusao": "..."}
+
+Dados:
+${JSON.stringify(dados)}`;
+}
+async function gerarLeituraPassagem(id) {
+  const s = setorPorId(id); if (!s || !ia || UI.relLendo) return;
+  if (!itensDo(s.id).length && !notasDo(s.id).length) { UI.relErro = { id, texto: 'Sem registros neste setor: escreva o que você viu ou cadastre os gargalos antes de gerar a leitura.' }; render(true); return; }
+  const atual = passagemDe(s).leitura;
+  if (atual && CAMPOS_LEITURA.some(([k]) => temTexto(atual[k])) && !confirm('Gerar de novo troca o texto da leitura que está aí (inclusive o que você ajustou). Continuar?')) return;
+  UI.relLendo = id; UI.relErro = null; render(true);
+  try {
+    const r = await ia.json(promptPassagem(s));
+    const lista = (v) => (Array.isArray(v) ? v : []).map((x) => String(x || '').trim()).filter(Boolean).slice(0, 4).join('\n');
+    if (!r || typeof r !== 'object' || !temTexto(r.panorama)) throw new Error('resposta vazia');
+    const texto = (v) => String(v || '').trim();
+    rascunhoPassagem(s).leitura = { introducao: texto(r.introducao), panorama: texto(r.panorama), ruim: lista(r.ruim), melhorar: lista(r.melhorar), melhorou: lista(r.melhorou), conclusao: texto(r.conclusao) };
+    UI.relLendo = '';
+    await guardarPassagem(id, true); toast('Leitura pronta. Revise o texto antes de gerar o PDF.');
+  } catch (x) {
+    UI.relErro = { id, texto: (x && x.code === 'cancelled') ? '' : 'A leitura não saiu. Tente de novo ou gere o PDF sem ela.' };
+  } finally { UI.relLendo = ''; render(true); }
+}
+
+/* ---------- Imagens para o PDF (logo da empresa e da Real Forte) ---------- */
+function imagemParaPDF(src) {
+  return new Promise((ok) => {
+    if (!src) return ok(null);
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const escala = Math.min(1, 900 / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.naturalWidth * escala)); c.height = Math.max(1, Math.round(img.naturalHeight * escala));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        const clara = typeof logoEhClara === 'function' ? logoEhClara(img) : false;   // logo branca vai em cartão escuro
+        ok({ data: c.toDataURL('image/png'), proporcao: c.width / c.height, fundo: clara === true ? [15, 35, 66] : clara === 'fundoEscuro' ? [11, 14, 19] : [255, 255, 255] });
+      } catch (_) { ok(null); }
+    };
+    img.onerror = () => ok(null);
+    img.src = src;
+  });
+}
+
+/* ---------- O PDF ---------- */
+function montarPDFPassagem(JsPDF, D, logos) {
+  const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+  const L = 210, A = 297, M = 16, U = L - 2 * M, BAIXO = A - 20, T = limparTextoPDF;
+  const COR = { navy: [15, 35, 66], navy2: [27, 53, 97], laranja: [217, 104, 26], laranja2: [255, 154, 82], tinta: [20, 30, 46], cinza: [96, 107, 125], claro: [176, 192, 216], linha: [226, 231, 238], fundo: [245, 247, 250], branco: [255, 255, 255],
+    ruim: [205, 66, 54], melhorar: [52, 113, 214], melhorou: [47, 158, 100] };
+  const cor = (c) => doc.setTextColor(...c), preencher = (c) => doc.setFillColor(...c), tracar = (c) => doc.setDrawColor(...c);
+  const fonte = (f, e, t) => { doc.setFont(f, e); doc.setFontSize(t); };
+  const linhas = (texto, larg) => doc.splitTextToSize(T(texto || ''), larg);
+  let y = 0, pagina = 1;
+  // Cabeçalho das páginas de dentro: setor à esquerda, logo da empresa à direita
+  const cabecalho = () => {
+    preencher(COR.navy); doc.rect(0, 0, L, 14, 'F'); preencher(COR.laranja); doc.rect(0, 14, L, 0.8, 'F');
+    fonte('helvetica', 'bold', 8); cor(COR.branco); doc.text(T(`${D.setor.toUpperCase()}  ·  ${D.empresa}`), M, 8.8, { charSpace: 0.4 });
+    if (logos.rf && logos.rf.claro) doc.addImage(logos.rf.claro.data, 'PNG', L - M - 6.5 * logos.rf.claro.proporcao, 3.8, 6.5 * logos.rf.claro.proporcao, 6.5);
+    y = 26;
+  };
+  const novaPagina = () => { doc.addPage(); pagina++; cabecalho(); };
+  const garantir = (h) => { if (y + h > BAIXO) novaPagina(); };
+  // Título nunca fica sozinho no pé da página: vai junto com pelo menos "junto" mm do que vem depois
+  const titulo = (txt, rotulo, junto) => {
+    garantir(22 + (junto == null ? 40 : junto)); y += 3;
+    if (rotulo) { fonte('helvetica', 'bold', 7.5); cor(COR.laranja); doc.text(T(rotulo).toUpperCase(), M, y, { charSpace: 0.8 }); y += 6; }
+    fonte('times', 'bold', 16); cor(COR.navy); doc.text(T(txt), M, y); y += 3; preencher(COR.laranja); doc.rect(M, y, 14, 0.9, 'F'); y += 7;
+  };
+  const chip = (txt, x, yy, c) => { fonte('helvetica', 'bold', 7); const w = doc.getTextWidth(T(txt)) + 5; preencher(c); doc.roundedRect(x, yy - 3.4, w, 4.8, 2.4, 2.4, 'F'); cor(COR.branco); doc.text(T(txt), x + 2.5, yy + 0.1); return w; };
+  // Fatia de pizza (polígono com pontos no arco), para a rosca das situações
+  const fatia = (cx, cy, r, a0, a1, c) => {
+    const pts = [[cx, cy]]; const n = Math.max(2, Math.ceil((a1 - a0) / 0.05));
+    for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+    preencher(c); doc.lines(pts.slice(1).map((p, i) => [p[0] - pts[i][0], p[1] - pts[i][1]]), cx, cy, [1, 1], 'F', true);
+  };
+  const arco = (cx, cy, r, a0, a1, c, esp) => { tracar(c); doc.setLineWidth(esp); doc.setLineCap('round'); const n = Math.max(2, Math.ceil((a1 - a0) / 0.04)); for (let i = 0; i < n; i++) doc.line(cx + r * Math.cos(a0 + (a1 - a0) * i / n), cy + r * Math.sin(a0 + (a1 - a0) * i / n), cx + r * Math.cos(a0 + (a1 - a0) * (i + 1) / n), cy + r * Math.sin(a0 + (a1 - a0) * (i + 1) / n)); doc.setLineCap('butt'); };
+
+  /* ===== Capa ===== */
+  preencher(COR.navy); doc.rect(0, 0, L, 92, 'F');
+  preencher(COR.navy2); doc.circle(L - 8, 6, 46, 'F'); preencher(COR.navy); doc.circle(L - 8, 6, 34, 'F');   // detalhe de fundo
+  preencher(COR.laranja); doc.rect(0, 92, L, 1.6, 'F');
+  // logo da empresa num cartão (branco, ou escuro se a logo for clara)
+  const ce = logos.empresa, cw = 46, ch = 26;
+  preencher(ce ? ce.fundo : COR.branco); doc.roundedRect(M, 14, cw, ch, 3, 3, 'F');
+  if (ce) { let w = cw - 8, h = w / ce.proporcao; if (h > ch - 7) { h = ch - 7; w = h * ce.proporcao; } doc.addImage(ce.data, 'PNG', M + (cw - w) / 2, 14 + (ch - h) / 2, w, h); }
+  else { fonte('helvetica', 'bold', 10); cor(COR.navy); const ls = linhas(D.empresa, cw - 8).slice(0, 2); ls.forEach((l, i) => doc.text(l, M + cw / 2, 14 + ch / 2 + (i - (ls.length - 1) / 2) * 4.6 + 1.2, { align: 'center' })); }
+  // logo da Real Forte, no alto à direita
+  if (logos.rf && logos.rf.claro) { const h = 11, w = h * logos.rf.claro.proporcao; doc.addImage(logos.rf.claro.data, 'PNG', L - M - w, 16, w, h); }
+  fonte('helvetica', 'normal', 7.5); cor(COR.claro); doc.text(T('REAL FORTE LAB'), L - M, 33, { align: 'right', charSpace: 0.8 });
+  fonte('helvetica', 'bold', 8); cor(COR.laranja2); doc.text(T('RELATÓRIO DE PASSAGEM PELO SETOR'), M, 54, { charSpace: 1 });
+  fonte('times', 'bold', 30); cor(COR.branco); doc.text(T(D.setor), M, 67);
+  fonte('helvetica', 'normal', 10.5); cor(COR.claro);
+  doc.text(T([D.empresa, D.periodo || 'período não preenchido'].filter(Boolean).join('  ·  ')), M, 76);
+  fonte('helvetica', 'normal', 8.5); doc.text(T([D.autor, D.data].filter(Boolean).join('  ·  ')), M, 83);
+
+  /* ===== Introdução (abre o relatório, logo abaixo da capa) ===== */
+  y = 103;
+  const Li = D.leitura || {};
+  if (temTexto(Li.introducao)) {
+    fonte('helvetica', 'bold', 7.5); cor(COR.laranja); doc.text('INTRODUÇÃO', M, y, { charSpace: 0.8 });
+    fonte('helvetica', 'normal', 10); const ls = linhas(Li.introducao, U); cor(COR.tinta);
+    ls.forEach((l, i) => doc.text(l, M, y + 6.5 + i * 5)); y += 6.5 + ls.length * 5 + 6;
+  }
+
+  /* ===== Números ===== */
+  const kpis = [[D.kpi.identificados, 'gargalos identificados', COR.navy], [D.kpi.resolvidos, 'resolvidos', SIT_COR['Resolvido']], [D.kpi.andamento, 'em andamento', SIT_COR['Em execução']], [D.kpi.oportunidades, 'oportunidades', COR.melhorar]];
+  if (D.kpi.horas) kpis.push([fmtHoras(D.kpi.horas), 'horas/mês devolvidas', COR.melhorou]);
+  const gap = 4, kw = (U - gap * (kpis.length - 1)) / kpis.length;
+  kpis.forEach(([n, rot, c], i) => {
+    const x = M + i * (kw + gap);
+    preencher(COR.fundo); doc.roundedRect(x, y, kw, 24, 2.5, 2.5, 'F'); preencher(c); doc.roundedRect(x, y, 1.6, 24, 0.8, 0.8, 'F');
+    fonte('times', 'bold', 22); cor(c); doc.text(T(String(n)), x + 6, y + 12.5);
+    fonte('helvetica', 'normal', 7.5); cor(COR.cinza); linhas(rot, kw - 9).forEach((l, k) => doc.text(l, x + 6, y + 18 + k * 3.3));
+  });
+  y += 32;
+
+  /* ===== Gráficos: situação dos gargalos (rosca) e check-up do setor ===== */
+  const temCheck = D.nota != null, temGarg = D.kpi.identificados > 0;
+  const alturaG = 60, meia = (U - 6) / 2;
+  if (temGarg || temCheck) {
+    garantir(alturaG + 4);
+    const caixa = (x, w, tit) => { tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(x, y, w, alturaG, 2.5, 2.5, 'FD'); fonte('helvetica', 'bold', 9); cor(COR.navy); doc.text(T(tit), x + 6, y + 8); };
+    let x = M;
+    const wG = temCheck ? meia : U;
+    if (temGarg) {
+      caixa(x, wG, 'Situação dos gargalos');
+      const cx = x + 26, cy = y + 35, r = 17; let a = -Math.PI / 2; const tot = D.kpi.identificados;
+      D.porSituacao.filter(([, n]) => n).forEach(([s, n]) => { const da = n / tot * Math.PI * 2; fatia(cx, cy, r, a, a + da, SIT_COR[s]); a += da; });
+      preencher(COR.branco); doc.circle(cx, cy, 10.5, 'F');
+      fonte('times', 'bold', 16); cor(COR.navy); doc.text(String(tot), cx, cy + 1.6, { align: 'center' }); fonte('helvetica', 'normal', 6.5); cor(COR.cinza); doc.text('gargalos', cx, cy + 5.4, { align: 'center' });
+      let ly = y + 19; D.porSituacao.forEach(([s, n]) => { preencher(SIT_COR[s]); doc.roundedRect(x + 50, ly - 2.6, 3.2, 3.2, 0.8, 0.8, 'F'); fonte('helvetica', 'normal', 8.5); cor(n ? COR.tinta : COR.claro); doc.text(T(s), x + 55.5, ly); fonte('helvetica', 'bold', 8.5); doc.text(String(n), x + wG - 7, ly, { align: 'right' }); ly += 7.2; });
+      x += wG + 6;
+    }
+    if (temCheck) {
+      const w = temGarg ? meia : U; caixa(x, w, 'Check-up do setor');
+      const cx = x + 22, cy = y + 35, r = 14;
+      arco(cx, cy, r, 0, Math.PI * 2, COR.linha, 3.2); arco(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * D.nota / 100, COR.laranja, 3.2);
+      fonte('times', 'bold', 17); cor(COR.navy); doc.text(String(D.nota), cx, cy + 2, { align: 'center' }); fonte('helvetica', 'normal', 6.5); cor(COR.cinza); doc.text('de 100', cx, cy + 6, { align: 'center' });
+      let ly = y + 19; const bx = x + 42, bw = w - 42 - 14;
+      D.eixos.forEach(([nome, v]) => { fonte('helvetica', 'normal', 7.5); cor(COR.tinta); doc.text(T(nome), bx, ly); preencher(COR.fundo); doc.roundedRect(bx, ly + 1.5, bw, 2.6, 1.3, 1.3, 'F'); if (v != null) { preencher(COR.navy2); doc.roundedRect(bx, ly + 1.5, Math.max(2.6, bw * v / 100), 2.6, 1.3, 1.3, 'F'); } fonte('helvetica', 'bold', 7.5); doc.text(v == null ? '-' : String(v), x + w - 7, ly + 4, { align: 'right' }); ly += 9.6; });
+    }
+    y += alturaG + 8;
+  }
+
+  /* ===== Antes e depois (horas por mês) ===== */
+  if (D.horas.length) {
+    const linhaH = 11, h = 16 + D.horas.length * linhaH;
+    garantir(h + 6);
+    tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(M, y, U, h, 2.5, 2.5, 'FD');
+    fonte('helvetica', 'bold', 9); cor(COR.navy); doc.text('Antes e depois · horas por mês', M + 6, y + 8);
+    const max = Math.max(...D.horas.map((x) => Math.max(x[1], x[2])), 1), bx = M + 70, bw = U - 70 - 30;
+    preencher([170, 180, 196]); doc.rect(L - M - 52, y + 5.5, 3, 3, 'F'); fonte('helvetica', 'normal', 7); cor(COR.cinza); doc.text('antes', L - M - 47.5, y + 8);
+    preencher(COR.melhorou); doc.rect(L - M - 34, y + 5.5, 3, 3, 'F'); doc.text('depois', L - M - 29.5, y + 8);
+    D.horas.forEach(([tit, a, d], i) => {
+      const yy = y + 15 + i * linhaH;
+      fonte('helvetica', 'normal', 8); cor(COR.tinta); doc.text(linhas(tit, 60)[0], M + 6, yy + 3.2);
+      preencher([170, 180, 196]); doc.roundedRect(bx, yy, Math.max(1.5, bw * a / max), 3.2, 1, 1, 'F');
+      preencher(COR.melhorou); doc.roundedRect(bx, yy + 4.2, Math.max(1.5, bw * d / max), 3.2, 1, 1, 'F');
+      fonte('helvetica', 'normal', 7); cor(COR.cinza); doc.text(`${fmtHoras(a)} h`, bx + bw * a / max + 2, yy + 2.8); cor(COR.melhorou); doc.text(`${fmtHoras(d)} h`, bx + bw * d / max + 2, yy + 7);
+      const ganho = a - d; if (ganho > 0) { fonte('helvetica', 'bold', 8); doc.text(T(`-${fmtHoras(ganho)} h`), L - M - 6, yy + 5, { align: 'right' }); }
+    });
+    y += h + 8;
+  }
+
+  /* A página 1 é o resumo (capa, números e gráficos); o conteúdo começa na página 2 */
+  novaPagina();
+
+  /* ===== Leitura do setor ===== */
+  const Le = D.leitura;
+  if (Le && CAMPOS_LEITURA.some(([k]) => temTexto(Le[k]))) {
+    titulo('Leitura do setor', 'O que está acontecendo');
+    if (temTexto(Le.panorama)) {
+      fonte('helvetica', 'normal', 10); const ls = linhas(Le.panorama, U - 14); const h = ls.length * 5 + 10;
+      garantir(h + 4); preencher(COR.fundo); doc.roundedRect(M, y, U, h, 2.5, 2.5, 'F'); preencher(COR.laranja); doc.rect(M, y, 1.4, h, 'F');
+      fonte('helvetica', 'normal', 10); cor(COR.tinta); ls.forEach((l, i) => doc.text(l, M + 7, y + 7.5 + i * 5)); y += h + 6;
+    }
+    const grupos = [['ruim', 'O que está ruim', COR.ruim], ['melhorar', 'O que pode melhorar', COR.melhorar], ['melhorou', 'O que já melhorou', COR.melhorou]]
+      .map(([k, rot, c]) => [rot, c, String(Le[k] || '').split('\n').map((x) => x.replace(/^[-•*\s]+/, '').trim()).filter(Boolean)]).filter((g) => g[2].length);
+    if (grupos.length) {
+      const gw = (U - 5 * (grupos.length - 1)) / grupos.length;
+      fonte('helvetica', 'normal', 8.6);
+      const conteudo = grupos.map(([, , itens]) => itens.map((t) => linhas(t, gw - 12)));
+      const h = Math.max(...conteudo.map((itens) => itens.reduce((t, ls) => t + ls.length * 4.2 + 2.4, 0))) + 15;
+      garantir(h + 4);
+      grupos.forEach(([rot, c], i) => {
+        const x = M + i * (gw + 5);
+        preencher(COR.branco); tracar(COR.linha); doc.setLineWidth(0.3); doc.roundedRect(x, y, gw, h, 2.5, 2.5, 'FD'); preencher(c); doc.roundedRect(x, y, gw, 2, 1, 1, 'F');
+        fonte('helvetica', 'bold', 8.5); cor(c); doc.text(T(rot), x + 5, y + 9);
+        let yy = y + 15; fonte('helvetica', 'normal', 8.6); cor(COR.tinta);
+        conteudo[i].forEach((ls) => { preencher(c); doc.circle(x + 6, yy - 1.1, 0.8, 'F'); ls.forEach((l, k) => doc.text(l, x + 9, yy + k * 4.2)); yy += ls.length * 4.2 + 2.4; });
+      });
+      y += h + 8;
+    }
+  }
+
+  /* ===== Pessoas e atividades ===== */
+  titulo('Pessoas e atividades', 'Quem faz o quê', D.pessoas.length ? 40 : 10);
+  if (!D.pessoas.length) { fonte('helvetica', 'italic', 9.5); cor(COR.cinza); doc.text('Não preenchido.', M, y); y += 8; }
+  D.pessoas.forEach((p) => {
+    fonte('helvetica', 'normal', 8.6);
+    const col = (U - 18) / 2;
+    const ativ = linhas(p.atividades || 'Não preenchido.', col), melh = linhas(p.melhorar || 'Não preenchido.', col);
+    const prop = temTexto(p.proposta) ? linhas(p.proposta, U - 14) : [];
+    const antes = linhas(p.antes || '', (U - 30) / 2), depois = linhas(p.depois || '', (U - 30) / 2);
+    const temAD = temTexto(p.antes) || temTexto(p.depois);
+    const hCols = Math.max(ativ.length, melh.length) * 4.2 + 9;
+    const h = 16 + hCols + (prop.length ? prop.length * 4.2 + 11 : 0) + (temAD ? Math.max(antes.length, depois.length, 1) * 4.2 + 9 : 0) + 1;
+    garantir(h + 5);
+    tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(M, y, U, h, 3, 3, 'FD');
+    // nome com a bolinha das iniciais
+    preencher(COR.navy); doc.circle(M + 9, y + 8.5, 4.6, 'F'); fonte('helvetica', 'bold', 8); cor(COR.branco); doc.text(T(iniciais(p.nome) || '?'), M + 9, y + 9.7, { align: 'center' });
+    fonte('helvetica', 'bold', 11); cor(COR.navy); doc.text(T(p.nome || 'Sem nome'), M + 16, y + 8);
+    if (temTexto(p.funcao)) { fonte('helvetica', 'normal', 8); cor(COR.cinza); doc.text(T(p.funcao), M + 16, y + 12); }
+    if (p.situacao) chip(p.situacao, L - M - 6 - (doc.getTextWidth(T(p.situacao)) + 5), y + 8.5, SIT_COR[p.situacao] || COR.cinza);
+    let yy = y + 19;
+    [[ativ, 'O QUE FAZ', M + 6, COR.navy2], [melh, 'O QUE PRECISA MELHORAR', M + 12 + col, COR.ruim]].forEach(([ls, rot, x, c]) => {
+      fonte('helvetica', 'bold', 7); cor(c); doc.text(T(rot), x, yy, { charSpace: 0.4 }); fonte('helvetica', 'normal', 8.6); cor(COR.tinta); ls.forEach((l, k) => doc.text(l, x, yy + 5 + k * 4.2));
+    });
+    yy += hCols;
+    if (prop.length) {
+      preencher([238, 244, 253]); doc.roundedRect(M + 4, yy - 3, U - 8, prop.length * 4.2 + 8, 2, 2, 'F');
+      fonte('helvetica', 'bold', 7); cor(COR.melhorar); doc.text('MELHORIA QUE PROPUS', M + 7, yy + 1.5, { charSpace: 0.4 });
+      fonte('helvetica', 'normal', 8.6); cor(COR.tinta); prop.forEach((l, k) => doc.text(l, M + 7, yy + 6 + k * 4.2)); yy += prop.length * 4.2 + 11;
+    }
+    if (temAD) {
+      const bw2 = (U - 30) / 2, hAD = Math.max(antes.length, depois.length, 1) * 4.2 + 9;
+      [[antes, 'COMO ERA', M + 4, [248, 236, 234], COR.ruim], [depois, 'COMO FICOU', M + 4 + bw2 + 14, [232, 245, 238], COR.melhorou]].forEach(([ls, rot, x, fundo, c]) => {
+        preencher(fundo); doc.roundedRect(x, yy - 3, bw2 + 6, hAD, 2, 2, 'F'); fonte('helvetica', 'bold', 7); cor(c); doc.text(T(rot), x + 3, yy + 1.5, { charSpace: 0.4 });
+        fonte('helvetica', 'normal', 8.6); cor(COR.tinta); (ls.length ? ls : ['-']).forEach((l, k) => doc.text(l, x + 3, yy + 6 + k * 4.2));
+      });
+      // seta entre "como era" e "como ficou"
+      const ax = M + 4 + bw2 + 7.5, ay = yy - 3 + hAD / 2; preencher(COR.laranja); doc.triangle(ax, ay - 2.4, ax + 3.4, ay, ax, ay + 2.4, 'F');
+    }
+    y += h + 5;
+  });
+
+  /* ===== O que eu já apliquei ===== */
+  titulo('O que eu já apliquei', 'Como era e como ficou', D.aplicados.length ? 40 : 10);
+  if (!D.aplicados.length) { fonte('helvetica', 'italic', 9.5); cor(COR.cinza); doc.text(T('Nenhum gargalo resolvido ou em execução ainda.'), M, y); y += 8; }
+  D.aplicados.forEach((g) => {
+    fonte('helvetica', 'normal', 8.6);
+    const bw2 = (U - 26) / 2, era = linhas(g.era || '-', bw2), feito = linhas(g.feito || '-', bw2);
+    const temH = g.antes != null && g.depois != null;
+    const h = 15 + Math.max(era.length, feito.length) * 4.2 + 9 + (temH ? 7 : 0);
+    garantir(h + 5);
+    tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(M, y, U, h, 3, 3, 'FD'); preencher(SIT_COR[g.situacao]); doc.roundedRect(M, y, 1.6, h, 0.8, 0.8, 'F');
+    fonte('helvetica', 'bold', 10.5); cor(COR.navy); doc.text(linhas(g.titulo, U - 50)[0], M + 6, y + 8);
+    chip(g.situacao, L - M - 6 - (doc.getTextWidth(T(g.situacao)) + 5), y + 8, SIT_COR[g.situacao]);
+    let yy = y + 15;
+    [[era, 'COMO ERA', M + 6, COR.ruim], [feito, 'O QUE FOI FEITO', M + 20 + bw2, COR.melhorou]].forEach(([ls, rot, x, c]) => { fonte('helvetica', 'bold', 7); cor(c); doc.text(T(rot), x, yy, { charSpace: 0.4 }); fonte('helvetica', 'normal', 8.6); cor(COR.tinta); ls.forEach((l, k) => doc.text(l, x, yy + 5 + k * 4.2)); });
+    preencher(COR.laranja); const ax = M + 6 + bw2 + 5, ay = yy + 6; doc.triangle(ax, ay - 2.2, ax + 3.2, ay, ax, ay + 2.2, 'F');
+    if (temH) { const ganho = g.antes - g.depois; fonte('helvetica', 'bold', 8); cor(COR.melhorou); doc.text(T(`${fmtHoras(g.antes)} h/mês  >  ${fmtHoras(g.depois)} h/mês${ganho > 0 ? `   (${fmtHoras(ganho)} h a menos por mês)` : ''}`), M + 6, y + h - 4.5); }
+    y += h + 5;
+  });
+
+  /* ===== O que eu identifiquei e oportunidades (tabelas) ===== */
+  const tabela = (tit, rotulo, itens, vazio) => {
+    titulo(tit, rotulo, itens.length ? 30 : 10);
+    if (!itens.length) { fonte('helvetica', 'italic', 9.5); cor(COR.cinza); doc.text(T(vazio), M, y); y += 8; return; }
+    doc.autoTable({ startY: y, margin: { left: M, right: M, top: 24, bottom: 22 }, theme: 'plain',
+      head: [['Item', 'O que eu vi', 'Situação']], body: itens.map((g) => [T(g.titulo), T(g.vi || '-'), T(g.situacao)]),
+      styles: { font: 'helvetica', fontSize: 8.6, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }, textColor: COR.tinta, lineColor: COR.linha, lineWidth: { bottom: 0.25 }, valign: 'middle' },
+      headStyles: { fillColor: COR.navy, textColor: COR.branco, fontStyle: 'bold', fontSize: 8 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 52 }, 2: { cellWidth: 30, fontStyle: 'bold' } },
+      alternateRowStyles: { fillColor: COR.fundo },
+      didParseCell: (h) => { if (h.section === 'body' && h.column.index === 2) h.cell.styles.textColor = SIT_COR[itens[h.row.index].situacao] || COR.cinza; },
+      didDrawPage: () => { if (doc.internal.getCurrentPageInfo().pageNumber > pagina) { pagina = doc.internal.getCurrentPageInfo().pageNumber; cabecalho(); } } });
+    y = doc.lastAutoTable.finalY + 8;
+  };
+  tabela('O que eu identifiquei', 'Gargalos que continuam', D.identificados, 'Nenhum gargalo em aberto.');
+  tabela('Oportunidades', 'O que pode ganhar', D.oportunidades, 'Nenhuma oportunidade registrada.');
+
+  /* ===== Conclusão: página de fechamento (bloco azul-marinho, assinatura e as duas logos) ===== */
+  if (temTexto(Li.conclusao)) {
+    novaPagina(); y = 44;
+    fonte('helvetica', 'bold', 7.5); cor(COR.laranja); doc.text(T('FECHAMENTO DO CICLO'), M, y, { charSpace: 0.8 }); y += 8;
+    fonte('times', 'bold', 22); cor(COR.navy); doc.text('Conclusão', M, y); y += 4; preencher(COR.laranja); doc.rect(M, y, 16, 1, 'F'); y += 10;
+    fonte('helvetica', 'normal', 11.5); const ls = linhas(Li.conclusao, U - 32); const h = ls.length * 6.2 + 22;
+    preencher(COR.navy); doc.roundedRect(M, y, U, h, 4, 4, 'F'); preencher(COR.laranja); doc.roundedRect(M, y, 2.2, h, 1.1, 1.1, 'F');
+    fonte('times', 'bold', 40); cor(COR.laranja2); doc.text('\u201c', M + 8, y + 17);   /* aspas grandes */
+    fonte('helvetica', 'normal', 11.5); cor(COR.branco); ls.forEach((l, i) => doc.text(l, M + 20, y + 14 + i * 6.2));
+    y += h + 16;
+    // números do ciclo, em linha, para fechar
+    const fim = [[D.kpi.identificados, 'gargalos identificados'], [D.kpi.resolvidos, 'resolvidos'], [D.kpi.andamento, 'em andamento']].concat(D.kpi.horas ? [[fmtHoras(D.kpi.horas), 'h/mês devolvidas']] : []);
+    const fw = U / fim.length;
+    fim.forEach(([n, rot], i) => { const x = M + i * fw + fw / 2; fonte('times', 'bold', 20); cor(i === fim.length - 1 && D.kpi.horas ? COR.melhorou : COR.navy); doc.text(T(String(n)), x, y, { align: 'center' }); fonte('helvetica', 'normal', 7.5); cor(COR.cinza); doc.text(T(rot), x, y + 5.5, { align: 'center' }); if (i) { tracar(COR.linha); doc.setLineWidth(0.3); doc.line(M + i * fw, y - 8, M + i * fw, y + 7); } });
+    y += 26;
+    // assinatura e as duas logos lado a lado
+    tracar(COR.linha); doc.setLineWidth(0.3); doc.line(M, y, M + 70, y);
+    fonte('helvetica', 'bold', 10); cor(COR.navy); doc.text(T(D.autor || ''), M, y + 6);
+    fonte('helvetica', 'normal', 8.5); cor(COR.cinza); doc.text(T([`Setor ${D.setor}`, D.periodo].filter(Boolean).join('  ·  ')), M, y + 11); doc.text(T(D.data), M, y + 15.5);
+    const lh = 14; let lx = L - M;
+    if (logos.rf && logos.rf.escuro) { const w = lh * logos.rf.escuro.proporcao; lx -= w; doc.addImage(logos.rf.escuro.data, 'PNG', lx, y - 2, w, lh); lx -= 8; tracar(COR.linha); doc.line(lx + 4, y - 2, lx + 4, y + lh - 2); }
+    if (logos.empresa) { const ce2 = logos.empresa; let w = lh * ce2.proporcao, hh = lh; if (w > 46) { w = 46; hh = w / ce2.proporcao; } lx -= w; if (ce2.fundo[0] < 200) { preencher(ce2.fundo); doc.roundedRect(lx - 2, y - 4, w + 4, hh + 4, 2, 2, 'F'); } doc.addImage(ce2.data, 'PNG', lx, y - 2, w, hh); }
+  }
+
+  // Rodapé de todas as páginas: logo da Real Forte, nome do relatório e página
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) {
+    doc.setPage(i); tracar(COR.linha); doc.setLineWidth(0.3); doc.line(M, A - 14, L - M, A - 14);
+    if (logos.rf && logos.rf.escuro) doc.addImage(logos.rf.escuro.data, 'PNG', M, A - 11.5, 5.2 * logos.rf.escuro.proporcao, 5.2);
+    fonte('helvetica', 'normal', 7); cor(COR.cinza); doc.text(T(`Relatório de passagem · ${D.setor} · ${D.empresa}`), L / 2, A - 7.8, { align: 'center' });
+    doc.text(`${i} / ${n}`, L - M, A - 7.8, { align: 'right' });
+  }
+  return doc;
+}
+async function gerarPDFPassagem(id) {
+  const s = setorPorId(id); if (!s) return;
+  if (!downloads) { toast('Baixar o PDF funciona com o painel aberto no Claude.', 'erro'); return; }
+  const Construtor = window.jspdf && window.jspdf.jsPDF;
+  if (!Construtor || !Construtor.API || typeof Construtor.API.autoTable !== 'function') { toast('O gerador de PDF não carregou. Confira a internet e recarregue a página.', 'erro'); return; }
+  const P = passagemDe(s);
+  if (P.inicio && P.fim && P.fim < P.inicio) { toast('O fim do período está antes do início. Confira as datas.', 'erro'); return; }
+  const botao = $('#botao-rel-pdf'); if (botao) { botao.disabled = true; botao.innerHTML = '<span class="girando"></span>Gerando…'; }
+  try {
+    const D = dadosPassagem(s, P);
+    const [empresa, claro, escuro] = await Promise.all([imagemParaPDF(D.logo), imagemParaPDF(LOGO.claro), imagemParaPDF(LOGO.escuro)]);
+    const arquivo = montarPDFPassagem(Construtor, D, { empresa, rf: { claro, escuro } }).output('blob');
+    if (UI.passagem && UI.passagem[id]) await guardarPassagem(id, true);   // o que estava na tela fica guardado
+    const r = await downloads.save({ filename: `Relatorio de passagem - ${nomeArquivo(D.setor)} - ${nomeArquivo(D.empresa)} - ${hojeISO()}.pdf`, data: arquivo });
+    if (r && r.status === 'saved') toast('Relatório salvo. É só mandar.');
+  } catch (x) {
+    const k = x && x.code;
+    toast(k === 'declined' ? 'Download cancelado.' : k === 'rate_limited' ? 'Já tem um download esperando confirmação.' : 'Não deu para gerar o PDF agora. Tente de novo.', k === 'declined' ? '' : 'erro');
+  } finally { const b = $('#botao-rel-pdf'); if (b) { b.disabled = !downloads; b.innerHTML = icone('pdf') + 'Baixar relatório (PDF)'; } }
+}
+
 /* ---------- 15. PDF e cópia de segurança ---------- */
 function dadosRelatorio(e) {
   const setores = setoresDa(e.id);
@@ -3304,7 +3765,13 @@ const ACOES = {
   feedbackPDF: () => gerarPDFFeedback(),
   feedbackConvite: () => copiarTexto(conviteFeedback(configFeedback()), 'Convite copiado. É só colar no WhatsApp.'),
   feedbackLink: () => copiarTexto(linkFeedback(configFeedback()), 'Link copiado.'),
-  feedbackApagarGuardadas: () => apagarFeedbackGuardado()
+  feedbackApagarGuardadas: () => apagarFeedbackGuardado(),
+  // Relatório da passagem pelo setor
+  relPessoa: (id) => { const s = setorPorId(id); if (!s) return; rascunhoPassagem(s).pessoas.push({ nome: '', funcao: '', atividades: '', melhorar: '', proposta: '', antes: '', depois: '', situacao: '' }); render(true); const n = rascunhoPassagem(s).pessoas.length - 1; setTimeout(() => { const c = $(`#rel-p${n}-nome`); if (c) c.focus(); }, 30); },
+  relTirarPessoa: (id, alvo) => { const s = setorPorId(id); if (!s) return; const R = rascunhoPassagem(s), i = Number(alvo.dataset.i), p = R.pessoas[i]; if (p && CAMPOS_PESSOA.some(([k]) => temTexto(p[k])) && !confirm(`Tirar ${p.nome || 'esta pessoa'} do relatório?`)) return; R.pessoas.splice(i, 1); render(true); },
+  relGuardar: (id) => guardarPassagem(id),
+  relLeitura: (id) => gerarLeituraPassagem(id),
+  relPDF: (id) => gerarPDFPassagem(id)
 };
 
 /* ---------- 17. Cliques e teclado ---------- */
