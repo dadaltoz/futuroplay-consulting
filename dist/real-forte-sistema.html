@@ -13256,10 +13256,17 @@ const passagemVazia = () => ({ inicio: '', fim: '', pessoas: [], leitura: null }
    Some a expressão e o que ficou solto em volta dela (parênteses, vírgula, "no", "durante o"). */
 function semPeriodoVazio(texto) {
   if (!texto) return texto;
-  return String(texto)
-    .replace(/\s*\(\s*per[ií]odo:?\s*n[ãa]o\s+(informado|preenchido|definido)\s*\)/gi, '')
-    .replace(/\s*(no|durante o|ao longo do|em um|num)?\s*per[ií]odo:?\s*n[ãa]o\s+(informado|preenchido|definido)/gi, ' ')
-    .replace(/(^|[.!?]\s*)\s*,\s*/g, '$1')            /* vírgula que sobrou no começo da frase */
+  // listas (um item por linha) são limpas linha por linha, sem juntar as linhas
+  if (String(texto).includes('\n')) return String(texto).split('\n').map(semPeriodoVazio).filter((l, i, todas) => l || !todas[i - 1]).join('\n');
+  // "não informado", "não foi informado", "não está definido", "não foi especificado"...
+  const NAO = 'n[ãa]o\\s+(?:foi\\s+|est[áa]\\s+|é\\s+|ficou\\s+)?(?:informad|preenchid|definid|especificad|indicad|registrad)[oa]s?';
+  const frase = new RegExp('per[ií]odo[^.!?]*' + NAO + '|' + NAO + '[^.!?]*per[ií]odo|sem\\s+(?:o\\s+)?per[ií]odo', 'i');
+  // 1) frase inteira que só existe para dizer que o período falta: sai
+  let t = String(texto).split(/(?<=[.!?])\s+/).filter((f) => !(frase.test(f) && f.replace(new RegExp(frase.source, 'gi'), '').replace(/[\s,.;:()]|\b(o|a|no|na|do|da|de|em|durante|ao longo|e|informad[oa]s?|definid[oa]s?|preenchid[oa]s?)\b/gi, '').length < 4)).join(' ');
+  // 2) pedaço solto dentro de uma frase que fala de outra coisa: sai só o pedaço
+  t = t.replace(new RegExp('\\s*\\(\\s*per[ií]odo:?\\s*' + NAO + '\\s*\\)', 'gi'), '')
+    .replace(new RegExp('\\s*(?:no|durante o|ao longo do|em um|num)?\\s*per[ií]odo:?\\s*' + NAO, 'gi'), ' ');
+  return t.replace(/(^|[.!?]\s*)\s*,\s*/g, '$1')            /* vírgula que sobrou no começo da frase */
     .replace(/\s+([,.;])/g, '$1').replace(/,{2,}/g, ',').replace(/ {2,}/g, ' ').trim()
     .replace(/(^|[.!?]\s+)([a-zà-ú])/g, (m, a, c) => a + c.toUpperCase());   /* frase volta a começar com maiúscula */
 }
