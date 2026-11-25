@@ -2586,6 +2586,13 @@ function montarPDFPassagem(JsPDF, D, logos) {
   const cor = (c) => doc.setTextColor(...c), preencher = (c) => doc.setFillColor(...c), tracar = (c) => doc.setDrawColor(...c);
   const fonte = (f, e, t) => { doc.setFont(f, e); doc.setFontSize(t); };
   const linhas = (texto, larg) => doc.splitTextToSize(T(texto || ''), larg);
+  /* Texto que tem de caber num espaço: diminui a letra (até "minimo") para caber em "maxLinhas".
+     Se nem assim couber, quebra em mais linhas. Nunca corta: texto pela metade não sai no relatório. */
+  const caber = (texto, larg, tam, minimo, maxLinhas, estilo, familia) => {
+    let t = tam, ls;
+    for (;;) { fonte(familia || 'helvetica', estilo || 'normal', t); ls = linhas(texto, larg); if (ls.length <= maxLinhas || t <= minimo) break; t = Math.max(minimo, t - 0.5); }
+    return { ls, tam: t };
+  };
   let y = 0, pagina = 1;
   // Cabeçalho das páginas de dentro: setor à esquerda, logo da empresa à direita
   const cabecalho = () => {
@@ -2619,12 +2626,12 @@ function montarPDFPassagem(JsPDF, D, logos) {
   const ce = logos.empresa, cw = 46, ch = 26;
   preencher(ce ? ce.fundo : COR.branco); doc.roundedRect(M, 14, cw, ch, 3, 3, 'F');
   if (ce) { let w = cw - 8, h = w / ce.proporcao; if (h > ch - 7) { h = ch - 7; w = h * ce.proporcao; } doc.addImage(ce.data, 'PNG', M + (cw - w) / 2, 14 + (ch - h) / 2, w, h); }
-  else { fonte('helvetica', 'bold', 10); cor(COR.navy); const ls = linhas(D.empresa, cw - 8).slice(0, 2); ls.forEach((l, i) => doc.text(l, M + cw / 2, 14 + ch / 2 + (i - (ls.length - 1) / 2) * 4.6 + 1.2, { align: 'center' })); }
+  else { const c = caber(D.empresa, cw - 8, 10, 6.5, 3, 'bold'); cor(COR.navy); const lh = c.tam * 0.45; c.ls.forEach((l, i) => doc.text(l, M + cw / 2, 14 + ch / 2 + (i - (c.ls.length - 1) / 2) * lh + 1.2, { align: 'center' })); }
   // logo da Real Forte, no alto à direita
   if (logos.rf && logos.rf.claro) { const h = 11, w = h * logos.rf.claro.proporcao; doc.addImage(logos.rf.claro.data, 'PNG', L - M - w, 16, w, h); }
   fonte('helvetica', 'normal', 7.5); cor(COR.claro); doc.text(T('REAL FORTE LAB'), L - M, 33, { align: 'right', charSpace: 0.8 });
   fonte('helvetica', 'bold', 8); cor(COR.laranja2); doc.text(T('RELATÓRIO DE PASSAGEM PELO SETOR'), M, 54, { charSpace: 1 });
-  fonte('times', 'bold', 30); cor(COR.branco); doc.text(T(D.setor), M, 67);
+  { const c = caber(D.setor, U, 30, 16, 1, 'bold', 'times'); cor(COR.branco); doc.text(c.ls.length > 1 ? c.ls.join(' ') : c.ls[0], M, 67, { maxWidth: U }); }   /* setor de nome longo: letra menor, sem sair da página */
   fonte('helvetica', 'normal', 10.5); cor(COR.claro);
   doc.text(T([D.empresa, D.periodo].filter(Boolean).join('  ·  ')), M, 76);   /* sem período, a capa mostra só a empresa */
   fonte('helvetica', 'normal', 8.5); doc.text(T([D.autor, D.data].filter(Boolean).join('  ·  ')), M, 83);
@@ -2680,16 +2687,19 @@ function montarPDFPassagem(JsPDF, D, logos) {
 
   /* ===== Antes e depois (horas por mês) ===== */
   if (D.horas.length) {
-    const linhaH = 11, h = 16 + D.horas.length * linhaH;
+    const titulos = D.horas.map(([tit]) => caber(tit, 60, 8, 7, 2));   /* nome inteiro do gargalo, em até 2 linhas (ou mais, se precisar) */
+    const alturas = titulos.map((c) => Math.max(11, c.ls.length * c.tam * 0.42 + 4.5));
+    const h = 16 + alturas.reduce((a, b) => a + b, 0);
     garantir(h + 6);
     tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(M, y, U, h, 2.5, 2.5, 'FD');
     fonte('helvetica', 'bold', 9); cor(COR.navy); doc.text('Antes e depois · horas por mês', M + 6, y + 8);
     const max = Math.max(...D.horas.map((x) => Math.max(x[1], x[2])), 1), bx = M + 70, bw = U - 70 - 30;
     preencher([170, 180, 196]); doc.rect(L - M - 52, y + 5.5, 3, 3, 'F'); fonte('helvetica', 'normal', 7); cor(COR.cinza); doc.text('antes', L - M - 47.5, y + 8);
     preencher(COR.melhorou); doc.rect(L - M - 34, y + 5.5, 3, 3, 'F'); doc.text('depois', L - M - 29.5, y + 8);
+    let yLinha = y + 15;
     D.horas.forEach(([tit, a, d], i) => {
-      const yy = y + 15 + i * linhaH;
-      fonte('helvetica', 'normal', 8); cor(COR.tinta); doc.text(linhas(tit, 60)[0], M + 6, yy + 3.2);
+      const yy = yLinha + (alturas[i] - 11) / 2; yLinha += alturas[i];
+      const c = titulos[i]; fonte('helvetica', 'normal', c.tam); cor(COR.tinta); c.ls.forEach((l, k) => doc.text(l, M + 6, yy + 3.6 - (c.ls.length - 1) * c.tam * 0.21 + k * c.tam * 0.42));
       preencher([170, 180, 196]); doc.roundedRect(bx, yy, Math.max(1.5, bw * a / max), 3.2, 1, 1, 'F');
       preencher(COR.melhorou); doc.roundedRect(bx, yy + 4.2, Math.max(1.5, bw * d / max), 3.2, 1, 1, 'F');
       fonte('helvetica', 'normal', 7); cor(COR.cinza); doc.text(`${fmtHoras(a)} h`, bx + bw * a / max + 2, yy + 2.8); cor(COR.melhorou); doc.text(`${fmtHoras(d)} h`, bx + bw * d / max + 2, yy + 7);
@@ -2698,8 +2708,9 @@ function montarPDFPassagem(JsPDF, D, logos) {
     y += h + 8;
   }
 
-  /* A página 1 é o resumo (capa, números e gráficos); o conteúdo começa na página 2 */
-  novaPagina();
+  /* A página 1 é o resumo (capa, números e gráficos); o conteúdo começa na página 2.
+     Se o resumo já passou para a página 2 (introdução longa), segue nela, sem deixar página quase vazia. */
+  if (pagina === 1) novaPagina();
 
   /* ===== Leitura do setor ===== */
   const Le = D.leitura;
@@ -2732,29 +2743,38 @@ function montarPDFPassagem(JsPDF, D, logos) {
   /* ===== Equipe do setor: só a apresentação (nome e função), três por linha ===== */
   titulo('Equipe do setor', 'Quem está no setor', D.pessoas.length ? 24 : 10);
   if (!D.pessoas.length) { fonte('helvetica', 'italic', 9.5); cor(COR.cinza); doc.text('Não preenchido.', M, y); y += 8; }
-  const porLinha = 3, cw2 = (U - 5 * (porLinha - 1)) / porLinha, chp = 18;
-  D.pessoas.forEach((p, i) => {
-    const col = i % porLinha; if (col === 0) { if (i) y += chp + 5; garantir(chp + 4); }
-    const x = M + col * (cw2 + 5);
-    tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(x, y, cw2, chp, 3, 3, 'FD');
-    preencher(COR.navy); doc.circle(x + 10, y + chp / 2, 5.2, 'F'); fonte('helvetica', 'bold', 8.5); cor(COR.branco); doc.text(T(iniciais(p.nome) || '?'), x + 10, y + chp / 2 + 1.3, { align: 'center' });
-    fonte('helvetica', 'bold', 10); cor(COR.navy); doc.text(linhas(p.nome || 'Sem nome', cw2 - 22)[0], x + 18, y + (temTexto(p.funcao) ? 8 : 10.2));
-    if (temTexto(p.funcao)) { fonte('helvetica', 'normal', 8); cor(COR.cinza); doc.text(linhas(p.funcao, cw2 - 22)[0], x + 18, y + 12.6); }
-  });
-  if (D.pessoas.length) y += chp + 9;
+  const porLinha = 3, cw2 = (U - 5 * (porLinha - 1)) / porLinha;
+  for (let i0 = 0; i0 < D.pessoas.length; i0 += porLinha) {
+    // mede a linha de cartões antes de desenhar: o cartão cresce se o nome ou a função precisar de 2 linhas
+    const linha = D.pessoas.slice(i0, i0 + porLinha).map((p) => ({ p, nome: caber(p.nome || 'Sem nome', cw2 - 22, 10, 8, 2, 'bold'), funcao: temTexto(p.funcao) ? caber(p.funcao, cw2 - 22, 8, 7, 2) : null }));
+    const altura = (c) => c.nome.ls.length * c.nome.tam * 0.42 + (c.funcao ? 1.2 + c.funcao.ls.length * c.funcao.tam * 0.42 : 0);
+    const chp = Math.max(18, ...linha.map((c) => altura(c) + 9));
+    garantir(chp + 4);
+    linha.forEach((c, col) => {
+      const x = M + col * (cw2 + 5);
+      tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(x, y, cw2, chp, 3, 3, 'FD');
+      preencher(COR.navy); doc.circle(x + 10, y + chp / 2, 5.2, 'F'); fonte('helvetica', 'bold', 8.5); cor(COR.branco); doc.text(T(iniciais(c.p.nome) || '?'), x + 10, y + chp / 2 + 1.3, { align: 'center' });
+      let ty = y + (chp - altura(c)) / 2 + c.nome.tam * 0.36;   /* texto centrado na altura do cartão */
+      fonte('helvetica', 'bold', c.nome.tam); cor(COR.navy); c.nome.ls.forEach((l) => { doc.text(l, x + 18, ty); ty += c.nome.tam * 0.42; });
+      if (c.funcao) { ty += 1.2; fonte('helvetica', 'normal', c.funcao.tam); cor(COR.cinza); c.funcao.ls.forEach((l) => { doc.text(l, x + 18, ty); ty += c.funcao.tam * 0.42; }); }
+    });
+    y += chp + 5;
+  }
+  if (D.pessoas.length) y += 4;
 
   /* ===== O que eu já apliquei: a ferramenta de cada item (e o ganho em horas, quando houver) ===== */
   titulo('O que eu já apliquei', 'Ferramentas e soluções', D.aplicados.length ? 40 : 10);
   if (!D.aplicados.length) { fonte('helvetica', 'italic', 9.5); cor(COR.cinza); doc.text(T('Nenhum gargalo resolvido ou em execução ainda.'), M, y); y += 8; }
   D.aplicados.forEach((g) => {
+    fonte('helvetica', 'bold', 10.5); const tit = linhas(g.titulo, U - 50), extra = (tit.length - 1) * 4.8;   /* título inteiro, quantas linhas precisar */
     fonte('helvetica', 'normal', 9); const fer = linhas(g.ferramenta || 'Ferramenta não descrita.', U - 18);
     const temH = g.antes != null && g.depois != null;
-    const h = 20 + fer.length * 4.5 + (g.link ? 6 : 0) + (temH ? 8 : 0);
+    const h = 20 + extra + fer.length * 4.5 + (g.link ? 6 : 0) + (temH ? 8 : 0);
     garantir(h + 5);
     tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(M, y, U, h, 3, 3, 'FD'); preencher(SIT_COR[g.situacao]); doc.roundedRect(M, y, 1.6, h, 0.8, 0.8, 'F');
-    fonte('helvetica', 'bold', 10.5); cor(COR.navy); doc.text(linhas(g.titulo, U - 50)[0], M + 6, y + 8);
+    fonte('helvetica', 'bold', 10.5); cor(COR.navy); tit.forEach((l, k) => doc.text(l, M + 6, y + 8 + k * 4.8));
     chip(g.situacao, L - M - 6 - (doc.getTextWidth(T(g.situacao)) + 5), y + 8, SIT_COR[g.situacao]);
-    let yy = y + 15;
+    let yy = y + 15 + extra;
     fonte('helvetica', 'bold', 7); cor(COR.melhorou); doc.text('FERRAMENTA', M + 6, yy, { charSpace: 0.4 });
     fonte('helvetica', 'normal', 9); cor(COR.tinta); fer.forEach((l, k) => doc.text(l, M + 6, yy + 5 + k * 4.5)); yy += 5 + fer.length * 4.5;
     if (g.link) { fonte('helvetica', 'bold', 8); cor(COR.melhorar); doc.textWithLink(T('Abrir a ferramenta'), M + 6, yy + 2.5, { url: g.link }); yy += 6; }

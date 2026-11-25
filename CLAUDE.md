@@ -3,7 +3,7 @@
 Painel em um arquivo HTML só, publicado como Artifact no claude.ai. Quem constrói é o Lucas Smarssaro Dadalto. A Real Forte é a consultoria do pai dele. O painel serve aos consultores: empresas, setores, check-up, "o que eu vi", gargalos e oportunidades, biblioteca de soluções, RF Intelligence, RF Sinais e a cidade 3D (cada empresa fica numa ilha-satélite ligada por ponte à plataforma central, que é a cidade da Real Forte, flutuando no espaço).
 
 - **Artifact publicado (sempre atualizar este, nunca criar outro):** https://claude.ai/artifact/6fryTDCEREKpMdKnRKihm8
-- Última versão publicada: **v94** (link da ferramenta direto no cartão da biblioteca).
+- Última versão publicada: **v95** (link da ferramenta direto no cartão da biblioteca).
 - Os DADOS do painel (empresas, anotações, gargalos, arquivos, fotos, áudios) ficam guardados NO artifact (capabilities `db` e `assets`). Publicar num artifact novo = painel vazio. Sempre publicar no mesmo link, passando a URL acima.
 - Capabilities em uso: `sample` (IA), `assets`, `db`, `downloads`, `user`. Na republicação, não passar `capabilities` (assim elas continuam).
 
@@ -79,6 +79,7 @@ Atenção: `parte-app.js` e `parte-campo.js` começam com `<script>` e terminam 
 
 - `G3.toroFino` é um anel deitado de tubo 0,012: a escala `y` estica o tubo na vertical (`y = 30` vira uma faixa de 36 cm). Para filete de LED, usar `y` de 1,5 a 3. Com 50 o anel da Mesa do Futuro virou uma parede branca.
 - **`\u2028` dentro de regex** (`paraScript` dos `.gs`): ao reescrever o arquivo, o escape pode virar o caractere invisível de verdade e quebrar a linha ("Invalid regular expression: missing /"). Conferir com `node --check` (copiar o .gs para um .js) antes de entregar.
+- **Texto no PDF (jsPDF)**: nunca usar `linhas(...)[0]` (corta o texto sem avisar; já cortou título de gargalo no relatório). Usar `caber(texto, largura, tamanho, mínimo, maxLinhas)` em `montarPDFPassagem`, que diminui a letra e quebra em linhas, e fazer a caixa crescer com o texto.
 - `K.add(geo, mat, x, y, z, sx, sy, sz)`: **sempre passar as três escalas**. Sem o `sz` a peça vira NaN (some ou fica gigante na conta). Já aconteceu em 11 lugares.
 
 ## Testes (Playwright + Chromium, sem placa de vídeo é lento)
@@ -95,6 +96,7 @@ python3 teste_rf_sinais.py          # formulário do RF Sinais com anexos (Codig
 python3 teste_sinais_anexos.py      # painel lendo e mostrando os anexos dos sinais
 python3 teste_feedback.py           # página do Feedback + tela do Lucas (médias conferidas à mão, PDF)
 python3 teste_relatorio.py          # relatório da passagem pelo setor (PDF conferido com pdftotext e pdftoppm)
+python3 teste_relatorio_longo.py    # relatório com textos longos: nada sai pela metade, nenhuma página quase vazia
 ```
 
 Os dados de teste ficam em `testes/dados/` (empresa "Distribuidora Exemplo"; nas fotos ela é renomeada para "Elson's"). Os testes simulam o `window.claude` (db, assets, downloads) em memória. O teste de "prompt de transformar" em `teste_saude.py` procura um texto antigo e dá False; não é erro do painel.
