@@ -2490,7 +2490,8 @@ function promptPassagem(s) {
   const item = (g) => ({ titulo: g.titulo, o_que_foi_visto: g.observacao || '', proposta: g.proposta || '', situacao: situacaoDe(g), horas_por_mes_antes: g.horasAntes || '', horas_por_mes_depois: g.horasDepois || '' });
   const P = passagemDe(s), D = dadosPassagem(s, P);
   const dados = {
-    empresa: e.nome, segmento: e.segmento || '', setor: s.nome, periodo: D.periodo || 'não informado',
+    empresa: e.nome, segmento: e.segmento || '', setor: s.nome,
+    ...(D.periodo ? { periodo: D.periodo } : {}),   /* sem período preenchido, nem manda: a introdução não fala de período */
     numeros: { gargalos_identificados: D.kpi.identificados, resolvidos: D.kpi.resolvidos, em_andamento: D.kpi.andamento, oportunidades: D.kpi.oportunidades, horas_por_mes_devolvidas: D.kpi.horas || 0, nota_do_checkup_de_0_a_100: D.nota },
     gargalos: gargalosDo(s.id).map(item), oportunidades: oportunidadesDo(s.id).map(item),
     anotacoes: notasDo(s.id).map((n) => ({ data: n.data, texto: n.texto })).filter((n) => temTexto(n.texto)).slice(0, 40),
@@ -2503,7 +2504,7 @@ Regras:
 - Nada inventado: nenhum número, nome, sistema, prazo ou fato que não esteja nos dados.
 - Fale de processos e do trabalho do setor. Não cite nomes de pessoas e não avalie pessoas.
 - Não escreva próximos passos, prazos nem recomendações de quem deve fazer o quê.
-- "introducao": 3 ou 4 frases que abrem o relatório. Diga o período (se houver), que foi feito o mapeamento dos processos do setor, o tema principal que apareceu e os números de "numeros" (gargalos, resolvidos, em andamento, horas devolvidas só se for maior que zero). Tom profissional, direto, sem exagero.
+- "introducao": 3 ou 4 frases que abrem o relatório. Se existir "periodo" nos dados, diga o período; se não existir, não fale de período nem de datas (nunca escreva "período não informado"). Diga que foi feito o mapeamento dos processos do setor, o tema principal que apareceu e os números de "numeros" (gargalos, resolvidos, em andamento, horas devolvidas só se for maior que zero). Tom profissional, direto, sem exagero.
 - "panorama": 2 ou 3 frases sobre o que está acontecendo no setor.
 - "ruim": até 4 itens, o que está travando ou gerando erro (o que se repete primeiro).
 - "melhorar": até 4 itens, o que pode melhorar, tirado das propostas e oportunidades.

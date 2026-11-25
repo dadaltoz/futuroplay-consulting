@@ -97,6 +97,12 @@ with sync_playwright() as p:
     # IA falhando
     pg.evaluate("gravar('diario', 'd-mkt', { empresaId: 'exemplo', setorId: 'ex-vazio', data: '2026-11-10', texto: 'Arte das campanhas sai sem revisão.' })")
     pg.evaluate("window.__iaFalha = true; ia = Object.assign(async () => ({ text: '' }), { json: async () => { throw new Error('x'); } }); render(true)"); pg.wait_for_timeout(200)
+    pedidos_antes = pg.evaluate('window.__pedidos.length')
+    pg.evaluate("window.__iaFalha = false; ia = Object.assign(async () => ({ text: '' }), { json: async (p) => { window.__pedidos.push(p); return { panorama: 'x' }; } }); render(true)"); pg.wait_for_timeout(200)
+    pg.click('[data-acao="relLeitura"]'); pg.wait_for_timeout(400)
+    sem_periodo = pg.evaluate('window.__pedidos[window.__pedidos.length - 1]').split('Dados:')[1]
+    confere('"periodo"' not in sem_periodo and 'não informado' not in sem_periodo, 'setor sem período: o pedido à IA não leva período nem "não informado"')
+    pg.evaluate("window.__iaFalha = true; ia = Object.assign(async () => ({ text: '' }), { json: async () => { throw new Error('x'); } }); render(true)"); pg.wait_for_timeout(200)
     pg.click('[data-acao="relLeitura"]'); pg.wait_for_timeout(400)
     confere('A leitura não saiu' in pg.inner_text('#principal'), 'IA falhou: avisa para tentar de novo ou gerar sem ela')
     # Data errada
