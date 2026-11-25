@@ -35,7 +35,7 @@ with sync_playwright() as p:
     pg.wait_for_timeout(300)
     confere(pg.locator('.aba[aria-current="page"]', has_text='Relatório').count() == 1 or 'Relatório' in pg.inner_text('.abas'), 'aba "Relatório" no setor')
     falta = pg.inner_text('.rel-falta')
-    confere('período' in falta and 'Pessoas e atividades' in falta and 'leitura' in falta, 'em branco: avisa o que falta (período, pessoas, leitura)')
+    confere('período' in falta and 'equipe do setor' in falta and 'leitura' in falta, 'em branco: avisa o que falta (período, pessoas, leitura)')
     ind = pg.evaluate("[...document.querySelectorAll('.rel-ind .ind b')].map(x => x.textContent)")
     confere(ind == ['3', '1', '1', '0', '24,5'], f'números do setor tirados do painel: {ind}')
     pg.screenshot(path=str(OUT / '01-aba-em-branco.png'), full_page=True)
@@ -46,13 +46,13 @@ with sync_playwright() as p:
                ('Crislayne Souza', 'Assistente', 'Atende os clientes sobre atraso e falta de volume.', '', '', '', '', '')]
     for i, pe in enumerate(PESSOAS):
         pg.click('[data-acao="relPessoa"]'); pg.wait_for_timeout(150)
-        for k, v in zip(['nome', 'funcao', 'atividades', 'melhorar', 'proposta', 'antes', 'depois'], pe[:7]):
+        for k, v in zip(['nome', 'funcao'], pe[:2]):
             if v: pg.fill(f'#rel-p{i}-{k}', v)
-        if pe[7]: pg.select_option(f'#rel-p{i}-sit', pe[7])
+    confere(pg.locator('.rel-pessoa textarea, .rel-pessoa select').count() == 0, 'cada pessoa na tela: só nome e função')
     confere(pg.locator('.rel-pessoa').count() == 3 and pg.locator('[data-acao="relGuardar"]').count() == 1, '3 pessoas na tela e o botão Guardar aparece (mudança não guardada)')
     pg.click('[data-acao="relGuardar"]'); pg.wait_for_timeout(500)
     P = pg.evaluate("setorPorId('ex-logistica').passagem")
-    confere(P and P['inicio'] == '2026-10-01' and len(P['pessoas']) == 3 and P['pessoas'][1]['situacao'] == 'Proposta pronta' and pg.evaluate("!(UI.passagem && UI.passagem['ex-logistica'])"), 'Guardar: período e pessoas ficam no setor')
+    confere(P and P['inicio'] == '2026-10-01' and len(P['pessoas']) == 3 and P['pessoas'][1]['funcao'] == 'Analista de logística' and pg.evaluate("!(UI.passagem && UI.passagem['ex-logistica'])"), 'Guardar: período e pessoas ficam no setor')
     # Leitura (IA)
     pg.click('[data-acao="relLeitura"]'); pg.wait_for_timeout(700)
     pedido = pg.evaluate('window.__pedidos[0] || ""')
@@ -81,7 +81,8 @@ with sync_playwright() as p:
     obs = [x for x in pg.evaluate("gargalosDo('ex-logistica').map(g => g.observacao)") if x]
     confere(obs and not any(o[:40].replace('\n', ' ') in texto.replace('\n', ' ') for o in obs) and 'O que eu vi' not in texto, 'o "o que eu vi" não aparece no PDF')
     confere('FERRAMENTA' in texto and 'Ferramenta' in texto, 'no lugar dele, a ferramenta de cada item')
-    confere(all(t in texto for t in ['RELATÓRIO DE PASSAGEM PELO SETOR', 'Logística', '01/10/2026 a 21/11/2026', 'Pessoas e atividades', 'Cassio Pereira', 'Leitura do setor', 'O que eu já apliquei', 'O que eu identifiquei', 'Oportunidades', 'Antes e depois']), 'PDF tem capa, período, pessoas, leitura, aplicado, identificado, oportunidades e antes/depois')
+    confere('O QUE FAZ' not in texto and 'Programa as entregas' not in texto and 'Romaneio digitado' not in texto, 'PDF não mostra o que cada pessoa faz')
+    confere(all(t in texto for t in ['RELATÓRIO DE PASSAGEM PELO SETOR', 'Logística', '01/10/2026 a 21/11/2026', 'Equipe do setor', 'Cassio Pereira', 'Analista de logística', 'Leitura do setor', 'O que eu já apliquei', 'O que eu identifiquei', 'Oportunidades', 'Antes e depois']), 'PDF tem capa, período, pessoas, leitura, aplicado, identificado, oportunidades e antes/depois')
     import re
     confere(not re.search(r'\bIA\b|intelig[êe]ncia artificial', texto, re.I) and 'próximos passos' not in texto.lower(), 'PDF sem selo de IA e sem próximos passos')
     # Setor sem registro nenhum

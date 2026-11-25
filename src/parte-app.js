@@ -2384,11 +2384,11 @@ async function gerarPDFFeedback() {
    Quando o Lucas encerra o ciclo num setor, o setor (ou o RH) pede um relatório: quem faz o quê, o que
    está ruim, o que já foi aplicado e como era antes e como ficou. Aqui ele sai pronto do que já está no
    painel (gargalos, oportunidades, anotações, check-up). O que o painel não tem nasce EM BRANCO e é o
-   Lucas quem preenche: o período da passagem e "Pessoas e atividades". A leitura do setor é escrita
+   Lucas quem preenche: o período da passagem e a "Equipe do setor" (nome e função). A leitura do setor é escrita
    pela IA a partir dos registros e o Lucas revisa antes de gerar o PDF. Fica guardado no próprio setor
    (s.passagem), então dá para fechar e voltar depois. */
 const SIT_COR = { 'Aberto': [140, 152, 173], 'Proposta pronta': [232, 120, 40], 'Apresentado': [104, 145, 222], 'Em execução': [214, 158, 46], 'Resolvido': [47, 158, 100] };
-const CAMPOS_PESSOA = [['nome', 'Nome'], ['funcao', 'Função ou cargo'], ['atividades', 'O que faz (atividades e processos)'], ['melhorar', 'O que precisa melhorar'], ['proposta', 'Melhoria que propus'], ['antes', 'Como era antes'], ['depois', 'Como ficou']];
+const CAMPOS_PESSOA = [['nome', 'Nome'], ['funcao', 'Função ou cargo']];   // o relatório só apresenta quem está no setor (pedido do Lucas)
 const CAMPOS_LEITURA = [['introducao', 'Introdução', 'Abre o relatório: resume o período e o que foi feito. Três ou quatro frases.'], ['panorama', 'O que está acontecendo no setor', 'Duas ou três frases.'], ['ruim', 'O que está ruim', 'Um item por linha.'], ['melhorar', 'O que pode melhorar', 'Um item por linha.'], ['melhorou', 'O que já melhorou', 'Um item por linha.'], ['conclusao', 'Conclusão', 'Fecha o relatório: o que mudou e o que ainda pesa. Três ou quatro frases.']];
 const CAMPOS_LARGOS = ['introducao', 'panorama', 'conclusao'];   // ocupam a linha inteira na tela
 const passagemVazia = () => ({ inicio: '', fim: '', pessoas: [], leitura: null });
@@ -2406,17 +2406,16 @@ function abaRelatorio(s) {
   // O que ainda falta (não impede de gerar, só avisa)
   const falta = [];
   if (!P.inicio || !P.fim) falta.push('o período da passagem (início e fim)');
-  if (!P.pessoas.some((p) => temTexto(p.nome))) falta.push('Pessoas e atividades');
+  if (!P.pessoas.some((p) => temTexto(p.nome))) falta.push('a equipe do setor');
   if (!P.leitura) falta.push('os textos do relatório (introdução, leitura e conclusão)');
   const resumo = `<div class="indicadores rel-ind">${[[D.kpi.identificados, 'gargalos identificados'], [D.kpi.resolvidos, 'resolvidos', 's-resolvido'], [D.kpi.andamento, 'em andamento'], [D.kpi.oportunidades, 'oportunidades'], [D.kpi.horas ? fmtHoras(D.kpi.horas) : '–', 'h/mês devolvidas', D.kpi.horas ? 's-resolvido' : '']].map(([n, t, c]) => `<div class="ind ${c || ''}"><b>${n}</b><span>${t}</span></div>`).join('')}</div>`;
   const periodo = `<section class="painel"><div class="painel-corpo"><h2>Período da passagem</h2><p class="meta">Quem declara: você. Sai na capa do relatório.</p>
     <div class="rel-periodo"><div class="campo"><label for="rel-inicio">Início</label><input type="date" id="rel-inicio" data-pass="inicio" data-id="${esc(s.id)}" value="${esc(P.inicio)}" ${trava}></div>
     <div class="campo"><label for="rel-fim">Fim</label><input type="date" id="rel-fim" data-pass="fim" data-id="${esc(s.id)}" value="${esc(P.fim)}" ${trava}></div></div></div></section>`;
-  const pessoas = `<section class="painel"><div class="painel-corpo"><div class="rel-cab"><h2>Pessoas e atividades</h2><button class="btn peq so-editor" data-acao="relPessoa" data-id="${esc(s.id)}">${icone('mais')}Adicionar pessoa</button></div>
-    <p class="meta">Quem trabalha no setor, o que cada um faz, o que precisa melhorar e o que você propôs. Você escreve; nada aqui é preenchido sozinho.</p>
+  const pessoas = `<section class="painel"><div class="painel-corpo"><div class="rel-cab"><h2>Equipe do setor</h2><button class="btn peq so-editor" data-acao="relPessoa" data-id="${esc(s.id)}">${icone('mais')}Adicionar pessoa</button></div>
+    <p class="meta">Quem trabalha no setor: nome e função. Sai no relatório só como apresentação da equipe. Você escreve; nada aqui é preenchido sozinho.</p>
     ${P.pessoas.length ? P.pessoas.map((p, i) => `<div class="rel-pessoa"><div class="rel-pessoa-cab"><span class="avatar">${esc(iniciais(p.nome) || String(i + 1))}</span><b>${esc(p.nome || 'Pessoa ' + (i + 1))}</b><button class="icone-btn so-editor" data-acao="relTirarPessoa" data-id="${esc(s.id)}" data-i="${i}" aria-label="Tirar ${esc(p.nome || 'pessoa')}" title="Tirar">${icone('lixo')}</button></div>
-      <div class="rel-campos">${CAMPOS_PESSOA.map(([k, rot]) => `<div class="campo ${['atividades', 'melhorar', 'proposta'].includes(k) ? 'largo' : ''}"><label for="rel-p${i}-${k}">${rot}</label>${k === 'nome' || k === 'funcao' ? `<input id="rel-p${i}-${k}" data-pass="pessoa.${i}.${k}" data-id="${esc(s.id)}" value="${esc(p[k] || '')}" ${trava}>` : `<textarea id="rel-p${i}-${k}" rows="${k === 'atividades' ? 4 : 2}" data-pass="pessoa.${i}.${k}" data-id="${esc(s.id)}" ${trava}>${esc(p[k] || '')}</textarea>`}</div>`).join('')}
-        <div class="campo"><label for="rel-p${i}-sit">Situação da melhoria</label><select id="rel-p${i}-sit" data-pass="pessoa.${i}.situacao" data-id="${esc(s.id)}" ${S.podeEditar ? '' : 'disabled'}><option value="">Sem melhoria proposta</option>${SITUACOES.map((x) => `<option ${p.situacao === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div></div></div>`).join('')
+      <div class="rel-campos">${CAMPOS_PESSOA.map(([k, rot]) => `<div class="campo"><label for="rel-p${i}-${k}">${rot}</label><input id="rel-p${i}-${k}" data-pass="pessoa.${i}.${k}" data-id="${esc(s.id)}" value="${esc(p[k] || '')}" ${trava}></div>`).join('')}</div></div>`).join('')
       : '<p class="vazio-mini">Nenhuma pessoa ainda. Use “Adicionar pessoa”.</p>'}</div></section>`;
   const L = P.leitura;
   const leitura = `<section class="painel"><div class="painel-corpo"><div class="rel-cab"><h2>Textos do relatório</h2>${ia ? `<button class="btn peq acento so-editor" data-acao="relLeitura" data-id="${esc(s.id)}" ${UI.relLendo === s.id ? 'disabled' : ''}>${UI.relLendo === s.id ? '<span class="girando"></span>Lendo o setor…' : icone('ia') + (L ? 'Gerar de novo' : 'Gerar a leitura')}</button>` : ''}</div>
@@ -2430,10 +2429,10 @@ function abaRelatorio(s) {
     <p class="meta rel-nao-guardado" ${editando ? '' : 'hidden'}>Há mudanças não guardadas. O PDF já sai com elas, e elas são guardadas ao gerar.</p></div></section>`;
   const como = `<section class="painel como-funciona"><div class="painel-corpo"><h2>Como funciona</h2><dl>
       <dt>O que faz</dt><dd>Monta o relatório de passagem por este setor, para entregar a quem pediu (o setor ou o RH), no fim do ciclo.</dd>
-      <dt>O que pôr</dt><dd>O período, as pessoas e o que cada uma faz. O resto sai do que já está no painel: gargalos, oportunidades, anotações e check-up.</dd>
+      <dt>O que pôr</dt><dd>O período e quem está no setor (nome e função). O resto sai do que já está no painel: gargalos, oportunidades, anotações e check-up.</dd>
       <dt>De onde sai</dt><dd>Das abas deste setor. A leitura do setor é escrita pela IA com esses registros, e você revisa.</dd>
       <dt>O que devolve</dt><dd>Um PDF com a logo da empresa e da Real Forte: números, gráficos, pessoas e atividades, a leitura, o que foi identificado, o que já foi aplicado (a ferramenta de cada item e o ganho em horas) e as oportunidades. O texto do “o que eu vi” não vai para o PDF.</dd>
-      <dt>Quem responde pela regra</dt><dd>Você: o período, o que vai em Pessoas e atividades e o texto final da leitura.</dd>
+      <dt>Quem responde pela regra</dt><dd>Você: o período, a equipe do setor e o texto final da leitura.</dd>
       <dt>Quando der erro</dt><dd>Se a leitura não sair, tente de novo ou gere o PDF sem ela. Se o PDF não baixar, confira a internet e abra o painel no Claude. Sem logo da empresa, a capa sai com o nome dela.</dd>
     </dl></div></section>`;
   return `<div class="coluna-unica">${resumo}${periodo}${pessoas}${leitura}${gerar}${como}</div>`;
@@ -2708,46 +2707,19 @@ function montarPDFPassagem(JsPDF, D, logos) {
     }
   }
 
-  /* ===== Pessoas e atividades ===== */
-  titulo('Pessoas e atividades', 'Quem faz o quê', D.pessoas.length ? 40 : 10);
+  /* ===== Equipe do setor: só a apresentação (nome e função), três por linha ===== */
+  titulo('Equipe do setor', 'Quem está no setor', D.pessoas.length ? 24 : 10);
   if (!D.pessoas.length) { fonte('helvetica', 'italic', 9.5); cor(COR.cinza); doc.text('Não preenchido.', M, y); y += 8; }
-  D.pessoas.forEach((p) => {
-    fonte('helvetica', 'normal', 8.6);
-    const col = (U - 18) / 2;
-    const ativ = linhas(p.atividades || 'Não preenchido.', col), melh = linhas(p.melhorar || 'Não preenchido.', col);
-    const prop = temTexto(p.proposta) ? linhas(p.proposta, U - 14) : [];
-    const antes = linhas(p.antes || '', (U - 30) / 2), depois = linhas(p.depois || '', (U - 30) / 2);
-    const temAD = temTexto(p.antes) || temTexto(p.depois);
-    const hCols = Math.max(ativ.length, melh.length) * 4.2 + 9;
-    const h = 16 + hCols + (prop.length ? prop.length * 4.2 + 11 : 0) + (temAD ? Math.max(antes.length, depois.length, 1) * 4.2 + 9 : 0) + 1;
-    garantir(h + 5);
-    tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(M, y, U, h, 3, 3, 'FD');
-    // nome com a bolinha das iniciais
-    preencher(COR.navy); doc.circle(M + 9, y + 8.5, 4.6, 'F'); fonte('helvetica', 'bold', 8); cor(COR.branco); doc.text(T(iniciais(p.nome) || '?'), M + 9, y + 9.7, { align: 'center' });
-    fonte('helvetica', 'bold', 11); cor(COR.navy); doc.text(T(p.nome || 'Sem nome'), M + 16, y + 8);
-    if (temTexto(p.funcao)) { fonte('helvetica', 'normal', 8); cor(COR.cinza); doc.text(T(p.funcao), M + 16, y + 12); }
-    if (p.situacao) chip(p.situacao, L - M - 6 - (doc.getTextWidth(T(p.situacao)) + 5), y + 8.5, SIT_COR[p.situacao] || COR.cinza);
-    let yy = y + 19;
-    [[ativ, 'O QUE FAZ', M + 6, COR.navy2], [melh, 'O QUE PRECISA MELHORAR', M + 12 + col, COR.ruim]].forEach(([ls, rot, x, c]) => {
-      fonte('helvetica', 'bold', 7); cor(c); doc.text(T(rot), x, yy, { charSpace: 0.4 }); fonte('helvetica', 'normal', 8.6); cor(COR.tinta); ls.forEach((l, k) => doc.text(l, x, yy + 5 + k * 4.2));
-    });
-    yy += hCols;
-    if (prop.length) {
-      preencher([238, 244, 253]); doc.roundedRect(M + 4, yy - 3, U - 8, prop.length * 4.2 + 8, 2, 2, 'F');
-      fonte('helvetica', 'bold', 7); cor(COR.melhorar); doc.text('MELHORIA QUE PROPUS', M + 7, yy + 1.5, { charSpace: 0.4 });
-      fonte('helvetica', 'normal', 8.6); cor(COR.tinta); prop.forEach((l, k) => doc.text(l, M + 7, yy + 6 + k * 4.2)); yy += prop.length * 4.2 + 11;
-    }
-    if (temAD) {
-      const bw2 = (U - 30) / 2, hAD = Math.max(antes.length, depois.length, 1) * 4.2 + 9;
-      [[antes, 'COMO ERA', M + 4, [248, 236, 234], COR.ruim], [depois, 'COMO FICOU', M + 4 + bw2 + 14, [232, 245, 238], COR.melhorou]].forEach(([ls, rot, x, fundo, c]) => {
-        preencher(fundo); doc.roundedRect(x, yy - 3, bw2 + 6, hAD, 2, 2, 'F'); fonte('helvetica', 'bold', 7); cor(c); doc.text(T(rot), x + 3, yy + 1.5, { charSpace: 0.4 });
-        fonte('helvetica', 'normal', 8.6); cor(COR.tinta); (ls.length ? ls : ['-']).forEach((l, k) => doc.text(l, x + 3, yy + 6 + k * 4.2));
-      });
-      // seta entre "como era" e "como ficou"
-      const ax = M + 4 + bw2 + 7.5, ay = yy - 3 + hAD / 2; preencher(COR.laranja); doc.triangle(ax, ay - 2.4, ax + 3.4, ay, ax, ay + 2.4, 'F');
-    }
-    y += h + 5;
+  const porLinha = 3, cw2 = (U - 5 * (porLinha - 1)) / porLinha, chp = 18;
+  D.pessoas.forEach((p, i) => {
+    const col = i % porLinha; if (col === 0) { if (i) y += chp + 5; garantir(chp + 4); }
+    const x = M + col * (cw2 + 5);
+    tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(x, y, cw2, chp, 3, 3, 'FD');
+    preencher(COR.navy); doc.circle(x + 10, y + chp / 2, 5.2, 'F'); fonte('helvetica', 'bold', 8.5); cor(COR.branco); doc.text(T(iniciais(p.nome) || '?'), x + 10, y + chp / 2 + 1.3, { align: 'center' });
+    fonte('helvetica', 'bold', 10); cor(COR.navy); doc.text(linhas(p.nome || 'Sem nome', cw2 - 22)[0], x + 18, y + (temTexto(p.funcao) ? 8 : 10.2));
+    if (temTexto(p.funcao)) { fonte('helvetica', 'normal', 8); cor(COR.cinza); doc.text(linhas(p.funcao, cw2 - 22)[0], x + 18, y + 12.6); }
   });
+  if (D.pessoas.length) y += chp + 9;
 
   /* ===== O que eu já apliquei: a ferramenta de cada item (e o ganho em horas, quando houver) ===== */
   titulo('O que eu já apliquei', 'Ferramentas e soluções', D.aplicados.length ? 40 : 10);
