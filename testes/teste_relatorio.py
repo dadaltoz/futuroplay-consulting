@@ -78,6 +78,9 @@ with sync_playwright() as p:
     confere(len(paginas) >= 2, f'PDF com {len(paginas)} páginas')
     confere('INTRODUÇÃO' in texto and 'Entre outubro e novembro' in texto and 'Conclusão' in texto and 'sai deste ciclo' in texto and 'FECHAMENTO DO CICLO' in texto, 'PDF abre com a introdução e fecha com a página de conclusão')
     confere(texto.index('INTRODUÇÃO') < texto.index('gargalos') and texto.rindex('Conclusão') > texto.index('Oportunidades'), 'introdução antes dos números; conclusão depois de tudo')
+    obs = [x for x in pg.evaluate("gargalosDo('ex-logistica').map(g => g.observacao)") if x]
+    confere(obs and not any(o[:40].replace('\n', ' ') in texto.replace('\n', ' ') for o in obs) and 'O que eu vi' not in texto, 'o "o que eu vi" não aparece no PDF')
+    confere('FERRAMENTA' in texto and 'Ferramenta' in texto, 'no lugar dele, a ferramenta de cada item')
     confere(all(t in texto for t in ['RELATÓRIO DE PASSAGEM PELO SETOR', 'Logística', '01/10/2026 a 21/11/2026', 'Pessoas e atividades', 'Cassio Pereira', 'Leitura do setor', 'O que eu já apliquei', 'O que eu identifiquei', 'Oportunidades', 'Antes e depois']), 'PDF tem capa, período, pessoas, leitura, aplicado, identificado, oportunidades e antes/depois')
     import re
     confere(not re.search(r'\bIA\b|intelig[êe]ncia artificial', texto, re.I) and 'próximos passos' not in texto.lower(), 'PDF sem selo de IA e sem próximos passos')

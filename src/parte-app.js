@@ -2432,7 +2432,7 @@ function abaRelatorio(s) {
       <dt>O que faz</dt><dd>Monta o relatório de passagem por este setor, para entregar a quem pediu (o setor ou o RH), no fim do ciclo.</dd>
       <dt>O que pôr</dt><dd>O período, as pessoas e o que cada uma faz. O resto sai do que já está no painel: gargalos, oportunidades, anotações e check-up.</dd>
       <dt>De onde sai</dt><dd>Das abas deste setor. A leitura do setor é escrita pela IA com esses registros, e você revisa.</dd>
-      <dt>O que devolve</dt><dd>Um PDF com a logo da empresa e da Real Forte: números, gráficos, pessoas e atividades, a leitura, o que foi identificado, o que já foi aplicado (como era e como ficou) e as oportunidades.</dd>
+      <dt>O que devolve</dt><dd>Um PDF com a logo da empresa e da Real Forte: números, gráficos, pessoas e atividades, a leitura, o que foi identificado, o que já foi aplicado (a ferramenta de cada item e o ganho em horas) e as oportunidades. O texto do “o que eu vi” não vai para o PDF.</dd>
       <dt>Quem responde pela regra</dt><dd>Você: o período, o que vai em Pessoas e atividades e o texto final da leitura.</dd>
       <dt>Quando der erro</dt><dd>Se a leitura não sair, tente de novo ou gere o PDF sem ela. Se o PDF não baixar, confira a internet e abra o painel no Claude. Sem logo da empresa, a capa sai com o nome dela.</dd>
     </dl></div></section>`;
@@ -2476,9 +2476,10 @@ function dadosPassagem(s, P) {
     kpi: { identificados: garg.length, resolvidos: garg.filter((g) => sit(g) === 'Resolvido').length, andamento: emAndamento(garg), oportunidades: ops.length, horas: somaHoras(itensDo(s.id)) },
     porSituacao: SITUACOES.map((x) => [x, garg.filter((g) => sit(g) === x).length]),
     horas: itensDo(s.id).map((g) => [g.titulo || '', ...horasDe(g)]).filter((x) => x[1] != null && x[2] != null),
-    identificados: garg.filter((g) => !aplicados.includes(g)).map((g) => ({ titulo: g.titulo || '', vi: g.observacao || '', situacao: sit(g) })),
-    aplicados: aplicados.map((g) => ({ titulo: g.titulo || '', era: g.observacao || '', feito: String(g.proposta || '').trim(), situacao: sit(g), antes: horasDe(g)[0], depois: horasDe(g)[1] })),
-    oportunidades: ops.map((g) => ({ titulo: g.titulo || '', vi: g.observacao || '', situacao: sit(g) })),
+    /* O "o que eu vi" (anotação do jeito que foi escrita) não vai para o relatório: só a ferramenta (a proposta) e o link dela */
+    identificados: garg.filter((g) => !aplicados.includes(g)).map((g) => ({ titulo: g.titulo || '', ferramenta: String(g.proposta || '').trim(), link: g.linkFerramenta || '', situacao: sit(g) })),
+    aplicados: aplicados.map((g) => ({ titulo: g.titulo || '', ferramenta: String(g.proposta || '').trim(), link: g.linkFerramenta || '', situacao: sit(g), antes: horasDe(g)[0], depois: horasDe(g)[1] })),
+    oportunidades: ops.map((g) => ({ titulo: g.titulo || '', ferramenta: String(g.proposta || '').trim(), link: g.linkFerramenta || '', situacao: sit(g) })),
     pessoas: P.pessoas.filter((p) => CAMPOS_PESSOA.some(([k]) => temTexto(p[k]))),
     leitura: P.leitura
   };
@@ -2748,21 +2749,21 @@ function montarPDFPassagem(JsPDF, D, logos) {
     y += h + 5;
   });
 
-  /* ===== O que eu já apliquei ===== */
-  titulo('O que eu já apliquei', 'Como era e como ficou', D.aplicados.length ? 40 : 10);
+  /* ===== O que eu já apliquei: a ferramenta de cada item (e o ganho em horas, quando houver) ===== */
+  titulo('O que eu já apliquei', 'Ferramentas e soluções', D.aplicados.length ? 40 : 10);
   if (!D.aplicados.length) { fonte('helvetica', 'italic', 9.5); cor(COR.cinza); doc.text(T('Nenhum gargalo resolvido ou em execução ainda.'), M, y); y += 8; }
   D.aplicados.forEach((g) => {
-    fonte('helvetica', 'normal', 8.6);
-    const bw2 = (U - 26) / 2, era = linhas(g.era || '-', bw2), feito = linhas(g.feito || '-', bw2);
+    fonte('helvetica', 'normal', 9); const fer = linhas(g.ferramenta || 'Ferramenta não descrita.', U - 18);
     const temH = g.antes != null && g.depois != null;
-    const h = 15 + Math.max(era.length, feito.length) * 4.2 + 9 + (temH ? 7 : 0);
+    const h = 20 + fer.length * 4.5 + (g.link ? 6 : 0) + (temH ? 8 : 0);
     garantir(h + 5);
     tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(M, y, U, h, 3, 3, 'FD'); preencher(SIT_COR[g.situacao]); doc.roundedRect(M, y, 1.6, h, 0.8, 0.8, 'F');
     fonte('helvetica', 'bold', 10.5); cor(COR.navy); doc.text(linhas(g.titulo, U - 50)[0], M + 6, y + 8);
     chip(g.situacao, L - M - 6 - (doc.getTextWidth(T(g.situacao)) + 5), y + 8, SIT_COR[g.situacao]);
     let yy = y + 15;
-    [[era, 'COMO ERA', M + 6, COR.ruim], [feito, 'O QUE FOI FEITO', M + 20 + bw2, COR.melhorou]].forEach(([ls, rot, x, c]) => { fonte('helvetica', 'bold', 7); cor(c); doc.text(T(rot), x, yy, { charSpace: 0.4 }); fonte('helvetica', 'normal', 8.6); cor(COR.tinta); ls.forEach((l, k) => doc.text(l, x, yy + 5 + k * 4.2)); });
-    preencher(COR.laranja); const ax = M + 6 + bw2 + 5, ay = yy + 6; doc.triangle(ax, ay - 2.2, ax + 3.2, ay, ax, ay + 2.2, 'F');
+    fonte('helvetica', 'bold', 7); cor(COR.melhorou); doc.text('FERRAMENTA', M + 6, yy, { charSpace: 0.4 });
+    fonte('helvetica', 'normal', 9); cor(COR.tinta); fer.forEach((l, k) => doc.text(l, M + 6, yy + 5 + k * 4.5)); yy += 5 + fer.length * 4.5;
+    if (g.link) { fonte('helvetica', 'bold', 8); cor(COR.melhorar); doc.textWithLink(T('Abrir a ferramenta'), M + 6, yy + 2.5, { url: g.link }); yy += 6; }
     if (temH) { const ganho = g.antes - g.depois; fonte('helvetica', 'bold', 8); cor(COR.melhorou); doc.text(T(`${fmtHoras(g.antes)} h/mês  >  ${fmtHoras(g.depois)} h/mês${ganho > 0 ? `   (${fmtHoras(ganho)} h a menos por mês)` : ''}`), M + 6, y + h - 4.5); }
     y += h + 5;
   });
@@ -2772,7 +2773,7 @@ function montarPDFPassagem(JsPDF, D, logos) {
     titulo(tit, rotulo, itens.length ? 30 : 10);
     if (!itens.length) { fonte('helvetica', 'italic', 9.5); cor(COR.cinza); doc.text(T(vazio), M, y); y += 8; return; }
     doc.autoTable({ startY: y, margin: { left: M, right: M, top: 24, bottom: 22 }, theme: 'plain',
-      head: [['Item', 'O que eu vi', 'Situação']], body: itens.map((g) => [T(g.titulo), T(g.vi || '-'), T(g.situacao)]),
+      head: [['Item', 'Ferramenta', 'Situação']], body: itens.map((g) => [T(g.titulo), T(g.ferramenta || '-'), T(g.situacao)]),
       styles: { font: 'helvetica', fontSize: 8.6, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }, textColor: COR.tinta, lineColor: COR.linha, lineWidth: { bottom: 0.25 }, valign: 'middle' },
       headStyles: { fillColor: COR.navy, textColor: COR.branco, fontStyle: 'bold', fontSize: 8 },
       columnStyles: { 0: { fontStyle: 'bold', cellWidth: 52 }, 2: { cellWidth: 30, fontStyle: 'bold' } },
