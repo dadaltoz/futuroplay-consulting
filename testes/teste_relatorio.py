@@ -93,7 +93,16 @@ with sync_playwright() as p:
     pg.evaluate('delete window.__arquivo'); pg.click('#botao-rel-pdf'); pg.wait_for_function('window.__arquivo', timeout=20000)
     (OUT / 'vazio.pdf').write_bytes(base64.b64decode(pg.evaluate('window.__arquivo.base64')))
     tv = subprocess.run(['pdftotext', str(OUT / 'vazio.pdf'), '-'], capture_output=True, text=True).stdout
-    confere('Não preenchido' in tv and 'Nenhum gargalo em aberto' in tv and 'período não preenchido' in tv, 'setor vazio: PDF sai com "não preenchido" e sem quebrar')
+    confere('Não preenchido' in tv and 'Nenhum gargalo em aberto' in tv and 'período não' not in tv, 'setor vazio: PDF sai sem quebrar e a capa não fala de período')
+    # Introdução antiga, guardada com "período não informado": sai limpa no PDF e na tela
+    casos = pg.evaluate('''() => ['No período não informado, mapeei os processos do Marketing.', 'Mapeei os processos do Marketing (período não informado) e encontrei 3 gargalos.', 'Durante o período não informado, foram 3 gargalos.', 'Mapeei o setor no período não informado, com foco em artes.'].map(semPeriodoVazio)''')
+    confere(casos == ['Mapeei os processos do Marketing.', 'Mapeei os processos do Marketing e encontrei 3 gargalos.', 'Foram 3 gargalos.', 'Mapeei o setor, com foco em artes.'], f'limpeza do "período não informado": {casos}')
+    pg.evaluate("gravar('setores', 'ex-vazio', Object.assign({}, setorPorId('ex-vazio'), { passagem: { inicio: '', fim: '', pessoas: [], leitura: { introducao: 'No período não informado, mapeei os processos do Marketing.', conclusao: 'Fim.' } } })).then(() => { delete (UI.passagem || {})['ex-vazio']; render(true); })"); pg.wait_for_timeout(400)
+    confere(pg.input_value('#rel-l-introducao') == 'Mapeei os processos do Marketing.', 'texto antigo guardado já aparece limpo na tela')
+    pg.evaluate('delete window.__arquivo'); pg.click('#botao-rel-pdf'); pg.wait_for_function('window.__arquivo', timeout=20000)
+    (OUT / 'vazio2.pdf').write_bytes(base64.b64decode(pg.evaluate('window.__arquivo.base64')))
+    tv2 = subprocess.run(['pdftotext', str(OUT / 'vazio2.pdf'), '-'], capture_output=True, text=True).stdout
+    confere('não informado' not in tv2 and 'Mapeei os processos do Marketing.' in tv2, 'PDF: introdução sem "período não informado"')
     # IA falhando
     pg.evaluate("gravar('diario', 'd-mkt', { empresaId: 'exemplo', setorId: 'ex-vazio', data: '2026-11-10', texto: 'Arte das campanhas sai sem revisão.' })")
     pg.evaluate("window.__iaFalha = true; ia = Object.assign(async () => ({ text: '' }), { json: async () => { throw new Error('x'); } }); render(true)"); pg.wait_for_timeout(200)

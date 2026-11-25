@@ -2392,10 +2392,24 @@ const CAMPOS_PESSOA = [['nome', 'Nome'], ['funcao', 'Função ou cargo']];   // 
 const CAMPOS_LEITURA = [['introducao', 'Introdução', 'Abre o relatório: resume o período e o que foi feito. Três ou quatro frases.'], ['panorama', 'O que está acontecendo no setor', 'Duas ou três frases.'], ['ruim', 'O que está ruim', 'Um item por linha.'], ['melhorar', 'O que pode melhorar', 'Um item por linha.'], ['melhorou', 'O que já melhorou', 'Um item por linha.'], ['conclusao', 'Conclusão', 'Fecha o relatório: o que mudou e o que ainda pesa. Três ou quatro frases.']];
 const CAMPOS_LARGOS = ['introducao', 'panorama', 'conclusao'];   // ocupam a linha inteira na tela
 const passagemVazia = () => ({ inicio: '', fim: '', pessoas: [], leitura: null });
+/* Tira dos textos qualquer "período não informado" (textos gerados antes da correção ainda tinham isso).
+   Some a expressão e o que ficou solto em volta dela (parênteses, vírgula, "no", "durante o"). */
+function semPeriodoVazio(texto) {
+  if (!texto) return texto;
+  return String(texto)
+    .replace(/\s*\(\s*per[ií]odo:?\s*n[ãa]o\s+(informado|preenchido|definido)\s*\)/gi, '')
+    .replace(/\s*(no|durante o|ao longo do|em um|num)?\s*per[ií]odo:?\s*n[ãa]o\s+(informado|preenchido|definido)/gi, ' ')
+    .replace(/(^|[.!?]\s*)\s*,\s*/g, '$1')            /* vírgula que sobrou no começo da frase */
+    .replace(/\s+([,.;])/g, '$1').replace(/,{2,}/g, ',').replace(/ {2,}/g, ' ').trim()
+    .replace(/(^|[.!?]\s+)([a-zà-ú])/g, (m, a, c) => a + c.toUpperCase());   /* frase volta a começar com maiúscula */
+}
 // O que está na tela: o rascunho (se a pessoa está editando) ou o que está guardado no setor
 function passagemDe(s) {
   UI.passagem = UI.passagem || {};
-  return UI.passagem[s.id] || Object.assign(passagemVazia(), JSON.parse(JSON.stringify(s.passagem || {})));
+  if (UI.passagem[s.id]) return UI.passagem[s.id];
+  const P = Object.assign(passagemVazia(), JSON.parse(JSON.stringify(s.passagem || {})));
+  if (P.leitura) Object.keys(P.leitura).forEach((k) => { P.leitura[k] = semPeriodoVazio(P.leitura[k]); });
+  return P;
 }
 function rascunhoPassagem(s) { UI.passagem = UI.passagem || {}; if (!UI.passagem[s.id]) UI.passagem[s.id] = passagemDe(s); return UI.passagem[s.id]; }
 
@@ -2605,7 +2619,7 @@ function montarPDFPassagem(JsPDF, D, logos) {
   fonte('helvetica', 'bold', 8); cor(COR.laranja2); doc.text(T('RELATÓRIO DE PASSAGEM PELO SETOR'), M, 54, { charSpace: 1 });
   fonte('times', 'bold', 30); cor(COR.branco); doc.text(T(D.setor), M, 67);
   fonte('helvetica', 'normal', 10.5); cor(COR.claro);
-  doc.text(T([D.empresa, D.periodo || 'período não preenchido'].filter(Boolean).join('  ·  ')), M, 76);
+  doc.text(T([D.empresa, D.periodo].filter(Boolean).join('  ·  ')), M, 76);   /* sem período, a capa mostra só a empresa */
   fonte('helvetica', 'normal', 8.5); doc.text(T([D.autor, D.data].filter(Boolean).join('  ·  ')), M, 83);
 
   /* ===== Introdução (abre o relatório, logo abaixo da capa) ===== */
