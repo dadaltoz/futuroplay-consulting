@@ -1138,6 +1138,7 @@ h1.com-logo{display:flex;align-items:center;gap:14px}
 .rel-gerar .painel-corpo{display:flex;flex-direction:column;gap:10px;border-left:4px solid var(--accent);border-radius:inherit}
 .rel-falta{display:flex;align-items:center;gap:6px;margin:4px 0 0;color:var(--accent-ink);font-size:13.5px}.rel-falta .ic svg{width:16px;height:16px}
 .rel-nao-guardado{margin:0}
+.rel-papeis{margin-top:14px}
 @media (max-width:700px){.rel-ind{grid-template-columns:repeat(2,minmax(0,1fr))}.rel-campos,.rel-leitura,.rel-periodo{grid-template-columns:1fr}}
 .sinal-aviso{margin:0;font-size:13px;color:var(--st-execucao)}
 .sinal-acoes{display:flex;gap:8px;flex-wrap:wrap}
@@ -13251,7 +13252,7 @@ const SIT_COR = { 'Aberto': [140, 152, 173], 'Proposta pronta': [232, 120, 40], 
 const CAMPOS_PESSOA = [['nome', 'Nome'], ['funcao', 'Função ou cargo'], ['atividades', 'Atribuições']];   // quem está no setor e o que cabe a cada um (texto formal, escrito pelo Lucas)
 const CAMPOS_LEITURA = [['introducao', 'Introdução', 'Abre o relatório: resume o período e o que foi feito. Três ou quatro frases.'], ['panorama', 'O que está acontecendo no setor', 'Duas ou três frases.'], ['ruim', 'O que está ruim', 'Um item por linha.'], ['melhorar', 'O que pode melhorar', 'Um item por linha.'], ['melhorou', 'O que já melhorou', 'Um item por linha.'], ['conclusao', 'Conclusão', 'Fecha o relatório: o que mudou e o que ainda pesa. Três ou quatro frases.']];
 const CAMPOS_LARGOS = ['introducao', 'panorama', 'conclusao'];   // ocupam a linha inteira na tela
-const passagemVazia = () => ({ inicio: '', fim: '', pessoas: [], leitura: null });
+const passagemVazia = () => ({ inicio: '', fim: '', pessoas: [], papeis: '', leitura: null });   // papeis: o posicionamento do Lucas sobre os papéis da equipe
 /* Tira dos textos qualquer "período não informado" (textos gerados antes da correção ainda tinham isso).
    Some a expressão e o que ficou solto em volta dela (parênteses, vírgula, "no", "durante o"). */
 function semPeriodoVazio(texto) {
@@ -13288,6 +13289,7 @@ function abaRelatorio(s) {
   const falta = [];
   if (!P.inicio || !P.fim) falta.push('o período da passagem (início e fim)');
   if (!P.pessoas.some((p) => temTexto(p.nome))) falta.push('a equipe do setor');
+  if (!temTexto(P.papeis)) falta.push('a análise dos papéis');
   if (!P.leitura) falta.push('os textos do relatório (introdução, leitura e conclusão)');
   const resumo = `<div class="indicadores rel-ind">${[[D.kpi.identificados, 'gargalos identificados'], [D.kpi.resolvidos, 'resolvidos', 's-resolvido'], [D.kpi.andamento, 'em andamento'], [D.kpi.oportunidades, 'oportunidades'], [D.kpi.horas ? fmtHoras(D.kpi.horas) : '–', 'h/mês devolvidas', D.kpi.horas ? 's-resolvido' : '']].map(([n, t, c]) => `<div class="ind ${c || ''}"><b>${n}</b><span>${t}</span></div>`).join('')}</div>`;
   const periodo = `<section class="painel"><div class="painel-corpo"><h2>Período da passagem</h2><p class="meta">Quem declara: você. Sai na capa do relatório.</p>
@@ -13299,7 +13301,9 @@ function abaRelatorio(s) {
       <div class="rel-campos">${CAMPOS_PESSOA.map(([k, rot]) => k === 'atividades'
         ? `<div class="campo largo"><label for="rel-p${i}-${k}">${rot} <span class="meta">em texto formal; sai no relatório</span></label><textarea id="rel-p${i}-${k}" rows="2" data-pass="pessoa.${i}.${k}" data-id="${esc(s.id)}" ${trava}>${esc(p[k] || '')}</textarea></div>`
         : `<div class="campo"><label for="rel-p${i}-${k}">${rot}</label><input id="rel-p${i}-${k}" data-pass="pessoa.${i}.${k}" data-id="${esc(s.id)}" value="${esc(p[k] || '')}" ${trava}></div>`).join('')}</div></div>`).join('')
-      : '<p class="vazio-mini">Nenhuma pessoa ainda. Use “Adicionar pessoa”.</p>'}</div></section>`;
+      : '<p class="vazio-mini">Nenhuma pessoa ainda. Use “Adicionar pessoa”.</p>'}
+    <div class="campo largo rel-papeis"><label for="rel-papeis">Análise dos papéis <span class="meta">o seu posicionamento: os papéis estão claros ou misturados, o que se sobrepõe e o que precisaria ser definido. Você escreve; a IA não mexe aqui.</span></label>
+      <textarea id="rel-papeis" rows="6" data-pass="papeis" data-id="${esc(s.id)}" ${trava}>${esc(P.papeis || '')}</textarea></div></div></section>`;
   const L = P.leitura;
   const leitura = `<section class="painel"><div class="painel-corpo"><div class="rel-cab"><h2>Textos do relatório</h2>${ia ? `<button class="btn peq acento so-editor" data-acao="relLeitura" data-id="${esc(s.id)}" ${UI.relLendo === s.id ? 'disabled' : ''}>${UI.relLendo === s.id ? '<span class="girando"></span>Lendo o setor…' : icone('ia') + (L ? 'Gerar de novo' : 'Gerar a leitura')}</button>` : ''}</div>
     <p class="meta">Introdução, leitura do setor e conclusão, escritas a partir dos gargalos, oportunidades, anotações e check-up deste setor. Revise e ajuste antes de gerar o PDF.</p>
@@ -13327,7 +13331,7 @@ document.addEventListener('input', (ev) => {
   const c = ev.target.closest('[data-pass]'); if (!c) return;
   const s = setorPorId(c.dataset.id); if (!s) return;
   const R = rascunhoPassagem(s), [a, b, d] = c.dataset.pass.split('.');
-  if (a === 'inicio' || a === 'fim') R[a] = c.value;
+  if (a === 'inicio' || a === 'fim' || a === 'papeis') R[a] = c.value;
   else if (a === 'pessoa') { R.pessoas[Number(b)][d] = c.value; }
   else if (a === 'leitura') { R.leitura = R.leitura || {}; R.leitura[b] = c.value; }
   const aviso = document.querySelector('.rel-nao-guardado'); if (aviso) aviso.hidden = false;   /* acende o aviso sem redesenhar a tela (o cursor fica onde está) */
@@ -13362,7 +13366,7 @@ function dadosPassagem(s, P) {
     identificados: garg.filter((g) => !aplicados.includes(g)).map((g) => ({ titulo: g.titulo || '', ferramenta: String(g.proposta || '').trim(), link: g.linkFerramenta || '', situacao: sit(g) })),
     aplicados: aplicados.map((g) => ({ titulo: g.titulo || '', ferramenta: String(g.proposta || '').trim(), link: g.linkFerramenta || '', situacao: sit(g), antes: horasDe(g)[0], depois: horasDe(g)[1] })),
     oportunidades: ops.map((g) => ({ titulo: g.titulo || '', ferramenta: String(g.proposta || '').trim(), link: g.linkFerramenta || '', situacao: sit(g) })),
-    pessoas: P.pessoas.filter((p) => CAMPOS_PESSOA.some(([k]) => temTexto(p[k]))),
+    pessoas: P.pessoas.filter((p) => CAMPOS_PESSOA.some(([k]) => temTexto(p[k]))), papeis: String(P.papeis || '').trim(),
     leitura: P.leitura
   };
 }
@@ -13627,6 +13631,19 @@ function montarPDFPassagem(JsPDF, D, logos) {
     y += chp + 4;
   });
   if (D.pessoas.length) y += 4;
+  // Análise dos papéis: o posicionamento de quem passou pelo setor (texto do Lucas, parágrafos preservados)
+  if (D.papeis) {
+    fonte('helvetica', 'normal', 9.5);
+    const pars = D.papeis.split(/\n+/).map((p) => p.trim()).filter(Boolean).map((p) => linhas(p, U - 16));
+    const h = 16 + pars.reduce((t, ls) => t + ls.length * 4.8 + 2.5, 0);
+    garantir(Math.min(h, 120) + 4);
+    if (y + h > BAIXO) novaPagina();
+    preencher(COR.fundo); doc.roundedRect(M, y, U, h, 3, 3, 'F'); preencher(COR.laranja); doc.rect(M, y, 1.6, h, 'F');
+    fonte('helvetica', 'bold', 7.5); cor(COR.laranja); doc.text(T('ANÁLISE DOS PAPÉIS'), M + 8, y + 9, { charSpace: 0.8 });
+    let py = y + 16; fonte('helvetica', 'normal', 9.5); cor(COR.tinta);
+    pars.forEach((ls) => { ls.forEach((l) => { doc.text(l, M + 8, py); py += 4.8; }); py += 2.5; });
+    y += h + 8;
+  }
 
   /* ===== O que eu já apliquei: a ferramenta de cada item (e o ganho em horas, quando houver) ===== */
   titulo('O que eu já apliquei', 'Ferramentas e soluções', D.aplicados.length ? 40 : 10);

@@ -22,6 +22,7 @@ INTRO = ("Este relatório resume o mapeamento dos processos do setor de Marketin
          "O tema principal que apareceu foi o trabalho feito à mão e sem padrão, em planilhas, pedidos e registros. Foram identificados 6 gargalos, todos resolvidos, "
          "com 164 horas por mês devolvidas ao setor. O ciclo concentrou o esforço em transformar registros soltos em ferramentas simples que o próprio setor mantém.")
 SEM['setores/ex-mkt'] = {'empresaId': 'exemplo', 'nome': 'Marketing', 'responsavel': '', 'passagem': {'inicio': '', 'fim': '', 'pessoas': PESSOAS,
+    'papeis': 'As atribuições principais existem, mas não estão formalizadas e, na prática, se sobrepõem.\nA supervisão concentra, além da coordenação, frentes operacionais como tráfego pago, eventos, doações e relatórios, e ainda apoia as demandas da equipe.',
     'leitura': {'introducao': INTRO, 'panorama': 'O setor funcionava com registros manuais espalhados.', 'ruim': 'Registros manuais\nPedidos sem controle', 'melhorar': 'Padronizar planilhas', 'melhorou': 'Relatório semanal automático', 'conclusao': 'O Marketing termina o ciclo com ferramentas simples e mantidas pelo próprio setor.'}}}
 (OUT / 'painel.html').write_text(f"""<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><style>body{{margin:0}}[hidden]{{display:none!important}}</style></head><body>{HTML.read_text()}</body></html>""")
 falso = (BASE / 'olhar.py').read_text().split('falso = """', 1)[1].split('""" %', 1)[0] % json.dumps(SEM)
@@ -45,6 +46,7 @@ with sync_playwright() as p:
     for pe in PESSOAS: confere(pe['nome'] in texto and pe['funcao'] in texto and junta(pe.get('atividades', '')) in texto, f"nome, função e atribuições inteiros: {pe['nome']}")
     confere("Elson's Produtos Alimentícios Ltda" in texto, 'nome da empresa inteiro (capa sem logo)')
     confere('anotacao crua' not in texto, 'nenhuma anotação crua no PDF')
+    confere('A N Á L I S E D O S P A P É I S' in texto and 'na prática, se sobrepõem.' in texto and 'ainda apoia as demandas da equipe.' in texto and texto.index('A N Á L I S E D O S P A P É I S') > texto.index('Equipe do setor'), 'análise dos papéis inteira, logo depois da equipe')
     subprocess.run(['pdftoppm', '-png', '-r', '60', str(OUT / 'relatorio.pdf'), str(OUT / 'pdf')], check=True)
     # nenhuma página quase vazia (menos de 12% de tinta fora do cabeçalho e rodapé), tirando a última
     from PIL import Image
