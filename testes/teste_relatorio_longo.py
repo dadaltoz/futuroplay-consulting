@@ -17,7 +17,7 @@ TITULOS = ['Registro manual de doações e eventos na planilha compartilhada do 
 HORAS = [(40, 6), (32, 4), (28, 5), (24, 3), (22, 4), (18, 4)]
 for i, (t, (a, d)) in enumerate(zip(TITULOS, HORAS)):
     SEM[f'gargalos/mk{i}'] = {'empresaId': 'exemplo', 'setorId': 'ex-mkt', 'titulo': t, 'observacao': 'anotacao crua que nao pode aparecer ' + str(i), 'proposta': f'Ferramenta {i + 1}: planilha padrão com aviso automático e resumo da semana pronto para o gestor.', 'situacao': 'Resolvido', 'horasAntes': str(a), 'horasDepois': str(d), 'criadoEm': '2026-10-10T10:00:00Z', 'atualizadoEm': '2026-11-10T10:00:00Z'}
-PESSOAS = [{'nome': 'Lucas Smarssaro Dadalto', 'funcao': 'Estagiário de processos e automação'}, {'nome': 'Cassio Henrique de Oliveira Santos', 'funcao': 'Analista de Trade Marketing e Merchandising'}, {'nome': 'Crislayne Aparecida Ferreira', 'funcao': 'Assistente de Marketing'}]
+PESSOAS = [{'nome': 'Lucas Smarssaro Dadalto', 'funcao': 'Estagiário de processos e automação', 'atividades': 'Responsável pela produção de vídeos e pela gestão do conteúdo das redes sociais da empresa, do roteiro à publicação, com acompanhamento dos resultados de cada campanha.'}, {'nome': 'Cassio Henrique de Oliveira Santos', 'funcao': 'Analista de Trade Marketing e Merchandising'}, {'nome': 'Crislayne Aparecida Ferreira', 'funcao': 'Assistente de Marketing'}]
 INTRO = ("Este relatório resume o mapeamento dos processos do setor de Marketing da Elson's Produtos Alimentícios Ltda, empresa de distribuição de alimentos. "
          "O tema principal que apareceu foi o trabalho feito à mão e sem padrão, em planilhas, pedidos e registros. Foram identificados 6 gargalos, todos resolvidos, "
          "com 164 horas por mês devolvidas ao setor. O ciclo concentrou o esforço em transformar registros soltos em ferramentas simples que o próprio setor mantém.")
@@ -42,7 +42,7 @@ with sync_playwright() as p:
     (OUT / 'relatorio.pdf').write_bytes(base64.b64decode(pg.evaluate('window.__arquivo.base64')))
     texto = junta(subprocess.run(['pdftotext', '-raw', str(OUT / 'relatorio.pdf'), '-'], capture_output=True, text=True).stdout)
     for t in TITULOS: confere(junta(t) in texto, f'título inteiro no PDF: {t[:45]}…')
-    for pe in PESSOAS: confere(pe['nome'] in texto and pe['funcao'] in texto, f"nome e função inteiros: {pe['nome']}")
+    for pe in PESSOAS: confere(pe['nome'] in texto and pe['funcao'] in texto and junta(pe.get('atividades', '')) in texto, f"nome, função e atribuições inteiros: {pe['nome']}")
     confere("Elson's Produtos Alimentícios Ltda" in texto, 'nome da empresa inteiro (capa sem logo)')
     confere('anotacao crua' not in texto, 'nenhuma anotação crua no PDF')
     subprocess.run(['pdftoppm', '-png', '-r', '60', str(OUT / 'relatorio.pdf'), str(OUT / 'pdf')], check=True)

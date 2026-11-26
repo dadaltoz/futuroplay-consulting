@@ -13248,7 +13248,7 @@ async function gerarPDFFeedback() {
    pela IA a partir dos registros e o Lucas revisa antes de gerar o PDF. Fica guardado no próprio setor
    (s.passagem), então dá para fechar e voltar depois. */
 const SIT_COR = { 'Aberto': [140, 152, 173], 'Proposta pronta': [232, 120, 40], 'Apresentado': [104, 145, 222], 'Em execução': [214, 158, 46], 'Resolvido': [47, 158, 100] };
-const CAMPOS_PESSOA = [['nome', 'Nome'], ['funcao', 'Função ou cargo']];   // o relatório só apresenta quem está no setor (pedido do Lucas)
+const CAMPOS_PESSOA = [['nome', 'Nome'], ['funcao', 'Função ou cargo'], ['atividades', 'Atribuições']];   // quem está no setor e o que cabe a cada um (texto formal, escrito pelo Lucas)
 const CAMPOS_LEITURA = [['introducao', 'Introdução', 'Abre o relatório: resume o período e o que foi feito. Três ou quatro frases.'], ['panorama', 'O que está acontecendo no setor', 'Duas ou três frases.'], ['ruim', 'O que está ruim', 'Um item por linha.'], ['melhorar', 'O que pode melhorar', 'Um item por linha.'], ['melhorou', 'O que já melhorou', 'Um item por linha.'], ['conclusao', 'Conclusão', 'Fecha o relatório: o que mudou e o que ainda pesa. Três ou quatro frases.']];
 const CAMPOS_LARGOS = ['introducao', 'panorama', 'conclusao'];   // ocupam a linha inteira na tela
 const passagemVazia = () => ({ inicio: '', fim: '', pessoas: [], leitura: null });
@@ -13294,9 +13294,11 @@ function abaRelatorio(s) {
     <div class="rel-periodo"><div class="campo"><label for="rel-inicio">Início</label><input type="date" id="rel-inicio" data-pass="inicio" data-id="${esc(s.id)}" value="${esc(P.inicio)}" ${trava}></div>
     <div class="campo"><label for="rel-fim">Fim</label><input type="date" id="rel-fim" data-pass="fim" data-id="${esc(s.id)}" value="${esc(P.fim)}" ${trava}></div></div></div></section>`;
   const pessoas = `<section class="painel"><div class="painel-corpo"><div class="rel-cab"><h2>Equipe do setor</h2><button class="btn peq so-editor" data-acao="relPessoa" data-id="${esc(s.id)}">${icone('mais')}Adicionar pessoa</button></div>
-    <p class="meta">Quem trabalha no setor: nome e função. Sai no relatório só como apresentação da equipe. Você escreve; nada aqui é preenchido sozinho.</p>
+    <p class="meta">Quem trabalha no setor: nome, função e atribuições. Você escreve; nada aqui é preenchido sozinho.</p>
     ${P.pessoas.length ? P.pessoas.map((p, i) => `<div class="rel-pessoa"><div class="rel-pessoa-cab"><span class="avatar">${esc(iniciais(p.nome) || String(i + 1))}</span><b>${esc(p.nome || 'Pessoa ' + (i + 1))}</b><button class="icone-btn so-editor" data-acao="relTirarPessoa" data-id="${esc(s.id)}" data-i="${i}" aria-label="Tirar ${esc(p.nome || 'pessoa')}" title="Tirar">${icone('lixo')}</button></div>
-      <div class="rel-campos">${CAMPOS_PESSOA.map(([k, rot]) => `<div class="campo"><label for="rel-p${i}-${k}">${rot}</label><input id="rel-p${i}-${k}" data-pass="pessoa.${i}.${k}" data-id="${esc(s.id)}" value="${esc(p[k] || '')}" ${trava}></div>`).join('')}</div></div>`).join('')
+      <div class="rel-campos">${CAMPOS_PESSOA.map(([k, rot]) => k === 'atividades'
+        ? `<div class="campo largo"><label for="rel-p${i}-${k}">${rot} <span class="meta">em texto formal; sai no relatório</span></label><textarea id="rel-p${i}-${k}" rows="2" data-pass="pessoa.${i}.${k}" data-id="${esc(s.id)}" ${trava}>${esc(p[k] || '')}</textarea></div>`
+        : `<div class="campo"><label for="rel-p${i}-${k}">${rot}</label><input id="rel-p${i}-${k}" data-pass="pessoa.${i}.${k}" data-id="${esc(s.id)}" value="${esc(p[k] || '')}" ${trava}></div>`).join('')}</div></div>`).join('')
       : '<p class="vazio-mini">Nenhuma pessoa ainda. Use “Adicionar pessoa”.</p>'}</div></section>`;
   const L = P.leitura;
   const leitura = `<section class="painel"><div class="painel-corpo"><div class="rel-cab"><h2>Textos do relatório</h2>${ia ? `<button class="btn peq acento so-editor" data-acao="relLeitura" data-id="${esc(s.id)}" ${UI.relLendo === s.id ? 'disabled' : ''}>${UI.relLendo === s.id ? '<span class="girando"></span>Lendo o setor…' : icone('ia') + (L ? 'Gerar de novo' : 'Gerar a leitura')}</button>` : ''}</div>
@@ -13600,26 +13602,30 @@ function montarPDFPassagem(JsPDF, D, logos) {
     }
   }
 
-  /* ===== Equipe do setor: só a apresentação (nome e função), três por linha ===== */
-  titulo('Equipe do setor', 'Quem está no setor', D.pessoas.length ? 24 : 10);
+  /* ===== Equipe do setor: nome, função e atribuições, um cartão por pessoa ===== */
+  titulo('Equipe do setor', 'Quem está no setor e o que cabe a cada um', D.pessoas.length ? 24 : 10);
   if (!D.pessoas.length) { fonte('helvetica', 'italic', 9.5); cor(COR.cinza); doc.text('Não preenchido.', M, y); y += 8; }
-  const porLinha = 3, cw2 = (U - 5 * (porLinha - 1)) / porLinha;
-  for (let i0 = 0; i0 < D.pessoas.length; i0 += porLinha) {
-    // mede a linha de cartões antes de desenhar: o cartão cresce se o nome ou a função precisar de 2 linhas
-    const linha = D.pessoas.slice(i0, i0 + porLinha).map((p) => ({ p, nome: caber(p.nome || 'Sem nome', cw2 - 22, 10, 8, 2, 'bold'), funcao: temTexto(p.funcao) ? caber(p.funcao, cw2 - 22, 8, 7, 2) : null }));
-    const altura = (c) => c.nome.ls.length * c.nome.tam * 0.42 + (c.funcao ? 1.2 + c.funcao.ls.length * c.funcao.tam * 0.42 : 0);
-    const chp = Math.max(18, ...linha.map((c) => altura(c) + 9));
-    garantir(chp + 4);
-    linha.forEach((c, col) => {
-      const x = M + col * (cw2 + 5);
-      tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(x, y, cw2, chp, 3, 3, 'FD');
-      preencher(COR.navy); doc.circle(x + 10, y + chp / 2, 5.2, 'F'); fonte('helvetica', 'bold', 8.5); cor(COR.branco); doc.text(T(iniciais(c.p.nome) || '?'), x + 10, y + chp / 2 + 1.3, { align: 'center' });
-      let ty = y + (chp - altura(c)) / 2 + c.nome.tam * 0.36;   /* texto centrado na altura do cartão */
-      fonte('helvetica', 'bold', c.nome.tam); cor(COR.navy); c.nome.ls.forEach((l) => { doc.text(l, x + 18, ty); ty += c.nome.tam * 0.42; });
-      if (c.funcao) { ty += 1.2; fonte('helvetica', 'normal', c.funcao.tam); cor(COR.cinza); c.funcao.ls.forEach((l) => { doc.text(l, x + 18, ty); ty += c.funcao.tam * 0.42; }); }
-    });
-    y += chp + 5;
-  }
+  const colNome = 62, colTexto = U - colNome - 14;   /* esquerda: bolinha, nome e função; direita: atribuições */
+  D.pessoas.forEach((p) => {
+    const nome = caber(p.nome || 'Sem nome', colNome - 22, 10.5, 8, 2, 'bold'), funcao = temTexto(p.funcao) ? caber(p.funcao, colNome - 22, 8, 7, 2) : null;
+    fonte('helvetica', 'normal', 9); const atrib = temTexto(p.atividades) ? linhas(p.atividades, colTexto) : [];
+    const hEsq = nome.ls.length * nome.tam * 0.42 + (funcao ? 1.2 + funcao.ls.length * funcao.tam * 0.42 : 0);
+    const hDir = atrib.length ? 5 + atrib.length * 4.4 : 0;
+    const chp = Math.max(20, hEsq + 10, hDir + 10);
+    garantir(chp + 5);
+    tracar(COR.linha); doc.setLineWidth(0.3); preencher(COR.branco); doc.roundedRect(M, y, U, chp, 3, 3, 'FD');
+    preencher(COR.navy); doc.circle(M + 10, y + chp / 2, 5.4, 'F'); fonte('helvetica', 'bold', 8.5); cor(COR.branco); doc.text(T(iniciais(p.nome) || '?'), M + 10, y + chp / 2 + 1.3, { align: 'center' });
+    let ty = y + (chp - hEsq) / 2 + nome.tam * 0.36;
+    fonte('helvetica', 'bold', nome.tam); cor(COR.navy); nome.ls.forEach((l) => { doc.text(l, M + 19, ty); ty += nome.tam * 0.42; });
+    if (funcao) { ty += 1.2; fonte('helvetica', 'normal', funcao.tam); cor(COR.cinza); funcao.ls.forEach((l) => { doc.text(l, M + 19, ty); ty += funcao.tam * 0.42; }); }
+    if (atrib.length) {
+      const ax = M + colNome + 6; tracar(COR.linha); doc.line(ax - 4, y + 4, ax - 4, y + chp - 4);
+      let ay = y + (chp - hDir) / 2 + 2.6;
+      fonte('helvetica', 'bold', 7); cor(COR.laranja); doc.text(T('ATRIBUIÇÕES'), ax, ay, { charSpace: 0.4 }); ay += 5;
+      fonte('helvetica', 'normal', 9); cor(COR.tinta); atrib.forEach((l) => { doc.text(l, ax, ay); ay += 4.4; });
+    }
+    y += chp + 4;
+  });
   if (D.pessoas.length) y += 4;
 
   /* ===== O que eu já apliquei: a ferramenta de cada item (e o ganho em horas, quando houver) ===== */

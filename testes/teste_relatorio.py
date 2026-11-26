@@ -1,6 +1,6 @@
 """Teste do Relatório da passagem pelo setor (aba "Relatório" do setor): período, pessoas, leitura (IA simulada),
 PDF com logo da empresa e da Real Forte, e os casos de erro. uso: python3 teste_relatorio.py [html]  (saída em testes/saida24)"""
-import json, pathlib, sys, glob, base64, subprocess
+import json, pathlib, sys, glob, base64, subprocess, re
 from playwright.sync_api import sync_playwright
 BASE = pathlib.Path(__file__).parent
 HTML = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else str(BASE.parent / 'dist' / 'real-forte-sistema.html'))
@@ -46,9 +46,9 @@ with sync_playwright() as p:
                ('Crislayne Souza', 'Assistente', 'Atende os clientes sobre atraso e falta de volume.', '', '', '', '', '')]
     for i, pe in enumerate(PESSOAS):
         pg.click('[data-acao="relPessoa"]'); pg.wait_for_timeout(150)
-        for k, v in zip(['nome', 'funcao'], pe[:2]):
+        for k, v in zip(['nome', 'funcao', 'atividades'], pe[:3]):
             if v: pg.fill(f'#rel-p{i}-{k}', v)
-    confere(pg.locator('.rel-pessoa textarea, .rel-pessoa select').count() == 0, 'cada pessoa na tela: só nome e função')
+    confere(pg.locator('.rel-pessoa textarea').count() == 3 and pg.locator('.rel-pessoa select').count() == 0, 'cada pessoa na tela: nome, função e atribuições')
     confere(pg.locator('.rel-pessoa').count() == 3 and pg.locator('[data-acao="relGuardar"]').count() == 1, '3 pessoas na tela e o botão Guardar aparece (mudança não guardada)')
     pg.click('[data-acao="relGuardar"]'); pg.wait_for_timeout(500)
     P = pg.evaluate("setorPorId('ex-logistica').passagem")
@@ -81,7 +81,7 @@ with sync_playwright() as p:
     obs = [x for x in pg.evaluate("gargalosDo('ex-logistica').map(g => g.observacao)") if x]
     confere(obs and not any(o[:40].replace('\n', ' ') in texto.replace('\n', ' ') for o in obs) and 'O que eu vi' not in texto, 'o "o que eu vi" não aparece no PDF')
     confere('FERRAMENTA' in texto and 'Ferramenta' in texto, 'no lugar dele, a ferramenta de cada item')
-    confere('O QUE FAZ' not in texto and 'Programa as entregas' not in texto and 'Romaneio digitado' not in texto, 'PDF não mostra o que cada pessoa faz')
+    confere('ATRIBUIÇÕES' in texto and 'Programa as entregas da semana' in re.sub(r'\s+', ' ', texto) and 'Romaneio digitado' not in texto, 'PDF mostra as atribuições de cada pessoa (e nada além disso)')
     confere(all(t in texto for t in ['RELATÓRIO DE PASSAGEM PELO SETOR', 'Logística', '01/10/2026 a 21/11/2026', 'Equipe do setor', 'Cassio Pereira', 'Analista de logística', 'Leitura do setor', 'O que eu já apliquei', 'O que eu identifiquei', 'Oportunidades', 'Antes e depois']), 'PDF tem capa, período, pessoas, leitura, aplicado, identificado, oportunidades e antes/depois')
     import re
     confere(not re.search(r'\bIA\b|intelig[êe]ncia artificial', texto, re.I) and 'próximos passos' not in texto.lower(), 'PDF sem selo de IA e sem próximos passos')
