@@ -793,6 +793,90 @@ ol.r-lista li::before{content:counter(passo);position:absolute;left:10px;top:8px
 .ch-dica .btn{background:rgba(12,24,46,.7);border-color:rgba(160,190,240,.25);color:#eef2f8;backdrop-filter:blur(10px)}
 .so-toque{display:none}
 @media (hover:none){.so-mouse{display:none}.so-toque{display:inline}}
+/* ===== Realfort Squad: o escritório dos agentes (Início) =====
+   O 3D é sempre fim de tarde, nos dois temas; por cima, o topo com a marca, a faixa do time
+   (cada agente com o que está fazendo agora) e o cartão do robô clicado. */
+.campo-canvas{position:absolute;inset:0;display:block;width:100%;height:100%;cursor:grab;touch-action:none;outline:none}
+.campo3d.escritorio{background:radial-gradient(120% 80% at 50% 0%,#3a2d4f 0%,#1d1a30 50%,#14131f 100%);border-color:#2e2840}
+.escritorio .campo-hud::before{background:linear-gradient(rgba(16,14,26,.82),rgba(16,14,26,.4) 55%,rgba(16,14,26,0))}
+.escritorio .campo-hud::after{content:"";position:absolute;left:0;right:0;bottom:0;height:170px;background:linear-gradient(rgba(16,14,26,0),rgba(16,14,26,.55));pointer-events:none;z-index:-1;border-radius:inherit}
+.esc-marca{flex-direction:row;align-items:center;gap:14px}
+.esc-simbolo{width:54px;height:54px;padding:9px;border-radius:14px;background:#12324a;box-shadow:0 0 0 2px rgba(255,122,26,.75),0 8px 26px rgba(255,122,26,.25);flex:none}
+.esc-marca .olho{color:#ffb27a}
+.esc-marca h1{letter-spacing:-.01em}
+.esc-marca .sub{color:#c8c2d8}
+.esc-empresa{pointer-events:auto;display:inline-flex;align-items:center;gap:8px;padding:5px 6px 5px 12px;border-radius:999px;background:rgba(22,19,34,.72);border:1px solid rgba(255,190,140,.25);backdrop-filter:blur(10px);font-size:12px;color:#c8c2d8}
+.esc-empresa select{appearance:none;-webkit-appearance:none;border:0;border-radius:999px;padding:7px 28px 7px 12px;background:rgba(255,255,255,.1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23ffb27a' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 11px center;color:#fff;font:600 13px var(--f-texto,inherit);max-width:230px;cursor:pointer}
+.esc-empresa select option{color:#111}
+.escritorio .ch-acoes .btn:not(.primario),.escritorio .ch-dica .btn{background:rgba(22,19,34,.72);border-color:rgba(255,190,140,.28);color:#f4eff8;backdrop-filter:blur(10px)}
+.escritorio .ch-chip{background:rgba(22,19,34,.72);border-color:rgba(255,190,140,.22)}
+.escritorio .ch-dica{background:rgba(22,19,34,.62);position:absolute;right:24px;bottom:24px}
+.escritorio .ch-dica span{display:none}
+.esc-time{pointer-events:auto;position:absolute;left:24px;top:50%;transform:translateY(-38%);display:flex;flex-direction:column;gap:6px}
+.esc-ag{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:7px;align-items:center;text-align:left;width:150px;padding:7px 10px 7px 9px;border-radius:12px;background:rgba(22,19,34,.74);border:1px solid rgba(255,255,255,.1);border-left:3px solid var(--cor);backdrop-filter:blur(10px);color:#f4eff8;cursor:pointer;font:inherit;transition:background .15s,transform .15s}
+.esc-ag:hover{background:rgba(40,34,58,.9);transform:translateY(-1px)}
+.esc-ag i{grid-row:1/3;width:8px;height:8px;border-radius:50%;background:#2fbf71;box-shadow:0 0 8px #2fbf71}
+.esc-ag.andando i{background:#ffbf1f;box-shadow:0 0 8px #ffbf1f}
+.esc-ag b{font-size:12.5px;font-weight:650}
+.esc-ag .est{font-size:10.5px;color:#bdb5cf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.esc-dica{position:absolute;z-index:2100;pointer-events:none;display:flex;flex-direction:column;gap:2px;max-width:250px;padding:9px 12px;border-radius:12px;background:rgba(18,16,28,.9);border:1px solid rgba(255,190,140,.3);box-shadow:0 10px 30px rgba(0,0,0,.35);color:#f4eff8;font-size:12.5px}
+.esc-dica b{font-size:13.5px}
+.esc-dica span{color:#d6cfe3}
+.esc-dica small{color:#ffb27a;font-size:11px;margin-top:2px}
+.esc-cartao{position:absolute;z-index:2200;right:18px;top:96px;width:min(340px,calc(100% - 28px));max-height:calc(100% - 200px);overflow:auto;padding:16px;border-radius:18px;background:rgba(20,18,31,.92);border:1px solid rgba(255,255,255,.12);border-top:3px solid var(--cor);box-shadow:0 20px 50px rgba(0,0,0,.45);backdrop-filter:blur(14px);color:#f4eff8;animation:surgir .2s ease-out}
+.esc-fechar{position:absolute;right:10px;top:8px;width:30px;height:30px;border:0;border-radius:50%;background:rgba(255,255,255,.08);color:#fff;font-size:20px;line-height:1;cursor:pointer}
+.esc-topo{display:flex;gap:12px;align-items:center;padding-right:28px}
+.esc-topo img{width:92px;height:92px;border-radius:14px;flex:none;background:#1b2029}
+.esc-topo h3{margin:0;font:700 22px var(--f-titulo,inherit);color:#fff}
+.esc-papel{margin:2px 0 6px;color:var(--cor);font-weight:600;font-size:13px}
+.esc-jeito{margin:0;color:#cfc8dc;font-size:12.5px;line-height:1.4}
+.esc-dados{display:grid;gap:8px;margin:14px 0 12px;padding:12px;border-radius:12px;background:rgba(255,255,255,.05)}
+.esc-dados div{display:grid;grid-template-columns:118px 1fr;gap:8px;font-size:12.5px}
+.esc-dados dt{color:#a59cb8}
+.esc-dados dd{margin:0;color:#f4eff8}
+.esc-estado{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.esc-estado::before{content:"";width:8px;height:8px;border-radius:50%;background:#2fbf71;box-shadow:0 0 8px #2fbf71}
+.esc-faz b{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#a59cb8}
+.esc-faz ul{margin:6px 0 8px;padding-left:18px;font-size:13px;line-height:1.5;color:#e8e2f0}
+.esc-aviso{margin:0;padding:9px 11px;border-radius:10px;background:rgba(255,122,26,.1);border:1px solid rgba(255,122,26,.3);color:#ffd2b0;font-size:12px;line-height:1.45}
+.esc-acoes{display:flex;gap:8px;margin-top:12px}
+.esc-acoes .btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}
+.esc-comando{position:absolute;z-index:2150;left:50%;bottom:22px;transform:translateX(-50%);width:min(640px,calc(100% - 28px));display:flex;align-items:center;gap:8px;padding:7px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 14px 40px rgba(30,15,50,.35),0 0 0 3px rgba(255,122,26,.35);pointer-events:auto}
+.esc-comando input{flex:1;min-width:0;border:0;outline:none;background:transparent;font:500 15px var(--f-texto,inherit);color:#2b2433;padding:8px 4px}
+.esc-comando input::placeholder{color:#9a8fa8}
+.esc-mic,.esc-enviar{flex:none;width:42px;height:42px;border:0;border-radius:50%;cursor:pointer;display:grid;place-items:center;font:700 18px var(--f-texto,inherit)}
+.esc-enviar{background:#ff7a1a;color:#fff}
+.esc-mic{background:#f2ecf7}
+.esc-mic span{width:12px;height:18px;border-radius:7px;background:#5b4a8a;position:relative}
+.esc-mic span::after{content:"";position:absolute;left:-5px;right:-5px;bottom:-6px;height:9px;border:2.5px solid #5b4a8a;border-top:0;border-radius:0 0 12px 12px}
+.esc-comando.gravando .esc-mic{background:#ff4f5e;animation:pulsoMic 1s ease-in-out infinite}
+.esc-comando.gravando .esc-mic span{background:#fff}.esc-comando.gravando .esc-mic span::after{border-color:#fff}
+@keyframes pulsoMic{50%{box-shadow:0 0 0 10px rgba(255,79,94,.25)}}
+.esc-fala{position:absolute;z-index:2150;left:50%;bottom:84px;transform:translateX(-50%);max-width:min(620px,calc(100% - 28px));display:flex;flex-direction:column;gap:3px;padding:12px 16px;border-radius:18px;background:#fff;color:#2b2433;box-shadow:0 12px 34px rgba(30,15,50,.35);font-size:14px;line-height:1.45;animation:surgir .25s ease-out}
+.esc-fala::after{content:"";position:absolute;left:50%;bottom:-9px;width:18px;height:18px;background:#fff;transform:translateX(-50%) rotate(45deg);border-radius:3px}
+.esc-fala b{color:#ff7a1a;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.esc-fala a{color:#5b4a8a;font-weight:700;font-size:13px}
+.esc-fala.pensando span::after{content:"";display:inline-block;width:18px;animation:reticencias 1.2s steps(4) infinite}
+@keyframes reticencias{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+@media (max-width:700px){.esc-comando{bottom:14px}.esc-fala{bottom:74px}}
+.esc-festa{position:absolute;left:50%;top:38%;z-index:2100;transform:translate(-50%,-50%);padding:12px 22px;border-radius:999px;background:rgba(18,16,28,.85);border:1px solid rgba(95,224,160,.5);color:#7ff0b4;font:700 20px var(--f-titulo,inherit);box-shadow:0 0 40px rgba(95,224,160,.35);animation:festaSobe 3.4s ease-out forwards;pointer-events:none}
+@keyframes festaSobe{0%{opacity:0;transform:translate(-50%,-30%) scale(.9)}12%{opacity:1;transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-90%)}}
+.esc-ap{position:absolute;left:0;right:0;top:0;z-index:2100;display:flex;justify-content:space-between;align-items:center;padding:20px 24px;background:linear-gradient(rgba(16,14,26,.75),rgba(16,14,26,0));pointer-events:none}
+.esc-ap a{pointer-events:auto;background:rgba(22,19,34,.72);border-color:rgba(255,190,140,.28);color:#fff}
+.esc-ap kbd{margin-left:6px;padding:1px 6px;border-radius:5px;background:rgba(255,255,255,.12);font:600 11px var(--f-mono,monospace)}
+.esc-ap-nome{display:flex;align-items:center;gap:12px;color:#fff}
+.esc-ap-nome div{display:flex;flex-direction:column}
+.esc-ap-nome small{color:#ffb27a;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.esc-ap-nome b{font:700 24px var(--f-titulo,inherit)}
+@media (max-width:700px){
+  .esc-simbolo{width:42px;height:42px;padding:7px;border-radius:11px}
+  .esc-time{left:10px;right:10px;top:auto;bottom:74px;transform:none;flex-direction:row;gap:4px;overflow-x:auto;scrollbar-width:none}
+  .esc-ag{width:auto;padding:5px 8px;grid-template-columns:auto auto}
+  .esc-ag .est{display:none}
+  .esc-cartao{right:10px;left:10px;width:auto;top:auto;bottom:10px;max-height:62%}
+  .esc-empresa span{display:none}
+  .esc-empresa select{max-width:150px}
+}
 /* Plaquinha de cada empresa, presa na ilha */
 .pq{position:absolute;left:0;top:0;display:flex;flex-direction:column;gap:0;min-width:200px;max-width:280px;padding:8px;border-radius:14px;background:rgba(10,21,40,.78);border:1px solid rgba(160,190,240,.22);border-top:2px solid var(--saude);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#eef2f8;text-decoration:none;box-shadow:0 12px 32px rgba(0,0,0,.4),0 0 24px -6px var(--saude);pointer-events:auto;transform-origin:50% 100%;will-change:transform;transition:background .2s,border-color .2s}
 .pq::after{content:"";position:absolute;left:50%;bottom:-16px;width:1px;height:16px;background:linear-gradient(var(--saude),transparent)}
@@ -829,6 +913,10 @@ ol.r-lista li::before{content:counter(passo);position:absolute;left:10px;top:8px
 }
 /* ===== Modo apresentação (tela cheia, só a ilha do cliente) ===== */
 body.apresentando{overflow:hidden}
+/* apresentação: nada do painel aparece (nem a lista de empresas da barra lateral), e a tela ocupa tudo */
+body.apresentando .lado,body.apresentando .lado-fundo,body.apresentando .barra-movel{display:none!important}
+body.apresentando .miolo{transform:none!important;animation:none!important}
+body.apresentando .esc-comando,body.apresentando .esc-fala,body.apresentando .esc-cartao,body.apresentando .esc-dica{display:none!important}
 .campo3d.apresentando{position:fixed;inset:0;z-index:5000;height:100dvh;border-radius:0;border:0;box-shadow:none}
 .ap-camada{position:absolute;inset:0;z-index:2100;pointer-events:none;display:none}
 .ap-camada.ligada{display:block}

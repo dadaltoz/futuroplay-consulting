@@ -1,4 +1,5 @@
-"""Teste: modo apresentação, cano do setor, comemoração no campo e RF Intelligence por voz."""
+"""Teste: cano do setor, aviso de comemoração para o escritório e RF Intelligence por voz.
+(O escritório 3D e o modo apresentação são testados em teste_escritorio.py.)"""
 import base64, json, pathlib, sys, glob
 from playwright.sync_api import sync_playwright
 BASE = pathlib.Path(__file__).parent; HTML = pathlib.Path(sys.argv[1])
@@ -24,7 +25,7 @@ Object.defineProperty(window, 'speechSynthesis', { value: falaFalsa, configurabl
 """
 erros = []
 with sync_playwright() as p:
-    nav = p.chromium.launch(args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
+    nav = p.chromium.launch(executable_path='/opt/pw-browsers/chromium' if pathlib.Path('/opt/pw-browsers/chromium').exists() else None, args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
     ctx = nav.new_context(viewport={'width': 1440, 'height': 900})
     ctx.add_init_script(falso); ctx.add_init_script(voz)
     ctx.route('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js', lambda r: r.fulfill(path=str(BASE / 'node_modules/three/build/three.min.js'), content_type='application/javascript'))
@@ -36,26 +37,10 @@ with sync_playwright() as p:
     # 1) Cano do setor
     pg.goto(U + '#sg-ex-logistica'); pg.wait_for_timeout(2500); pg.screenshot(timeout=120000, path=str(OUT / '01-cano.png'), clip={'x': 268, 'y': 0, 'width': 1172, 'height': 760})
     print('cano:', pg.evaluate("document.querySelector('.cano') && document.querySelector('.cano').dataset.gargalos"), '| bolinhas:', pg.evaluate("[...CANO.estado.values()][0].bolinhas.length"))
-    # Resolve um gargalo: o cano desentope e o campo fica avisado da comemoração
+    # Resolve um gargalo: o cano desentope e o escritório fica avisado da comemoração
     pg.evaluate("ACOES.etapa('gmvtw8vbjp1nr', { dataset: { situacao: 'Resolvido' } })"); pg.wait_for_timeout(700)
     pg.screenshot(timeout=120000, path=str(OUT / '02-cano-desentope.png'), clip={'x': 268, 'y': 0, 'width': 1172, 'height': 760})
     print('festa pendente:', pg.evaluate('CAMPO.festa'))
-    # 2) Comemoração no Início
-    pg.evaluate("location.hash = 'inicio'"); pg.wait_for_timeout(2600); pg.screenshot(timeout=120000, path=str(OUT / '03-festa.png'))
-    pg.wait_for_timeout(1200); pg.screenshot(timeout=120000, path=str(OUT / '04-festa2.png'))
-    print('ilhas:', pg.evaluate('[...CAMPO.ilhas.keys()]'), '| 3D:', pg.evaluate('campoDisponivel()'), '| andares:', pg.evaluate("(CAMPO.ilhas.get('exemplo') && CAMPO.ilhas.get('exemplo').setores.get('ex-logistica').andares.length)"))
-    pg.wait_for_timeout(5000)
-    # 3) Modo apresentação
-    pg.evaluate("location.hash = 'ap-exemplo'"); pg.wait_for_timeout(3200)
-    print('apresentação:', pg.evaluate("CAMPO.ap && [CAMPO.ap.id, CAMPO.ap.passos.map(p => p.tipo + (p.setorId ? ':' + p.setorId : ''))]"))
-    print('outra ilha escondida:', pg.evaluate("CAMPO.ilhas.get('outra').grupo.visible === false"), '| plaquinha escondida:', pg.evaluate("CAMPO.ilhas.get('outra').plaquinha.style.display"), '| body:', pg.evaluate("document.body.className"))
-    pg.screenshot(timeout=120000, path=str(OUT / '10-ap-abertura.png'))
-    pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(3000); pg.screenshot(timeout=120000, path=str(OUT / '11-ap-empresa.png'))
-    pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(3000); pg.screenshot(timeout=120000, path=str(OUT / '12-ap-setor.png'))
-    print('setor da vez:', pg.evaluate("CAMPO.ap.passos[CAMPO.ap.i].setorId"), '| feixe:', pg.evaluate('CAMPO.feixe.visible'))
-    pg.evaluate("irParaPasso(CAMPO.ap.passos.length - 1)"); pg.wait_for_timeout(3600); pg.screenshot(timeout=120000, path=str(OUT / '13-ap-final.png'))
-    pg.keyboard.press('Escape'); pg.wait_for_timeout(800)
-    print('depois do Esc:', pg.evaluate('location.hash'), '| ap:', pg.evaluate('CAMPO.ap'), '| body:', pg.evaluate("document.body.className"))
     # 4) RF Intelligence por voz
     pg.evaluate("location.hash = 'ia-s-ex-logistica'"); pg.wait_for_timeout(800)
     pg.click('[data-acao="iaVoz"]'); pg.wait_for_timeout(700); pg.screenshot(timeout=120000, path=str(OUT / '20-voz-ouvindo.png'), clip={'x': 268, 'y': 300, 'width': 1172, 'height': 600})
@@ -68,7 +53,6 @@ with sync_playwright() as p:
     pm.route('https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js', lambda r: r.fulfill(path=str(BASE / 'node_modules/three/build/three.min.js'), content_type='application/javascript'))
     pm.route('https://cdn.jsdelivr.net/npm/jspdf**', lambda r: r.abort()); pm.route('https://cdn.jsdelivr.net/npm/pptx**', lambda r: r.abort()); pm.route('https://fonts.googleapis.com/**', lambda r: r.abort())
     qm = pm.new_page(); qm.goto(U + '#sg-ex-logistica'); qm.wait_for_timeout(2000); qm.screenshot(timeout=120000, path=str(OUT / '30-cel-cano.png'))
-    qm.goto(U + '#ap-exemplo'); qm.wait_for_timeout(4000); qm.keyboard.press('ArrowRight'); qm.keyboard.press('ArrowRight'); qm.wait_for_timeout(3500); qm.screenshot(timeout=120000, path=str(OUT / '31-cel-ap.png'))
     print('cel largura:', qm.evaluate('document.documentElement.scrollWidth'))
     nav.close()
 print('ERROS:', *erros[:20], sep='\n  ') if erros else print('sem erros')

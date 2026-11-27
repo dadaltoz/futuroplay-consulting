@@ -290,7 +290,6 @@ async function mudarSituacao(id, nova, opcoes) {
 /* ---------- 6. Navegação ---------- */
 function rotaAtual() {
   const h = decodeURIComponent((location.hash || '').slice(1));
-  if (h === 'passeio' || h === 'passeio-empresas') return { v: 'passeio', privado: h === 'passeio' };   // passeio pela cidade (só a Real Forte, ou com as empresas)
   if (h.startsWith('ap-')) return { v: 'apresentar', id: h.slice(3) };
   if (h.startsWith('ck-')) return { v: 'checkup', id: h.slice(3) };
   if (h.startsWith('q-')) return { v: 'questionario', id: h.slice(2) };
@@ -332,7 +331,7 @@ window.addEventListener('hashchange', () => {
 /* Transição entre telas
    - trocar de aba na mesma empresa ou no mesmo setor: a tela desliza de leve;
    - ir para outra tela (pelo menu, por um botão ou pelo comando de voz): a tela some com desfoque e a nova sobe;
-   - entrar numa empresa pela ilha do campo: a página da empresa abre num círculo que nasce da ilha.
+   - entrar num setor pela sala do escritório: a página abre num círculo que nasce do clique.
    Usa as transições do próprio navegador; onde não houver, a tela nova só aparece suave. */
 const familiaDaRota = (r) => r.v === 'setor' ? 's:' + r.id : ['empresa', 'checkup', 'questionario'].includes(r.v) ? 'e:' + r.id : r.v === 'ia' ? 'ia' : r.v;
 function trocarDeTela(r, fazer) {
@@ -341,7 +340,7 @@ function trocarDeTela(r, fazer) {
   const origem = UI.origemTransicao && performance.now() - UI.origemTransicao.t < 2500 ? UI.origemTransicao : null; UI.origemTransicao = null;
   const tipo = origem ? 'circulo' : familiaDaRota(antes) === familiaDaRota(r) ? 'aba' : 'pagina';
   const raiz = document.documentElement;
-  if (reduzido || ['apresentar', 'passeio'].includes(r.v) || ['apresentar', 'passeio'].includes(antes.v)) { fazer(); return; }
+  if (reduzido || r.v === 'apresentar' || antes.v === 'apresentar') { fazer(); return; }
   if (!document.startViewTransition) { fazer(); const m = $('#principal .miolo'); if (m) { m.classList.add('entra-' + tipo); } return; }
   if (origem) { raiz.style.setProperty('--vt-x', origem.x + 'px'); raiz.style.setProperty('--vt-y', origem.y + 'px'); }
   raiz.classList.add('vt-' + tipo);
@@ -379,7 +378,7 @@ function render(forcar) {
   const rota = rotaAtual();
   contextoDaRota(rota);
   document.body.classList.toggle('so-leitura', !S.podeEditar);
-  document.body.classList.toggle('apresentando', (rota.v === 'apresentar' || rota.v === 'passeio') && S.carregado && campoDisponivel());
+  document.body.classList.toggle('apresentando', rota.v === 'apresentar' && S.carregado && campoDisponivel());
   renderLado(rota);
   if (!forcar && S.carregado && (UI.ocupado || digitando())) { UI.pendente = true; return; }
   UI.pendente = false;
@@ -391,7 +390,6 @@ function render(forcar) {
   else if (rota.v === 'setor') html = telaSetor(rota.id, rota.aba);
   else if (rota.v === 'ia') html = telaIA(rota);
   else if (rota.v === 'apresentar') html = telaApresentacao(rota.id);
-  else if (rota.v === 'passeio') html = telaPasseio(rota.privado);
   else if (rota.v === 'biblioteca') html = telaBiblioteca();
   else if (rota.v === 'sinais') html = telaSinais();
   else if (rota.v === 'feedback') html = telaFeedback();
@@ -403,7 +401,7 @@ function render(forcar) {
   if (lugarCampo) montarCampo(lugarCampo); else pararCampo();
   const lugarGalaxia = document.getElementById('galaxia-lugar');
   if (lugarGalaxia) { const todos = itensBiblioteca(); montarGalaxia(lugarGalaxia, todos, listaDaBiblioteca(todos)); } else pararGalaxia();
-  if (CMD.botao) CMD.botao.hidden = rota.v === 'apresentar' || rota.v === 'passeio';
+  if (CMD.botao) CMD.botao.hidden = rota.v === 'apresentar' || (rota.v === 'inicio' && !!document.getElementById('campo-lugar'));   // no Início com o escritório, a barra do Atlas substitui o botão de comando
   iniciarCanos();
   if (S.carregado && UI.animar) { UI.animar = false; animarNumeros(); }
   if (UI.festa) { const f = UI.festa; UI.festa = null; soltarFesta(f.id, f.texto); }
@@ -709,36 +707,39 @@ function telaInicio() {
   return cab + hero + `<section class="bloco"><div class="bloco-cab"><h2>Empresas <span class="conta">${ativas.length}</span></h2></div>
     <div class="grade-empresas">${ativas.map(cartaoEmpresa).join('')}<button class="nova-empresa so-editor" data-acao="novaEmpresa">${icone('mais')}Nova empresa</button></div></section>`;
 }
-// Início com o campo 3D: o desenho entra no lugar marcado (ver montarCampo); aqui vai só o que fica por cima
+// Empresa que aparece no escritório: a escolhida no Início (guardada só neste navegador) ou a primeira
+function empresaDoEscritorio(ativas) {
+  let id = UI.escritorioEmpresa;
+  if (!id) { try { id = localStorage.getItem('rf-escritorio-empresa') || ''; } catch (x) { id = ''; } }
+  return ativas.find((e) => e.id === id) || ativas[0] || null;
+}
+// Início com o escritório 3D (Realfort Squad): o desenho entra no lugar marcado (ver montarCampo); aqui vai só o que fica por cima
 function telaCampo(ativas, hoje, nome, horas, resolvidos) {
-  const legenda = [['saudavel', 'Saudável'], ['atencao', 'Atenção'], ['critico', 'Crítico'], ['andamento', 'Em diagnóstico'], ['sem', 'Sem diagnóstico']]
-    .map(([k, t]) => `<span><i style="background:${COR_SAUDE_CSS[k]}"></i>${t}</span>`).join('');
-  return `<section class="campo3d" id="campo-lugar" aria-label="Campo das empresas">
+  const e = empresaDoEscritorio(ativas);
+  const escolha = ativas.length > 1 ? `<label class="esc-empresa"><span>Empresa no escritório</span><select data-escolher-empresa aria-label="Empresa no escritório">${ativas.map((x) => `<option value="${esc(x.id)}" ${e && x.id === e.id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select></label>` : '';
+  const time = AGENTES.map((a) => `<button type="button" class="esc-ag" data-acao="verAgente" data-id="${a.id}" data-agente="${a.id}" style="--cor:${a.css}" title="${esc(a.nome + ' · ' + a.papel)}"><i></i><b>${esc(a.nome)}</b><span class="est">Disponível</span></button>`).join('');
+  return `<section class="campo3d escritorio" id="campo-lugar" data-empresa="${e ? esc(e.id) : ''}" aria-label="Realfort Squad: o escritório dos agentes de IA">
     <div class="campo-hud">
       <div class="ch-topo">
-        <div class="ch-titulo"><p class="olho">${esc(hoje.charAt(0).toUpperCase() + hoje.slice(1))}</p><h1>${saudacao()}${nome ? ', ' + esc(nome) : ''}</h1>
-          <p class="sub">${ativas.length ? `${plural(ativas.length, 'empresa', 'empresas')} em diagnóstico` : 'Cadastre a primeira empresa para ela aparecer no campo'}</p></div>
-        <div class="ch-acoes">${horas ? `<span class="ch-chip" title="${esc(`${fmtHoras(horas * 12)} horas por ano, em ${plural(resolvidos, 'melhoria entregue', 'melhorias entregues')}`)}"><b data-contar="${horas}">${fmtHoras(horas)}</b> h/mês devolvidas</span>` : ''}<details class="ch-apresentar"><summary class="btn">${icone('slides')}Apresentar</summary><div class="ch-lista"><span class="ch-lista-tit">Passeio pela cidade</span><a href="#passeio">Só a Real Forte <small>para visitante ou cliente</small></a>${ativas.length ? `<a href="#passeio-empresas">Com as empresas <small>para a equipe</small></a><span class="ch-lista-tit">Tour em tela cheia de uma empresa</span>${ativas.map((x) => `<a href="#ap-${esc(x.id)}">${esc(x.nome)}</a>`).join('')}` : ''}</div></details><button class="btn primario so-editor" data-acao="novaEmpresa">${icone('mais')}Nova empresa</button></div>
+        <div class="ch-titulo esc-marca"><img class="esc-simbolo" src="${SIMBOLO_RF}" alt="">
+          <div><p class="olho">${esc(hoje.charAt(0).toUpperCase() + hoje.slice(1))} · ${saudacao()}${nome ? ', ' + esc(nome) : ''}</p><h1>Realfort Squad</h1>
+          <p class="sub">${e ? `Escritório da ${esc(e.nome)}: uma sala por setor` : 'Cadastre a primeira empresa para montar as salas dela'}</p></div></div>
+        <div class="ch-acoes">${horas ? `<span class="ch-chip" title="${esc(`${fmtHoras(horas * 12)} horas por ano, em ${plural(resolvidos, 'melhoria entregue', 'melhorias entregues')}`)}"><b data-contar="${horas}">${fmtHoras(horas)}</b> h/mês devolvidas</span>` : ''}${escolha}${e ? `<a class="btn esc-btn" href="#ap-${esc(e.id)}" title="Escritório em tela cheia, só com esta empresa">${icone('slides')}Apresentar</a>` : ''}<button class="btn primario so-editor" data-acao="novaEmpresa">${icone('mais')}Nova empresa</button></div>
       </div>
-      ${ativas.length ? '' : `<div class="ch-vazio"><h3>O campo começa com a primeira empresa</h3><p>Cada empresa vira uma ilha com a cena do segmento dela, a logo e um prédio por setor.</p><button class="btn primario so-editor" data-acao="novaEmpresa">${icone('mais')}Cadastrar a primeira empresa</button></div>`}
+      ${ativas.length ? '' : `<div class="ch-vazio"><h3>As salas nascem com a primeira empresa</h3><p>Cada setor cadastrado vira uma sala no mezanino, com os números de verdade do setor na tela do fundo.</p><button class="btn primario so-editor" data-acao="novaEmpresa">${icone('mais')}Cadastrar a primeira empresa</button></div>`}
       <div class="ch-rodape">
-        <div class="ch-legenda" aria-label="Legenda"><span class="ch-leg-tit">Topo do prédio = saúde do setor · altura = nota · andar verde = melhoria entregue</span>${legenda}<span><i class="losango" style="background:${COR_SAUDE_CSS.critico}"></i>Gargalo aberto</span><span><i class="losango" style="background:#38bdf8"></i>Oportunidade</span></div>
-        <div class="ch-dica"><span class="so-mouse">Arraste para mover · botão direito gira · role para aproximar · clique na empresa ou no centro</span><span class="so-toque">Arraste para mover · pinça aproxima e gira · toque duas vezes para abrir</span><button class="btn peq" id="ch-hora" data-acao="campoHora" title="Céu do campo: automático pelo relógio, ou dia, entardecer e noite">${icone('relogio')}<span>Automático</span></button><button class="btn peq" data-acao="campoRecentrar">${icone('grade')}Recentrar</button></div>
+        <div class="esc-time" aria-label="Time de IA: o que cada um está fazendo agora">${time}</div>
+        <div class="ch-dica" title="Arraste para girar · botão direito move · role para aproximar · clique numa sala ou num robô"><span class="so-mouse">Arraste para girar · role para aproximar</span><span class="so-toque">Um dedo gira · dois dedos aproximam</span><button class="btn peq" data-acao="campoRecentrar">${icone('grade')}Recentrar</button></div>
       </div>
     </div>
   </section>`;
 }
-// Passeio pela cidade em tela cheia (o passeio é feito pelo campo 3D)
-function telaPasseio(privado) {
-  if (!campoDisponivel()) return `<a class="voltar" href="#inicio">${icone('voltar')}Início</a><div class="aviso">${icone('alerta')}<div>O passeio pela cidade precisa de 3D, e este aparelho não tem. Abra o painel num computador.</div></div>`;
-  return `<section class="campo3d apresentando" id="campo-lugar" data-passeio="${privado ? 'real' : 'empresas'}" aria-label="Passeio pela cidade da Real Forte"></section>`;
-}
-// Modo apresentação: o campo em tela cheia só com a ilha da empresa (o tour é feito pelo campo 3D)
+// Modo apresentação: o escritório em tela cheia, só com as salas desta empresa (nenhuma outra aparece). Esc volta.
 function telaApresentacao(id) {
   const e = empresaPorId(id);
   if (!e) return naoAchou('Empresa não encontrada', '#inicio', 'Início');
   if (!campoDisponivel()) return `<a class="voltar" href="#e-${esc(id)}">${icone('voltar')}${esc(e.nome)}</a><div class="aviso">${icone('alerta')}<div>O modo apresentação precisa de 3D, e este aparelho não tem. Abra o painel num computador.</div></div>`;
-  return `<section class="campo3d apresentando" id="campo-lugar" data-apresentar="${esc(id)}" aria-label="Apresentação do diagnóstico de ${esc(e.nome)}"></section>`;
+  return `<section class="campo3d apresentando escritorio" id="campo-lugar" data-apresentar="${esc(id)}" aria-label="Apresentação do escritório de ${esc(e.nome)}"><div class="esc-ap"><div class="esc-ap-nome"><img class="esc-simbolo" src="${SIMBOLO_RF}" alt=""><div><small>Realfort Squad</small><b>${esc(e.nome)}</b></div></div><a class="btn" href="#e-${esc(id)}">Sair <kbd>Esc</kbd></a></div></section>`;
 }
 function cartaoEmpresa(e) {
   const garg = gargalosDa(e.id); const c = contagem(garg); const h = somaHoras(itensDa(e.id)); const ck = checkupDa(e.id);
@@ -1342,11 +1343,7 @@ function interpretarComando(bruto) {
     return { fala: x ? `O ponto mais fraco de ${sAqui.nome} é: ${x.texto}. Resposta: ${x.r === 'nao' ? 'não' : 'em parte'}.` : `${sAqui.nome} não tem critério reprovado no diagnóstico.`, fazer: () => irPara('s-' + sAqui.id) };
   }
   if (/^(fechar|cancelar|nada|deixa pra la)$/.test(t)) return { fala: '', fazer: () => {} };
-  if (/recentr|visao geral|ver todas|todas as empresas|ver tudo/.test(t)) return { fala: 'Visão geral do campo.', fazer: () => { irPara('inicio'); setTimeout(() => { if (typeof recentrarCampo === 'function' && CAMPO.iniciado) recentrarCampo(); }, 300); } };
-  if (/(deixa|muda|coloca|modo|fica|quero)\b.*\b(noite|dia|entardecer|por do sol|automatico)|^(noite|dia|entardecer|por do sol)$/.test(t)) {
-    const p = /noite/.test(t) ? 'noite' : /entardecer|por do sol/.test(t) ? 'entardecer' : /automatico/.test(t) ? '' : 'dia';
-    return { fala: p ? `Pronto, ${PERIODOS[p].nome.toLowerCase()} no campo.` : 'O céu volta a seguir o relógio.', fazer: () => { CAMPO.horaManual = p; irPara('inicio'); } };
-  }
+  if (/recentr|visao geral|ver todas|todas as empresas|ver tudo/.test(t)) return { fala: 'Visão geral do escritório.', fazer: () => { irPara('inicio'); setTimeout(() => { if (typeof recentrarCampo === 'function' && CAMPO.iniciado) recentrarCampo(); }, 300); } };
   if (/apresent/.test(t)) {
     if (!empresa) return { fala: 'Qual empresa você quer apresentar?', ficar: true, fazer: () => {} };
     return { fala: `Começando a apresentação da ${nomeCurto(empresa)}.`, fazer: () => irPara('ap-' + empresa.id) };
@@ -1378,7 +1375,7 @@ function interpretarComando(bruto) {
     return { fala: `Abrindo ${s.nome} da ${nomeCurto(emp)}.`, fazer: () => irPara(aba + s.id) };
   }
   if (e && !ehPergunta) {
-    if (/(mostr|onde|cade|ilha|ver a|ver o)/.test(t) && campoDisponivel()) return { fala: `Aqui está a ${nomeCurto(e)}.`, fazer: () => mostrarIlha(e.id) };
+    if (/(mostr|onde|cade|escritorio|salas|ver a|ver o)/.test(t) && campoDisponivel()) return { fala: `Aqui estão as salas da ${nomeCurto(e)}.`, fazer: () => mostrarIlha(e.id) };
     return { fala: `Abrindo a ${nomeCurto(e)}.`, fazer: () => irPara('e-' + e.id) };
   }
   // Pergunta: vai para a RF Intelligence, já com a empresa e o setor do contexto, e a resposta vem falada
@@ -1390,12 +1387,18 @@ function interpretarComando(bruto) {
     setTimeout(() => perguntarIA(bruto), 120);
   } };
 }
-// No Início, a câmera voa até a ilha e abre a plaquinha dela
+// No Início, o escritório passa a mostrar as salas desta empresa
 function mostrarIlha(id) {
   if (!campoDisponivel()) { irPara('e-' + id); return; }
-  const voar = () => { const il = CAMPO.ilhas && CAMPO.ilhas.get(id); if (!il) return; CAMPO.escolhida = id; animarCamera(Object.assign(visaoDaIlha(il), { raio: visaoDaIlha(il).raio * 1.9, phi: 0.92 }), 1400); };
-  if (rotaAtual().v !== 'inicio') { location.hash = 'inicio'; setTimeout(voar, 700); } else voar();
+  escolherEmpresaDoEscritorio(id);
+  if (rotaAtual().v !== 'inicio') location.hash = 'inicio'; else render(true);
 }
+function escolherEmpresaDoEscritorio(id) {
+  UI.escritorioEmpresa = id;
+  try { localStorage.setItem('rf-escritorio-empresa', id); } catch (x) { /* sem guardar: volta para a primeira no F5 */ }
+}
+// Troca a empresa do escritório pela lista do Início
+document.addEventListener('change', (ev) => { const s = ev.target.closest && ev.target.closest('[data-escolher-empresa]'); if (s) { escolherEmpresaDoEscritorio(s.value); render(true); } });
 // Fala curta do comando (não mexe no orbe da RF Intelligence)
 function dizer(texto) { if (texto) falarTexto(texto); }
 const CMD = { aberto: false, digitou: 0, vigia: null };
@@ -1407,7 +1410,7 @@ function exemplosDoComando() {
   if (['empresa', 'checkup', 'questionario'].includes(r.v)) { const st = e ? setoresDa(e.id) : []; return [`Qual a nota da ${nome}?`, st[0] ? `Setor ${st[0].nome}` : 'Quais setores estão críticos?', 'Quais setores estão críticos?', 'Apresentar essa empresa', `Me prepara para a reunião com a ${nome}`, 'Visão geral']; }
   if (r.v === 'ia') return ['Ver em números', 'Causas prováveis desse gargalo', 'Abrir a biblioteca', 'Voltar ao início'];
   if (r.v === 'biblioteca') return ['Procura conferência', 'Procura planilha', 'Voltar ao início', 'Quais setores estão críticos?'];
-  return [nome ? `Mostra a ${nome}` : 'Visão geral', 'Quais setores estão críticos?', nome ? `Apresentar a ${nome}` : 'Apresentar', 'Deixa de noite', 'Biblioteca', 'Me dá ideias para o pior gargalo'];
+  return [nome ? `Mostra a ${nome}` : 'Visão geral', 'Quais setores estão críticos?', nome ? `Apresentar a ${nome}` : 'Apresentar', 'Biblioteca', 'Me dá ideias para o pior gargalo'];
 }
 function criarComando() {
   const botao = document.createElement('button'); botao.className = 'cmd-botao'; botao.type = 'button'; botao.title = 'Comando de voz (Ctrl + K)'; botao.setAttribute('aria-label', 'Comando de voz');
@@ -1546,7 +1549,7 @@ function formEmpresa(e) {
       { id: 'segmento', rotulo: 'Segmento', valor: dados.segmento, exemplo: 'Ex.: distribuição de alimentos' },
       { id: 'cidade', rotulo: 'Cidade', valor: dados.cidade, exemplo: 'Ex.: Vitória/ES' },
       { id: 'contato', rotulo: 'Contato principal', valor: dados.contato, exemplo: 'Nome e telefone' },
-    ].concat([{ id: 'logo', tipo: 'logo', rotulo: 'Logo da empresa', valor: logoDe(dados), ajuda: 'Aparece estampada na ilha da empresa, no campo do Início. PNG com fundo transparente fica melhor.' }]).concat([
+    ].concat([{ id: 'logo', tipo: 'logo', rotulo: 'Logo da empresa', valor: logoDe(dados), ajuda: 'Aparece no telão da Sala de reunião, no escritório do Início, e no relatório. PNG com fundo transparente fica melhor.' }]).concat([
       { id: 'inicio', rotulo: 'Início do diagnóstico', tipo: 'data', valor: dados.inicio || (nova ? hojeISO() : '') },
       { id: 'observacoes', rotulo: 'Observações', tipo: 'area', valor: dados.observacoes, linhas: 3 }
     ]).concat(nova ? [] : [{ id: 'arquivada', rotulo: 'Situação da empresa', tipo: 'escolha', opcoes: [{ v: '', t: 'Ativa' }, { v: 'sim', t: 'Arquivada (sai da tela inicial)' }], valor: dados.arquivada || '', vazio: false, largo: true }]),
@@ -3631,7 +3634,7 @@ const ACOES = {
   verArquivadas: () => { UI.verArquivadas = !UI.verArquivadas; render(); },
   novaEmpresa: () => formEmpresa(null),
   campoRecentrar: () => recentrarCampo(),
-  campoHora: () => trocarHoraDoCampo(),
+  verAgente: (id) => { if (typeof abrirCartao === 'function' && CAMPO.iniciado) abrirCartao(id); },
   editarEmpresa: (id) => formEmpresa(empresaPorId(id)),
   apagarEmpresa: (id) => {
     const e = empresaPorId(id); if (!e) return;
@@ -3754,7 +3757,7 @@ const ACOES = {
   etapa: async (id, botao) => {
     const nova = botao.dataset.situacao;
     const resolveu = nova === 'Resolvido' && campoDisponivel();
-    const moveu = await mudarSituacao(id, nova, { mensagem: resolveu ? `${nomeEtapa(gargaloPorId(id) || {}, nova)}! A ilha da empresa vai comemorar no Início.` : `Etapa: ${nomeEtapa(gargaloPorId(id) || {}, nova)}.` });
+    const moveu = await mudarSituacao(id, nova, { mensagem: resolveu ? `${nomeEtapa(gargaloPorId(id) || {}, nova)}! O time de IA vai comemorar no Início.` : `Etapa: ${nomeEtapa(gargaloPorId(id) || {}, nova)}.` });
     if (moveu && resolveu) comemorarNoCampo(id);
     if (moveu) { render(true); if (nova === 'Resolvido') { const el = $('#h-antes'); if (el) el.focus(); } }
   },
